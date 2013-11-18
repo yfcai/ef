@@ -4,6 +4,16 @@ import scala.language.implicitConversions
 trait FreshNames {
   type Name = String
 
+  def getFreshName(default: Name, toAvoid: Set[Name]): Name = {
+    var result = default
+    var i = 0
+    while (toAvoid contains result) {
+      i += 1 ; if (i <= 0) sys error "We ran out of names"
+      result = default + i
+    }
+    result
+  }
+
   trait Named { def name: Name }
   trait Binding extends Named
   trait Bound   extends Named
@@ -62,7 +72,7 @@ trait Terms extends FreshNames with Types {
   }
 
   implicit class untypedAppOps[T <% Term](operator: T) {
-    def ε (operand: Term): Term =
+    def ₋ (operand: Term): Term =
       topLevel.ε(operator, operand)
   }
 
@@ -215,7 +225,7 @@ trait Holes extends TypedTerms with Reconstruction {
     def inTerm: HoleInTerm = HoleInTerm(increment)
   }
 
-  trait Hole
+  trait Hole { def index: Int }
 
   case class HoleInType(val index: Int) extends Hole with Type
   case class HoleInTerm(val index: Int) extends Hole with Term
@@ -233,6 +243,16 @@ trait Holes extends TypedTerms with Reconstruction {
       case holeID: Hole => holeInTerm(holeID)
       case _ => super.apply(t)
     }
+  }
+
+  trait TypeHoleReconstruction
+  extends TypeHoleVisitor[Type] with TypeReconstruction {
+    override def holeInType(holeID: Hole) = holeID.asInstanceOf[Type]
+  }
+
+  trait TermHoleReconstruction
+  extends TermHoleVisitor[Term] with TermReconstruction {
+    override def holeInTerm(holeID: Hole) = holeID.asInstanceOf[Term]
   }
 
   object SubstantiationViaHoles
@@ -255,7 +275,7 @@ trait Holes extends TypedTerms with Reconstruction {
   }
 }
 
-trait Renaming extends Reconstruction {
+trait Renaming extends Holes {
   topLevel =>
 
   implicit class UndefinePartialFunction[S, T]
@@ -274,7 +294,7 @@ trait Renaming extends Reconstruction {
   }
 
   class TypeRenaming(f: PartialFunction[Name, Type])
-  extends TypeReconstruction {
+  extends TypeHoleReconstruction {
     override def α(name: Name): Type =
       if (f.isDefinedAt(name)) f(name)
       else super.α(name)
@@ -286,7 +306,7 @@ trait Renaming extends Reconstruction {
   }
 
   class TermRenaming(f: PartialFunction[Name, Term])
-  extends TermReconstruction {
+  extends TermHoleReconstruction {
     override def χ(name: Name): Term =
       if (f.isDefinedAt(name)) f(name)
       else super.χ(name)
@@ -340,7 +360,7 @@ trait GlobalRenaming extends Renaming {
 }
 
 trait FreeNames extends TypedTerms {
-  object freeNames extends Visitor[Set[Name]] {
+  object getFreeNames extends Visitor[Set[Name]] {
     private[this] type T = Set[Name]
     override def ∀(name: Name, body: T) = body - name
     override def →(domain: T, range: T) = domain ++ range
@@ -356,6 +376,62 @@ trait FreeNames extends TypedTerms {
   }
 }
 
+trait Substitution extends GlobalRenaming with Holes with FreeNames {
+  def substituteInType(τ : Type, f : Map[Name, Type]): Type = {
+    // 1. Rename target variables to holes
+    val withDrills =
+      f map { case (name, newType) => (name, Hole.inType) }
+    val holesDrilled =
+      τ rename withDrills
+    // 2. Rename bound variables who capture free names
+    //    (those one has to rename are precisely those to avoid)
+    val freeNames =
+      (f map { kv => getFreeNames(kv._2) }).fold(Set.empty)(_ ++ _)
+    val withFresheners: Map[Name, Name] =
+      freeNames.map(
+        name => (name, getFreshName(name, freeNames))
+      )(collection.breakOut)
+    val freshened = holesDrilled renameAll withFresheners
+    // 3. Substantiate by filling holes
+    val forGreatJustice: Map[Hole, Type] =
+      f map { case (name, newType) => (withDrills(name), newType) }
+    freshened << forGreatJustice
+  }
+  def substituteInTerm(t : Term, f : Map[Name, Term]): Term = {
+    // 1. Rename target variables to holes
+    val withDrills =
+      f map { case (name, newTerm) => (name, Hole.inTerm) }
+    val holesDrilled =
+      t rename withDrills
+    // 2. Rename bound variables who capture free names
+    //    (those one has to rename are precisely those to avoid)
+    val freeNames =
+      (f map { kv => getFreeNames(kv._2) }).fold(Set.empty)(_ ++ _)
+    val withFresheners: Map[Name, Name] =
+      freeNames.map(
+        name => (name, getFreshName(name, freeNames))
+      )(collection.breakOut)
+    val freshened = holesDrilled renameAll withFresheners
+    // 3. Substantiate by filling holes
+    val forGreatJustice: Map[Hole, Term] =
+      f map { case (name, newTerm) => (withDrills(name), newTerm) }
+    freshened << forGreatJustice
+  }
+
+  implicit class typeSubstitutionOps(τ : Type) {
+    def substitute[T <% Type](scheme: (Name, T)*): Type =
+      substitute(Map(scheme map {kv => (kv._1, kv._2: Type)}: _*))
+    def substitute(scheme: Map[Name, Type]): Type =
+      substituteInType(τ, scheme)
+  }
+  implicit class termSubstitutionOps(t : Term) {
+    def substitute[T <% Term](scheme: (Name, T)*): Term =
+      substitute(Map(scheme map {kv => (kv._1, kv._2: Term)}: _*))
+    def substitute(scheme: Map[Name, Term]): Term =
+      substituteInTerm(t, scheme)
+  }
+}
+
 /*
 trait Unification extends TypedTerms with UntypedTerms {
   case class Unify(lhs: Type, rhs: Type) {
@@ -364,8 +440,8 @@ trait Unification extends TypedTerms with UntypedTerms {
 
   // Run into expression problem in the language of types.
   // TODO take other type constructors into consideration
-  // in `freeTypeVars` and `tsub`... or just use `Product`
-  // and `isInstanceOf`.
+  // in ₋freeTypeVars₋ and ₋tsub₋... or just use ₋Product₋
+  // and ₋isInstanceOf₋.
 
   def freeTypeVars(tau: Type): Set[TypeVar] = tau match {
     case x @ TypeVar(_) =>
@@ -518,7 +594,7 @@ trait MinimallyQuantifiedTypes extends QuantifiedTypes {
   //
   // If Meh is the result type, then it's equivalent to (∀τ. τ).
   //
-  // Without Meh, `const` is not typeable with a minimally
+  // Without Meh, ₋const₋ is not typeable with a minimally
   // quantified type.
   case object Meh extends Type
 }
@@ -530,16 +606,20 @@ trait WeirdCalculus extends UntypedTerms with MinimallyQuantifiedTypes {
 
 object TestEverything
 //extends WeirdCalculus with Unification {
-extends Pretty with Holes with GlobalRenaming {
+extends Pretty with Substitution {
   def main(args: Array[String]) {
     val hole1 = Hole.inTerm
     val hole2 = Hole.inType
-    val s = λ("x", "y") { Σ ε hole1 ε "z" }
-    val t = (s << Map(hole1 -> (Σ ε "x" ε "y"))) rename
-      Map("y" -> "a", "z" -> "b")
-    val σ = "r" →: ∀("r", "r" →: "r") →: hole2 →: "r"
-    val τ = (σ << Map(hole2 -> ℤ)) renameAll Map("r" -> "α")
-    println(pretty(t renameAll Map("x" -> "k", "b" -> "c")))
+    val s = λ("x", "y") { Σ ₋ hole1 ₋ "z" }
+    val σ = "r" →: ∀("r", "a" →: "r") →: hole2 →: "r"
+    val t = (s << Map(hole1 -> (Σ ₋ "x" ₋ "y"))) rename
+      Map("y" -> "a", "z" -> "b") renameAll
+      Map("x" -> "k", "b" -> "c") substitute
+      ("y" -> χ("x"), "c" -> "k" ₋ "k1")
+    val τ = (σ << Map(hole2 -> ℤ)) renameAll
+      Map("r" -> "α") substitute
+      ("α" -> "β", "a" -> "α")
+    println(pretty(t))
     println(pretty(τ))
     //val term = inferSimpleType(untypedTerm)
     //println(s"Unification works!")
