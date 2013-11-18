@@ -1,19 +1,5 @@
 import scala.language.implicitConversions
 
-trait SimpleTypes { topLevel =>
-  trait Type
-
-  case class →:(domain: Type, range: Type) extends Type {
-    override def toString = domain match {
-      case _ →: _ => s"($domain) → $range"
-      case _      => s"$domain → $range"
-    }
-  }
-  implicit class FunctionTypeOps(range: Type) {
-    def →:(domain: Type): Type = topLevel.→:(domain, range)
-  }
-}
-
 trait FreshNames {
   type Name = String
 
@@ -26,116 +12,162 @@ trait FreshNames {
   }
 }
 
-trait TypedTerms extends SimpleTypes with FreshNames {
-  trait Term {
-    def getType: Type
+trait Types extends FreshNames {
+  topLevel =>
 
-    // DO NOT forces early failure!
-    // unification can create ill-typed intermediate terms!
-    // assert(getType != null)
+  trait Type
+
+  implicit class FunctionTypeOps[T <% Type](range: T) {
+    def →:(domain: Type): Type = topLevel.→(domain, range)
   }
-
-  case class Var(name: Name, getType: Type) extends Term
-
-  case class Abs(parameter: Var, body: Term) extends Term {
-    def getType: Type = parameter.getType →: body.getType
-  }
-
-  case class App(operator: Term, operand: Term) extends Term {
-    def getType: Type = operator.getType match {
-      case domain →: range if domain == operand.getType =>
-        range
-    }
-  }
-
-  case object ℤ extends Type
-
-  case class ℤ(value: Int) extends Term {
-    def getType: Type = ℤ
-  }
-
-  case object Plus extends Term {
-    def getType: Type = ℤ →: ℤ →: ℤ
-  }
-}
-
-// types with type variables and foralls
-trait QuantifiedTypes extends SimpleTypes with FreshNames {
-  case class TypeVar(name: Name) extends Type {
-    override def toString = name.toString
-  }
-
-  case class ∀(boundTypeVar: TypeVar, body: Type) extends Type
 
   object ∀ {
     def apply(names: Name*)(body: => Type): ∀ =
       if (names.size <= 1)
-        ∀(TypeVar(names.head), body)
+        ∀(names.head, body)
       else
-        ∀(TypeVar(names.head), ∀(names.tail: _*)(body))
+        ∀(names.head, ∀(names.tail: _*)(body))
+  }
+
+  implicit def nameToTypeVariable(s: Name): Type = α(s)
+
+  case class ∀(name: Name, body: Type) extends Type
+  case class →(domain: Type, range: Type) extends Type
+  case class α(name: Name) extends Type
+  case object ℤ extends Type
+
+  trait TypeVisitor[T] {
+    def ∀(name: Name, body: T): T
+    def →(domain: T, range: T): T
+    def α(name: Name): T
+    def ℤ : T
+
+    def apply(τ : Type): T = τ match {
+      case topLevel.∀(name, body)    => ∀(name, apply(body))
+      case topLevel.→(domain, range) => →(apply(domain), apply(range))
+      case topLevel.α(name)          => α(name)
+      case topLevel.ℤ                => ℤ
+    }
   }
 }
 
-trait UntypedTerms extends TypedTerms with QuantifiedTypes {
+trait Terms extends FreshNames with Types {
   topLevel =>
 
-  sealed trait UntypedTerm
-
-  case class ForgetfulTerm(toTerm: Term) extends UntypedTerm {
-    override def toString: String = toTerm.toString
-  }
-  implicit def termToUntypedTerm(t0: Term): UntypedTerm =
-    ForgetfulTerm(t0)
-
-  case class UntypedVar(name: Name) extends UntypedTerm {
-    override def toString: String = name.toString
-  }
-  implicit def nameToUntypedVar(name: Name): UntypedTerm =
-    UntypedVar(name)
-
-  // for a pretty-ish print-out
-  // I feel bad for not print according to operator precedence
-  def unparenthesize(x: Any): String = {
-    val s = x.toString
-    if ((s startsWith "(") && (s endsWith ")"))
-      s.substring(1, s.length - 1)
-    else
-      sys error s"Unparenthesizing something that ain't parenthesized: $s"
-  }
-
-  case class λ(parameter: Name, body: UntypedTerm) extends UntypedTerm {
-    override def toString: String = body match {
-      case λ(_, _) | _ ! _ =>
-        val bd = body.toString
-        s"(λ$parameter. ${unparenthesize(body)})"
-
-      case _ =>
-        s"(λ$parameter. $body)"
-    }
-  }
+  trait Term
 
   object λ {
-    def apply(args: Name*)(body: => UntypedTerm): λ =
+    def apply(args: Name*)(body: => Term): λ =
       if(args.size <= 1)
         λ(args.head, body)
       else
         λ(args.head, apply(args.tail: _*)(body))
   }
 
-  case class !(operator: UntypedTerm, operand: UntypedTerm)
-  extends UntypedTerm {
-    override def toString: String = operator match {
-      case _ ! _ =>
-        s"(${unparenthesize(operator)} $operand)"
+  implicit class untypedAppOps[T <% Term](operator: T) {
+    def ε (operand: Term): Term =
+      topLevel.ε(operator, operand)
+  }
 
-      case _ =>
-        s"($operator $operand)"
+  implicit def nameToVariable(s: Name): Term = χ(s)
+
+  case class χ(name: Name) extends Term
+  case class λ(parameter: Name, body: Term) extends Term
+  case class ε(operator: Term, operand: Term) extends Term
+
+  case object Σ extends Term
+  case class  ϕ(value: Int) extends Term // ϕυσικός αριθμός
+
+  trait Visitor[T] {
+    def χ(name: Name): T
+    def λ(name: Name, body: T): T
+    def ε(operator: T, operand: T): T
+
+    def ϕ(value: Int): T
+    def Σ : T
+
+    def apply(t: Term): T = t match {
+      case topLevel.χ(name)       => χ(name)
+      case topLevel.λ(name, body) => λ(name, apply(body))
+      case topLevel.ε(fun, arg)   => ε(apply(fun), apply(arg))
+
+      case topLevel.ϕ(value)      => ϕ(value)
+      case topLevel.Σ             => Σ
     }
   }
-  implicit class polymorphicAppOps[T <% UntypedTerm](operator: T) {
-    def ! (operand: UntypedTerm): UntypedTerm =
-      topLevel.!(operator, operand)
+}
+
+trait Pretty extends Terms with Types {
+  trait PrettyVisitor
+  extends Visitor[(String, Int)]
+     with TypeVisitor[(String, Int)]
+  {
+    private type Domain = (String, Int)
+
+    override def ∀(name: Name, body: Domain) = body match {
+      case (body, pBody) =>
+        ("∀%s. %s".format(
+          name.toString,
+          paren(pBody, priority_∀ + 1, body)
+        ), priority_∀)
+    }
+
+    override def →(σ : Domain, τ : Domain) = (σ , τ) match {
+      case ((σ, priority_σ), (τ, priority_τ)) =>
+        ("%s → %s".format(
+          paren(priority_σ, priority_→,     σ),
+          paren(priority_τ, priority_→ + 1, τ)
+        ), priority_→)
+    }
+
+    override def α(name: Name) = (name.toString, priority_↓)
+    override def ℤ = ("ℤ", priority_↓)
+
+    def χ(name: Name): Domain = (name.toString, priority_↓)
+
+    override def λ(name: Name, body: Domain): Domain = body match {
+      case (body, pBody) =>
+        ("λ%s. %s".format(
+          name.toString,
+          paren(pBody, priority_λ + 1, body)
+        ), priority_λ)
+    }
+
+    override def ε(f: Domain, x: Domain) = (f, x) match {
+      case ((f, pf), (x, px)) =>
+        ("%s %s".format(
+          paren(pf, priority_ε + 1, f),
+          paren(px, priority_ε,     x)
+        ), priority_ε)
+    }
+
+    override def ϕ(value: Int) = (value.toString, priority_↓)
+    override def Σ = ("Σ", priority_↓)
+
+    val priority_↑ = 3 // outermost priority
+    val priority_λ = 2
+    val priority_∀ = 2
+    val priority_ε = 1
+    val priority_→ = 1
+    val priority_↓ = 0
+
+    def paren(innerPriority: Int, outerPriority: Int, text: String):
+        String =
+      if (innerPriority < outerPriority)
+        text
+      else
+        "(%s)" format text
   }
+
+  object PrettyVisitor extends PrettyVisitor
+
+  def pretty(t : Term): String = PrettyVisitor(t)._1
+  def pretty(τ : Type): String = PrettyVisitor(τ)._1
+}
+
+/*
+// types with type variables and foralls
+trait QuantifiedTypes extends TypeVars {
 }
 
 trait Unification extends TypedTerms with UntypedTerms {
@@ -307,12 +339,19 @@ trait MinimallyQuantifiedTypes extends QuantifiedTypes {
 trait WeirdCalculus extends UntypedTerms with MinimallyQuantifiedTypes {
 }
 
-object TestEverything extends WeirdCalculus with Unification {
+ */
+
+object TestEverything
+//extends WeirdCalculus with Unification {
+extends Pretty {
   def main(args: Array[String]) {
-    val untypedTerm = λ("x", "y", "z") { Plus ! (Plus ! "x" ! "y") ! "z" }
-    val term = inferSimpleType(untypedTerm)
-    println(s"Unification works!")
-    println(s"type = ${term.getType}")
-    println(s"term = $term")
+    val t = λ("x", "y", "z") { Σ ε (Σ ε "x" ε "y") ε "z" }
+    val τ = "r" →: ("r" →: "r") →: ℤ →: "r"
+    println(pretty(t))
+    println(pretty(τ))
+    //val term = inferSimpleType(untypedTerm)
+    //println(s"Unification works!")
+    //println(s"type = ${term.getType}")
+    //println(s"term = $term")
   }
 }
