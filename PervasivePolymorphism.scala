@@ -3,6 +3,10 @@ import scala.language.implicitConversions
 
 trait FreshNames {
   type Name = String
+
+  trait Named { def name: Name }
+  trait Binding extends Named
+  trait Bound   extends Named
 }
 
 trait Types extends FreshNames {
@@ -24,9 +28,9 @@ trait Types extends FreshNames {
 
   implicit def nameToTypeVariable(s: Name): Type = α(s)
 
-  case class ∀(name: Name, body: Type) extends Type
+  case class ∀(name: Name, body: Type) extends Type with Binding
   case class →(domain: Type, range: Type) extends Type
-  case class α(name: Name) extends Type
+  case class α(name: Name) extends Type with Bound
   case object ℤ extends Type
 
   trait TypeVisitor[T] {
@@ -64,8 +68,8 @@ trait Terms extends FreshNames with Types {
 
   implicit def nameToVariable(s: Name): Term = χ(s)
 
-  case class χ(name: Name) extends Term
-  case class λ(parameter: Name, body: Term) extends Term
+  case class χ(name: Name) extends Term with Bound
+  case class λ(name: Name, body: Term) extends Term with Binding
   case class ε(operator: Term, operand: Term) extends Term
 
   case object Σ extends Term
@@ -175,21 +179,180 @@ trait Pretty extends TypedTerms {
 trait Reconstruction extends TypedTerms {
   topLevel =>
 
-  trait ReconstructionVisitor[T]
+  trait TypeReconstruction
   extends TypeVisitor[Type]
-     with TermVisitor[Term]
   {
-    override def ∀(name: Name, body: Type) = topLevel.∀(name, body)
-    override def →(domain: Type, range: Type) = topLevel.→(domain, range)
-    override def α(name: Name) = topLevel.α(name)
-    override def ℤ = topLevel.ℤ
+    override def ∀(name: Name, body: Type): Type = topLevel.∀(name, body)
+    override def →(domain: Type, range: Type): Type = topLevel.→(domain, range)
+    override def α(name: Name): Type = topLevel.α(name)
+    override def ℤ: Type = topLevel.ℤ
+  }
 
-    override def χ(name: Name) = topLevel.χ(name)
-    override def λ(name: Name, body: Term) = topLevel.λ(name, body)
-    override def ε(f: Term, x: Term) = topLevel.ε(f, x)
+  trait TermReconstruction
+  extends TermVisitor[Term]
+  {
+    override def χ(name: Name): Term = topLevel.χ(name)
+    override def λ(name: Name, body: Term): Term = topLevel.λ(name, body)
+    override def ε(f: Term, x: Term): Term = topLevel.ε(f, x)
 
-    override def ϕ(value: Int) = topLevel.ϕ(value)
-    override def Σ = topLevel.Σ
+    override def ϕ(value: Int): Term = topLevel.ϕ(value)
+    override def Σ : Term = topLevel.Σ
+  }
+}
+
+trait Holes extends TypedTerms with Reconstruction {
+  object Hole {
+    var index = 0
+    def increment: Int = {
+      index += 1
+      if (index == 0)
+        sys error "We have run out of holes."
+      else
+        index
+    }
+
+    def inType: HoleInType = HoleInType(increment)
+    def inTerm: HoleInTerm = HoleInTerm(increment)
+  }
+
+  trait Hole
+
+  case class HoleInType(val index: Int) extends Hole with Type
+  case class HoleInTerm(val index: Int) extends Hole with Term
+
+  trait TypeHoleVisitor[T] extends TypeVisitor[T] {
+    def holeInType(holeID: Hole): T
+    override def apply(τ : Type): T = τ match {
+      case holeID: Hole => holeInType(holeID)
+      case _ => super.apply(τ)
+    }
+  }
+  trait TermHoleVisitor[T] extends TermVisitor[T] {
+    def holeInTerm(holeID: Hole): T
+    override def apply(t : Term): T = t match {
+      case holeID: Hole => holeInTerm(holeID)
+      case _ => super.apply(t)
+    }
+  }
+
+  object SubstantiationViaHoles
+  {
+    class TypeVisitor(f: Hole => Type)
+    extends TypeHoleVisitor[Type] with TypeReconstruction
+    { override def holeInType(holeID: Hole) = f(holeID) }
+    class TermVisitor(f: Hole => Term)
+    extends TermHoleVisitor[Term] with TermReconstruction
+    { override def holeInTerm(holeID: Hole) = f(holeID) }
+  }
+
+  implicit class typeSubstantiationOps(τ : Type) {
+    def <<(f: Hole => Type): Type =
+      new SubstantiationViaHoles.TypeVisitor(f)(τ)
+  }
+  implicit class termSubstantiationOps(t : Term) {
+    def <<(f: Hole => Term): Term =
+      new SubstantiationViaHoles.TermVisitor(f)(t)
+  }
+}
+
+trait Renaming extends Reconstruction {
+  topLevel =>
+
+  implicit class UndefinePartialFunction[S, T]
+                 (f: PartialFunction[S, T]) {
+    def undefine(s: S): PartialFunction[S, T] = f match {
+      case map: Map[_, _] => map - s
+      case _ => new PartialFunction[S, T] {
+        override def isDefinedAt(x: S): Boolean =
+          if (x == s) false
+          else        f.isDefinedAt(x)
+        override def apply(x: S): T =
+          if (x == s) sys error s"AAAAHHH UNDEFINED $x"
+          else        f(x)
+      }
+    }
+  }
+
+  class TypeRenaming(f: PartialFunction[Name, Type])
+  extends TypeReconstruction {
+    override def α(name: Name): Type =
+      if (f.isDefinedAt(name)) f(name)
+      else super.α(name)
+    override def apply(τ : Type): Type = τ match {
+      case ∀(name, body) if (f.isDefinedAt(name)) =>
+        super.∀(name, new TypeRenaming(f undefine name) apply body)
+      case _ => super.apply(τ)
+    }
+  }
+
+  class TermRenaming(f: PartialFunction[Name, Term])
+  extends TermReconstruction {
+    override def χ(name: Name): Term =
+      if (f.isDefinedAt(name)) f(name)
+      else super.χ(name)
+    override def apply(t : Term): Term = t match {
+      case λ(name, body) if (f.isDefinedAt(name)) =>
+        super.λ(name, new TermRenaming(f undefine name) apply body)
+      case _ => super.apply(t)
+    }
+  }
+
+  implicit class typeRenamingOps(τ : Type) {
+    def rename(f: PartialFunction[Name, Type]): Type =
+      new TypeRenaming(f)(τ)
+  }
+  implicit class termRenamingOps(t : Term) {
+    def rename(f: PartialFunction[Name, Term]): Term =
+      new TermRenaming(f)(t)
+  }
+}
+
+trait GlobalRenaming extends Renaming {
+  class TypeGlobalRenaming(f: PartialFunction[Name, Name])
+  extends TypeRenaming(f andThen α) with TypeReconstruction
+  {
+    override def apply(τ : Type): Type = τ match {
+      case ∀(name, body) =>
+        super[TypeReconstruction].
+          ∀(f.applyOrElse[Name, Name](name, _ => name), apply(body))
+      case _ => super.apply(τ)
+    }
+  }
+  class TermGlobalRenaming(f: PartialFunction[Name, Name])
+  extends TermRenaming(f andThen χ) with TermReconstruction
+  {
+    override def apply(t : Term): Term = t match {
+      case λ(name, body) =>
+        super[TermReconstruction].
+          λ(f.applyOrElse[Name, Name](name, _ => name), apply(body))
+      case _ => super.apply(t)
+    }
+  }
+
+  implicit class typeBoudRenamingOps(τ : Type) {
+    def renameAll(f: PartialFunction[Name, Name]): Type =
+      new TypeGlobalRenaming(f)(τ)
+  }
+  implicit class termBoundRenamingOps(t : Term) {
+    def renameAll(f: PartialFunction[Name, Name]): Term =
+      new TermGlobalRenaming(f)(t)
+  }
+}
+
+trait FreeNames extends TypedTerms {
+  object freeNames extends Visitor[Set[Name]] {
+    private[this] type T = Set[Name]
+    override def ∀(name: Name, body: T) = body - name
+    override def →(domain: T, range: T) = domain ++ range
+    override def α(name: Name) = Set(name)
+    override def ℤ = Set.empty
+
+    override def χ(name: Name) = Set(name)
+    override def λ(name: Name, body: T) = body - name
+    override def ε(operator: T, operand: T) = operator ++ operand
+
+    override def ϕ(value: Int) = Set.empty
+    override def Σ = Set.empty
   }
 }
 
@@ -367,11 +530,16 @@ trait WeirdCalculus extends UntypedTerms with MinimallyQuantifiedTypes {
 
 object TestEverything
 //extends WeirdCalculus with Unification {
-extends Pretty {
+extends Pretty with Holes with GlobalRenaming {
   def main(args: Array[String]) {
-    val t = λ("x", "y", "z") { Σ ε (Σ ε "x" ε "y") ε "z" }
-    val τ = "r" →: ("r" →: "r") →: ℤ →: "r"
-    println(pretty(t))
+    val hole1 = Hole.inTerm
+    val hole2 = Hole.inType
+    val s = λ("x", "y") { Σ ε hole1 ε "z" }
+    val t = (s << Map(hole1 -> (Σ ε "x" ε "y"))) rename
+      Map("y" -> "a", "z" -> "b")
+    val σ = "r" →: ∀("r", "r" →: "r") →: hole2 →: "r"
+    val τ = (σ << Map(hole2 -> ℤ)) renameAll Map("r" -> "α")
+    println(pretty(t renameAll Map("x" -> "k", "b" -> "c")))
     println(pretty(τ))
     //val term = inferSimpleType(untypedTerm)
     //println(s"Unification works!")
