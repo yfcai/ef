@@ -1,15 +1,8 @@
+import scala.language.higherKinds
 import scala.language.implicitConversions
 
 trait FreshNames {
   type Name = String
-
-  private var count: Int = -1
-
-  def getFreshName(tentative: Name): Name = {
-    count += 1
-    if (count < 0) sys error "Namespace overflown"
-    tentative + count
-  }
 }
 
 trait Types extends FreshNames {
@@ -78,7 +71,7 @@ trait Terms extends FreshNames with Types {
   case object Σ extends Term
   case class  ϕ(value: Int) extends Term // ϕυσικός αριθμός
 
-  trait Visitor[T] {
+  trait TermVisitor[T] {
     def χ(name: Name): T
     def λ(name: Name, body: T): T
     def ε(operator: T, operand: T): T
@@ -97,10 +90,24 @@ trait Terms extends FreshNames with Types {
   }
 }
 
-trait Pretty extends Terms with Types {
-  trait PrettyVisitor
-  extends Visitor[(String, Int)]
-     with TypeVisitor[(String, Int)]
+trait TypedTerms extends Terms with Types {
+  trait Visitor[T] extends TypeVisitor[T] with TermVisitor[T] {
+    override def ∀(name: Name, body: T): T
+    override def →(domain: T, range: T): T
+    override def α(name: Name): T
+    override def ℤ : T
+
+    override def χ(name: Name): T
+    override def λ(name: Name, body: T): T
+    override def ε(operator: T, operand: T): T
+
+    override def ϕ(value: Int): T
+    override def Σ : T
+  }
+}
+
+trait Pretty extends TypedTerms {
+  trait PrettyVisitor extends Visitor[(String, Int)]
   {
     private type Domain = (String, Int)
 
@@ -165,11 +172,28 @@ trait Pretty extends Terms with Types {
   def pretty(τ : Type): String = PrettyVisitor(τ)._1
 }
 
-/*
-// types with type variables and foralls
-trait QuantifiedTypes extends TypeVars {
+trait Reconstruction extends TypedTerms {
+  topLevel =>
+
+  trait ReconstructionVisitor[T]
+  extends TypeVisitor[Type]
+     with TermVisitor[Term]
+  {
+    override def ∀(name: Name, body: Type) = topLevel.∀(name, body)
+    override def →(domain: Type, range: Type) = topLevel.→(domain, range)
+    override def α(name: Name) = topLevel.α(name)
+    override def ℤ = topLevel.ℤ
+
+    override def χ(name: Name) = topLevel.χ(name)
+    override def λ(name: Name, body: Term) = topLevel.λ(name, body)
+    override def ε(f: Term, x: Term) = topLevel.ε(f, x)
+
+    override def ϕ(value: Int) = topLevel.ϕ(value)
+    override def Σ = topLevel.Σ
+  }
 }
 
+/*
 trait Unification extends TypedTerms with UntypedTerms {
   case class Unify(lhs: Type, rhs: Type) {
     override def toString: String = s"$lhs == $rhs"
