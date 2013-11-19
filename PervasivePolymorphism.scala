@@ -14,6 +14,13 @@ trait FreshNames {
     result
   }
 
+  private[this] var index = 0
+  def getGenerativeName: Name = {
+    index += 1
+    if (index == 0) sys error "We ran out of generative names"
+    "?" + index
+  }
+
   trait Named { def name: Name }
   trait Binding extends Named
   trait Bound   extends Named
@@ -78,11 +85,11 @@ trait Terms extends FreshNames with Types {
 
   implicit def nameToVariable(s: Name): Term = χ(s)
 
-  case class χ(name: Name) extends Term with Bound
+  case class χ(name: Name) extends Term with Bound // looks like x
   case class λ(name: Name, body: Term) extends Term with Binding
-  case class ε(operator: Term, operand: Term) extends Term
+  case class ε(operator: Term, operand: Term) extends Term // εφαρμογή
 
-  case object Σ extends Term
+  case object Σ extends Term // summation of 2 numbers
   case class  ϕ(value: Int) extends Term // ϕυσικός αριθμός
 
   trait TermVisitor[T] {
@@ -104,7 +111,7 @@ trait Terms extends FreshNames with Types {
   }
 }
 
-trait TypedTerms extends Terms with Types {
+trait TypesAndTerms extends Terms with Types {
   trait Visitor[T] extends TypeVisitor[T] with TermVisitor[T] {
     override def ∀(name: Name, body: T): T
     override def →(domain: T, range: T): T
@@ -120,7 +127,7 @@ trait TypedTerms extends Terms with Types {
   }
 }
 
-trait Pretty extends TypedTerms {
+trait Pretty extends TypesAndTerms {
   trait PrettyVisitor extends Visitor[(String, Int)]
   {
     private type Domain = (String, Int)
@@ -186,7 +193,7 @@ trait Pretty extends TypedTerms {
   def pretty(τ : Type): String = PrettyVisitor(τ)._1
 }
 
-trait Reconstruction extends TypedTerms {
+trait Reconstruction extends TypesAndTerms {
   topLevel =>
 
   trait TypeReconstruction
@@ -210,37 +217,25 @@ trait Reconstruction extends TypedTerms {
   }
 }
 
-trait Holes extends TypedTerms with Reconstruction {
+trait Holes extends TypesAndTerms with Reconstruction {
   object Hole {
-    var index = 0
-    def increment: Int = {
-      index += 1
-      if (index == 0)
-        sys error "We have run out of holes."
-      else
-        index
-    }
-
-    def inType: HoleInType = HoleInType(increment)
-    def inTerm: HoleInTerm = HoleInTerm(increment)
+    def spawn(howMany: Int): Iterable[Hole] =
+      (0 until howMany) map Hole.apply
   }
 
-  trait Hole { def index: Int }
-
-  case class HoleInType(val index: Int) extends Hole with Type
-  case class HoleInTerm(val index: Int) extends Hole with Term
+  case class Hole(index: Int) extends Type with Term
 
   trait TypeHoleVisitor[T] extends TypeVisitor[T] {
-    def holeInType(holeID: Hole): T
+    def holeInType(hole: Hole): T
     override def apply(τ : Type): T = τ match {
-      case holeID: Hole => holeInType(holeID)
+      case hole: Hole => holeInType(hole)
       case _ => super.apply(τ)
     }
   }
   trait TermHoleVisitor[T] extends TermVisitor[T] {
-    def holeInTerm(holeID: Hole): T
+    def holeInTerm(hole: Hole): T
     override def apply(t : Term): T = t match {
-      case holeID: Hole => holeInTerm(holeID)
+      case hole: Hole => holeInTerm(hole)
       case _ => super.apply(t)
     }
   }
@@ -259,10 +254,10 @@ trait Holes extends TypedTerms with Reconstruction {
   {
     class TypeVisitor(f: Hole => Type)
     extends TypeHoleVisitor[Type] with TypeReconstruction
-    { override def holeInType(holeID: Hole) = f(holeID) }
+    { override def holeInType(hole: Hole) = f(hole) }
     class TermVisitor(f: Hole => Term)
     extends TermHoleVisitor[Term] with TermReconstruction
-    { override def holeInTerm(holeID: Hole) = f(holeID) }
+    { override def holeInTerm(hole: Hole) = f(hole) }
   }
 
   implicit class typeSubstantiationOps(τ : Type) {
@@ -275,6 +270,7 @@ trait Holes extends TypedTerms with Reconstruction {
   }
 }
 
+/** Renaming is not compositional. */
 trait Renaming extends Holes {
   topLevel =>
 
@@ -359,7 +355,7 @@ trait GlobalRenaming extends Renaming {
   }
 }
 
-trait FreeNames extends TypedTerms {
+trait FreeNames extends TypesAndTerms {
   object getFreeNames extends Visitor[Set[Name]] {
     private[this] type T = Set[Name]
     override def ∀(name: Name, body: T) = body - name
@@ -379,8 +375,10 @@ trait FreeNames extends TypedTerms {
 trait Substitution extends GlobalRenaming with Holes with FreeNames {
   def substituteInType(τ : Type, f : Map[Name, Type]): Type = {
     // 1. Rename target variables to holes
-    val withDrills =
-      f map { case (name, newType) => (name, Hole.inType) }
+    val withDrills: Map[Name, Hole] =
+      (f, Hole.spawn(f.size)).zipped.map({
+        case ((name, newType), hole) => (name, hole)
+      })(collection.breakOut)
     val holesDrilled =
       τ rename withDrills
     // 2. Rename bound variables who capture free names
@@ -399,8 +397,10 @@ trait Substitution extends GlobalRenaming with Holes with FreeNames {
   }
   def substituteInTerm(t : Term, f : Map[Name, Term]): Term = {
     // 1. Rename target variables to holes
-    val withDrills =
-      f map { case (name, newTerm) => (name, Hole.inTerm) }
+    val withDrills: Map[Name, Hole] =
+      (f, Hole.spawn(f.size)).zipped.map({
+        case ((name, newType), hole) => (name, hole)
+      })(collection.breakOut)
     val holesDrilled =
       t rename withDrills
     // 2. Rename bound variables who capture free names
@@ -432,8 +432,113 @@ trait Substitution extends GlobalRenaming with Holes with FreeNames {
   }
 }
 
+// reader monad?
+trait TypedTerms extends TypesAndTerms {
+  case class TypedTerm(term: Term, getType: Type, subterms: TypedTerm*) {
+    def fold[B](f: (Term, Type, B*) => B): B =
+      f(term, getType, subterms map (_ fold f): _*)
+  }
+}
+
+trait Unification extends Substitution with TypedTerms {
+  import collection.immutable.HashMap
+  type Context = HashMap[Name, Type]
+  val ∅ : Context = HashMap.empty
+  implicit def singletonToContext(p: (Name, Type)): Context = HashMap(p)
+
+  case class Judgement(Γ : Context, t : Term, τ : Type)
+
+  case class EqConstraint(lhs: Type, rhs: Type)
+
+  class U01_GatherConstraints
+  extends TermVisitor[(Judgement, List[EqConstraint], List[Type])] {
+    private[this] type T = (Judgement, List[EqConstraint], List[Type])
+
+    // could have used prealgebra composition with Reconstruction
+    private[this] object R extends TermReconstruction
+
+    def χ(name: Name): T = {
+      val τ = α(getGenerativeName)
+      (Judgement(name -> τ, R.χ(name), τ), Nil, Nil)
+    }
+
+    def λ(name: Name, body: T): T = {
+      val (Judgement(_Γ, t, τ), constraints, typeArgs) = body
+      val σ = _Γ.applyOrElse[Name, Type](name, _ => α(getGenerativeName))
+      (Judgement(_Γ - name, R.λ(name, t), σ →: τ), constraints,
+        σ :: typeArgs)
+    }
+
+    def ε(operator: T, operand: T): T = {
+      val (Judgement(f_Γ, f, f_τ), f_constraints, f_typeArgs) = operator
+      val (Judgement(x_Γ, x, σ  ), x_constraints, x_typeArgs) = operand
+      val τ = α(getGenerativeName)
+      val Γ = (f_Γ merged x_Γ) { case ((name, τ1), _) => (name, τ1) }
+      val constraints = EqConstraint(f_τ, σ →: τ) :: (
+        f_constraints ++ x_constraints ++
+          f_Γ.filter(x_Γ contains _._1).map({
+            case (name, τ1) => EqConstraint(τ1, x_Γ(name))
+          })
+      )
+      (Judgement(Γ, R.ε(f, x), τ), constraints,
+        // Argument order of ++ is very important!
+        // Since hidden type arguments are prepended in evaluation order,
+        // the subterm f that's evaluated first contributes to a later
+        // part of the list of hidden arguments.
+        x_typeArgs ++ f_typeArgs)
+    }
+
+    def ϕ(value: Int): T = (Judgement(∅, R.ϕ(value), ℤ), Nil, Nil)
+    def Σ : T = (Judgement(∅, R.Σ, ℤ →: ℤ →: ℤ), Nil, Nil)
+  }
+
+  def U02_MGS(constraints: List[EqConstraint]):
+      Option[Map[Name, Type]] = {
+    type Eq = EqConstraint
+    val  Eq = EqConstraint
+    constraints match {
+      case Nil =>
+        Some(Map.empty)
+
+      case Eq(σ1 → τ1, σ2 → τ2) :: others =>
+        U02_MGS(Eq(σ1, σ2) :: Eq(τ1, τ2) :: others)
+
+      case Eq(α(name), τ) :: others =>
+        U02_MGS(others map { case Eq(τ1, τ2) =>
+          Eq(τ1 substitute (name -> τ),
+             τ2 substitute (name -> τ))
+        }) map { mgs => mgs.updated(name, τ substitute mgs) }
+
+      case Eq(τ, α(name)) :: others =>
+        U02_MGS(Eq(α(name), τ) :: others)
+
+      case _ =>
+        None
+    }
+  }
+
+  class U03_Inference(
+    mostGeneralSubstitution: Map[Name, Type],
+    judgements: List[Judgement]
+  )
+  extends TermVisitor[TypedTerm]
+  {
+    val mgs = mostGeneralSubstitution.orElse[Name, Type] {
+      case name => α(name)
+    }
+
+    private[this] type T = TypedTerm
+    def χ(name: Name): T = ???
+    def λ(name: Name, body: T): T = ???
+    def ε(operator: T, operand: T): T = ???
+
+    def ϕ(value: Int): T = ???
+    def Σ : T = ???
+  }
+}
+
 /*
-trait Unification extends TypedTerms with UntypedTerms {
+trait Unification extends TypesAndTerms with UntypedTerms {
   case class Unify(lhs: Type, rhs: Type) {
     override def toString: String = s"$lhs == $rhs"
   }
@@ -608,8 +713,8 @@ object TestEverything
 //extends WeirdCalculus with Unification {
 extends Pretty with Substitution {
   def main(args: Array[String]) {
-    val hole1 = Hole.inTerm
-    val hole2 = Hole.inType
+    val hole1 = Hole.spawn(1).head
+    val hole2 = Hole.spawn(1).head
     val s = λ("x", "y") { Σ ₋ hole1 ₋ "z" }
     val σ = "r" →: ∀("r", "a" →: "r") →: hole2 →: "r"
     val t = (s << Map(hole1 -> (Σ ₋ "x" ₋ "y"))) rename
