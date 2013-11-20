@@ -3,6 +3,9 @@ import scala.language.implicitConversions
 
 trait FreshNames {
   type Name = String
+  trait Named { def name: Name }
+  trait Binding extends Named
+  trait Bound   extends Named
 
   def getFreshName(default: Name, toAvoid: Set[Name]): Name = {
     var result = default
@@ -14,16 +17,23 @@ trait FreshNames {
     result
   }
 
-  private[this] var index = 0
-  def getGenerativeName: Name = {
-    index += 1
-    if (index == 0) sys error "We ran out of generative names"
-    "?" + index
-  }
+  class GenerativeNameGenerator {
+    var index: Int = -1
+    val alpha: Int = 0x000003B1
 
-  trait Named { def name: Name }
-  trait Binding extends Named
-  trait Bound   extends Named
+    def next: Name = {
+      index = index + 1
+      if (index == -1) sys error "We ran out of generative names"
+      val bytes = Seq(0xFF, 0xFF00, 0xFF0000, 0xFF0000).zipWithIndex map {
+        // >>> is    logical shift
+        // >>  is arithmetic shift
+        case (mask, i) => (index & mask) >>> (i * 8)
+      }
+      val length = bytes.length - bytes.reverse.prefixLength(_ == 0)
+      bytes.slice(0, Math.max(1, length)).
+        map(byte => (alpha + byte).asInstanceOf[Char]).mkString
+    }
+  }
 }
 
 trait Types extends FreshNames {
@@ -455,24 +465,29 @@ trait Unification extends Substitution with TypedTerms {
     case class EqConstraint(lhs: Type, rhs: Type)
 
     class U01_GatherConstraints
-    extends TermVisitor[(List[Judgement], List[EqConstraint])] {
-      private[this] type T = (List[Judgement], List[EqConstraint])
+    extends TermVisitor[List[Judgement]] {
+      private[this] type T = List[Judgement]
 
       // could have used prealgebra composition with Reconstruction
       private[this] object R extends TermReconstruction
 
       def χ(name: Name): T = {
-        val τ = α(getGenerativeName)
-        (Judgement(name -> τ, R.χ(name), τ) :: Nil, Nil)
+        //val τ = α(getGenerativeName)
+        //Judgement(name -> τ, R.χ(name), τ) :: Nil
+        ???
       }
 
       def λ(name: Name, body: T): T = {
+        /*
         val (Judgement(_Γ, t, τ) :: _, constraints) = body
         val σ = _Γ.applyOrElse[Name, Type](name, _ => α(getGenerativeName))
         (Judgement(_Γ - name, R.λ(name, t), σ →: τ) :: body._1, constraints)
+         */
+        ???
       }
 
       def ε(operator: T, operand: T): T = {
+        /*
         val (Judgement(f_Γ, f, f_τ) :: _, f_constraints) = operator
         val (Judgement(x_Γ, x, σ  ) :: _, x_constraints) = operand
         val τ = α(getGenerativeName)
@@ -489,10 +504,12 @@ trait Unification extends Substitution with TypedTerms {
         // part of the list of hidden arguments.
         ( Judgement(Γ, R.ε(f, x), τ) :: (operand._1 ++ operator._1),
           constraints )
+         */
+        ???
       }
 
-      def ϕ(value: Int): T = (Judgement(∅, R.ϕ(value), ℤ) :: Nil, Nil)
-      def Σ : T = (Judgement(∅, R.Σ, ℤ →: ℤ →: ℤ) :: Nil, Nil)
+      def ϕ(value: Int): T = Judgement(∅, R.ϕ(value), ℤ) :: Nil
+      def Σ : T = Judgement(∅, R.Σ, ℤ →: ℤ →: ℤ) :: Nil
     }
 
     def U02_MGS(constraints: List[EqConstraint]):
@@ -520,6 +537,7 @@ trait Unification extends Substitution with TypedTerms {
       }
     }
 
+/*
     class U03_Inference(mgs: Map[Name, Type], judgements: List[Judgement])
     extends TermVisitor[TypedTerm]
     {
@@ -546,38 +564,22 @@ trait Unification extends Substitution with TypedTerms {
       def ϕ(value: Int): T = default
       def Σ : T            = default
     }
-
+*/
+/*
     def infer(t: Term): Option[TypedTerm] = {
       val(judgements, constraints) = (new U01_GatherConstraints)(t)
       U02_MGS(constraints) map { mgs =>
         new U03_Inference(mgs, judgements)(t)
       }
     }
+*/
   }
-}
-
-trait MinimallyQuantifiedTypes extends Types {
-  // A quantified type is minimally quantified if every quantifier
-  // attaches to the least common ancestor of all occurrences of
-  // the type variable it binds.
-
-  // Meh. Whatever. Don't care.
-  //
-  // If Meh occurs somewhere in the type of a term, then that term
-  // puts no constraint whatsoever upon the type of that argument.
-  //
-  // If Meh is the argument type, then the argument is ignored.
-  //
-  // If Meh is the result type, then it's equivalent to (∀τ. τ).
-  //
-  // Without Meh, ₋const₋ is not typeable with a minimally
-  // quantified type.
-  case object Meh extends Type
 }
 
 object TestEverything
 extends Pretty with Unification {
   def main(args: Array[String]) {
+/*
     val hole1 = Hole.spawn(1).head
     val hole2 = Hole.spawn(1).head
     val s = λ("x", "y") { Σ ₋ hole1 ₋ "z" }
@@ -591,5 +593,9 @@ extends Pretty with Unification {
       ("α" -> "β", "a" -> "α")
     println(pretty(τ))
     println(pretty(Unification.infer(t).get))
+*/
+    val name = new GenerativeNameGenerator
+    val t = Seq.fill(512) { name.next }
+    println(t)
   }
 }
