@@ -466,7 +466,7 @@ trait Unification extends Substitution with TypedTerms {
 
     case class EqConstraint(lhs: Type, rhs: Type)
 
-    class MilnersPrincipalTypings
+    class HindleysPrincipalTypings
     extends TermVisitor[List[Judgement]] {
       private[this] type T = List[Judgement]
 
@@ -560,7 +560,7 @@ trait Unification extends Substitution with TypedTerms {
     }
 
     def infer(t: Term): TypedTerm =
-      new DecorateTermsByJudgements((new MilnersPrincipalTypings)(t))(t)
+      new DecorateTermsByJudgements((new HindleysPrincipalTypings)(t))(t)
   }
 }
 
