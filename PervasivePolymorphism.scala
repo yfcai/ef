@@ -455,90 +455,87 @@ trait Pretty extends TypedTerms {
 
 trait Unification extends Substitution with TypedTerms {
   object Unification {
-    import collection.immutable.HashMap
-    type Context = HashMap[Name, Type]
-    val ∅ : Context = HashMap.empty
-    implicit def singletonToContext(p: (Name, Type)): Context = HashMap(p)
+    type Context = Map[Name, Type]
+
+    val ∅ : Context = Map.empty
+
+    private[this]
+    def singleton(p: (Name, Type)): Context = Map(p)
 
     case class Judgement(Γ : Context, t : Term, τ : Type)
 
     case class EqConstraint(lhs: Type, rhs: Type)
 
-    class U01_GatherConstraints
+    class MilnersPrincipalTypings
     extends TermVisitor[List[Judgement]] {
       private[this] type T = List[Judgement]
 
       // could have used prealgebra composition with Reconstruction
-      private[this] object R extends TermReconstruction
+      private[this]
+      object R extends TermReconstruction with TypeReconstruction
 
-      def χ(name: Name): T = {
-        //val τ = α(getGenerativeName)
-        //Judgement(name -> τ, R.χ(name), τ) :: Nil
-        ???
+      private[this] val nameGenerator = new GenerativeNameGenerator
+
+      def newTypeVar: Type = R.α(nameGenerator.next)
+
+      def χ(x: Name): T = {
+        val α = newTypeVar
+        Judgement(singleton(x -> α), R.χ(x), α) :: Nil
       }
 
-      def λ(name: Name, body: T): T = {
-        /*
-        val (Judgement(_Γ, t, τ) :: _, constraints) = body
-        val σ = _Γ.applyOrElse[Name, Type](name, _ => α(getGenerativeName))
-        (Judgement(_Γ - name, R.λ(name, t), σ →: τ) :: body._1, constraints)
-         */
-        ???
+      def λ(x: Name, body: T): T = {
+        val Judgement(_Γ, t, τ) = body.head
+        val σ = _Γ.applyOrElse[Name, Type](x, _ => newTypeVar)
+        Judgement(_Γ - x, R.λ(x, t), σ →: τ) :: body
       }
 
       def ε(operator: T, operand: T): T = {
-        /*
-        val (Judgement(f_Γ, f, f_τ) :: _, f_constraints) = operator
-        val (Judgement(x_Γ, x, σ  ) :: _, x_constraints) = operand
-        val τ = α(getGenerativeName)
-        val Γ = (f_Γ merged x_Γ) { case ((name, τ1), _) => (name, τ1) }
-        val constraints = EqConstraint(f_τ, σ →: τ) :: (
-          f_constraints ++ x_constraints ++
-            f_Γ.filter(x_Γ contains _._1).map({
-              case (name, τ1) => EqConstraint(τ1, x_Γ(name))
-            })
-        )
-        // Argument order of ++ is very important!
-        // Since hidden type judgements are prepended in evaluation order,
-        // the subterm f that's evaluated first contributes to a later
-        // part of the list of hidden arguments.
-        ( Judgement(Γ, R.ε(f, x), τ) :: (operand._1 ++ operator._1),
-          constraints )
-         */
-        ???
+        val Judgement(f_Γ, f, f_τ) :: _ = operator
+        val Judgement(x_Γ, x, σ  ) :: _ = operand
+        val τ = newTypeVar
+        val Γ = f_Γ ++ x_Γ
+        val mgs = findMostGeneralSubstitution(
+          EqConstraint(f_τ, σ →: τ) :: ((f_Γ.keySet & x_Γ.keySet).map(
+            y => EqConstraint(f_Γ(y), x_Γ(y))
+          )(collection.breakOut): List[EqConstraint]))
+        (Judgement(Γ, R.ε(f, x), τ) :: (operator ++ operand)) map {
+          case Judgement(_Γ, t, τ) =>
+            Judgement(_Γ.mapValues(_ substitute mgs), t, τ substitute mgs)
+        }
       }
 
       def ϕ(value: Int): T = Judgement(∅, R.ϕ(value), ℤ) :: Nil
       def Σ : T = Judgement(∅, R.Σ, ℤ →: ℤ →: ℤ) :: Nil
     }
 
-    def U02_MGS(constraints: List[EqConstraint]):
-        Option[Map[Name, Type]] = {
+    def findMostGeneralSubstitution(constraints: List[EqConstraint]):
+        Map[Name, Type] = {
       type Eq = EqConstraint
       val  Eq = EqConstraint
       constraints match {
         case Nil =>
-          Some(Map.empty)
+          Map.empty
 
         case Eq(σ1 → τ1, σ2 → τ2) :: others =>
-          U02_MGS(Eq(σ1, σ2) :: Eq(τ1, τ2) :: others)
+          findMostGeneralSubstitution(Eq(σ1, σ2) :: Eq(τ1, τ2) :: others)
 
         case Eq(α(name), τ) :: others =>
-          U02_MGS(others map { case Eq(τ1, τ2) =>
-            Eq(τ1 substitute (name -> τ),
-              τ2 substitute (name -> τ))
-          }) map { mgs => mgs.updated(name, τ substitute mgs) }
+          val mgs =
+            findMostGeneralSubstitution(others map { case Eq(τ1, τ2) =>
+              Eq(τ1 substitute (name -> τ), τ2 substitute (name -> τ))
+            })
+          mgs.updated(name, τ substitute mgs)
 
         case Eq(τ, α(name)) :: others =>
-          U02_MGS(Eq(α(name), τ) :: others)
+          findMostGeneralSubstitution(Eq(α(name), τ) :: others)
 
         case Eq(τ1, τ2) :: others =>
-          if (τ1 == τ2) U02_MGS(others) else None
+          if (τ1 == τ2) findMostGeneralSubstitution(others)
+          else sys error "Inconsistent equality constraints"
       }
     }
 
-/*
-    class U03_Inference(mgs: Map[Name, Type], judgements: List[Judgement])
+    class DecorateTermsByJudgements(judgements: List[Judgement])
     extends TermVisitor[TypedTerm]
     {
       private[this] type T = TypedTerm
@@ -546,40 +543,30 @@ trait Unification extends Substitution with TypedTerms {
       val jStack = collection.mutable.Stack(judgements.reverse: _*)
 
       private[this] def default: T = jStack.pop match {
-        case Judgement(_, t, τ) =>
-          TypedTerm(t, τ substitute mgs)
+        case Judgement(_, t, τ) => TypedTerm(t, τ)
       }
 
       def λ(name: Name, body: T): T = jStack.pop match {
-        case Judgement(_, t, τ) =>
-          TypedTerm(t, τ substitute mgs, body)
+        case Judgement(_, t, τ) => TypedTerm(t, τ, body)
       }
 
       def ε(operator: T, operand: T): T = jStack.pop match {
-        case Judgement(_, t, τ) =>
-          TypedTerm(t, τ substitute mgs, operator, operand)
+        case Judgement(_, t, τ) => TypedTerm(t, τ, operator, operand)
       }
 
       def χ(name: Name): T = default
       def ϕ(value: Int): T = default
       def Σ : T            = default
     }
-*/
-/*
-    def infer(t: Term): Option[TypedTerm] = {
-      val(judgements, constraints) = (new U01_GatherConstraints)(t)
-      U02_MGS(constraints) map { mgs =>
-        new U03_Inference(mgs, judgements)(t)
-      }
-    }
-*/
+
+    def infer(t: Term): TypedTerm =
+      new DecorateTermsByJudgements((new MilnersPrincipalTypings)(t))(t)
   }
 }
 
 object TestEverything
 extends Pretty with Unification {
   def main(args: Array[String]) {
-/*
     val hole1 = Hole.spawn(1).head
     val hole2 = Hole.spawn(1).head
     val s = λ("x", "y") { Σ ₋ hole1 ₋ "z" }
@@ -592,10 +579,6 @@ extends Pretty with Unification {
       Map("r" -> "α") substitute
       ("α" -> "β", "a" -> "α")
     println(pretty(τ))
-    println(pretty(Unification.infer(t).get))
-*/
-    val name = new GenerativeNameGenerator
-    val t = Seq.fill(512) { name.next }
-    println(t)
+    println(pretty(Unification infer t))
   }
 }
