@@ -2,17 +2,33 @@ import scala.language.higherKinds
 import scala.language.implicitConversions
 
 trait FreshNames {
-  type Name = String
+  trait Name
   trait Named { def name: Name }
   trait Binding extends Named
   trait Bound   extends Named
 
+  case class NameLiteral(override val toString: String) extends Name
+
+  case class ID(index: Int) extends Name {
+    override def toString = "?" + index
+  }
+
+  implicit def stringToNameLiteral(s: String): Name = NameLiteral(s)
+
   def getFreshName(default: Name, toAvoid: Set[Name]): Name = {
+    val cons: Int => Name = default match {
+      case NameLiteral(s) => i => s + i
+      case ID(_)          => i => ID(i)
+    }
+    val startingID: Int = default match {
+      case NameLiteral(_) => 0
+      case ID(j)          => j
+    }
+    var i = startingID
     var result = default
-    var i = 0
     while (toAvoid contains result) {
-      i += 1 ; if (i <= 0) sys error "We ran out of names"
-      result = default + i
+      i += 1 ; if (i == startingID) sys error "We ran out of names"
+      result = cons(i)
     }
     result
   }
@@ -53,7 +69,7 @@ trait Types extends FreshNames {
         ∀(names.head, ∀(names.tail: _*)(body))
   }
 
-  implicit def nameToTypeVariable(s: Name): Type = α(s)
+  implicit def stringToTypeVariable(s: String): Type = α(s)
 
   case class ∀(name: Name, body: Type) extends Type with Binding
   case class →(domain: Type, range: Type) extends Type
@@ -81,7 +97,7 @@ trait Terms extends FreshNames with Types {
   trait Term
 
   object λ {
-    def apply(args: Name*)(body: => Term): λ =
+    def apply(args: String*)(body: => Term): λ =
       if(args.size <= 1)
         λ(args.head, body)
       else
@@ -93,7 +109,7 @@ trait Terms extends FreshNames with Types {
       topLevel.ε(operator, operand)
   }
 
-  implicit def nameToVariable(s: Name): Term = χ(s)
+  implicit def stringToVariable(s: String): Term = χ(s)
 
   case class χ(name: Name) extends Term with Bound // looks like x
   case class λ(name: Name, body: Term) extends Term with Binding
@@ -363,14 +379,14 @@ trait Substitution extends GlobalRenaming with Holes with FreeNames {
   }
 
   implicit class typeSubstitutionOps(τ : Type) {
-    def substitute[T <% Type](scheme: (Name, T)*): Type =
-      substitute(Map(scheme map {kv => (kv._1, kv._2: Type)}: _*))
+    def substitute[N <% Name, T <% Type](scheme: (N, T)*): Type =
+      substitute(Map(scheme map {kv => (kv._1: Name, kv._2: Type)}: _*))
     def substitute(scheme: Map[Name, Type]): Type =
       substituteInType(τ, scheme)
   }
   implicit class termSubstitutionOps(t : Term) {
-    def substitute[T <% Term](scheme: (Name, T)*): Term =
-      substitute(Map(scheme map {kv => (kv._1, kv._2: Term)}: _*))
+    def substitute[N <% Name, T <% Term](scheme: (N, T)*): Term =
+      substitute(Map(scheme map {kv => (kv._1: Name, kv._2: Term)}: _*))
     def substitute(scheme: Map[Name, Term]): Term =
       substituteInTerm(t, scheme)
   }
