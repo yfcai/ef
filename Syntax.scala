@@ -565,7 +565,7 @@ trait MinimallyQuantifiedTypes extends Types with FreeNames with Pretty {
   }
 }
 
-object TestMQ extends MinimallyQuantifiedTypes {
+object TestMinimalQuantification extends MinimallyQuantifiedTypes {
   def main(args: Array[String]) {
     val types = List(
       true  -> ∀("α")("α" →: "α"),
