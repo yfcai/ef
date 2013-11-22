@@ -66,7 +66,7 @@ trait Types extends FreshNames {
   }
 
   object ∀ {
-    def apply(names: Name*)(body: => Type): ∀ =
+    def apply(names: String*)(body: => Type): ∀ =
       if (names.size <= 1)
         ∀(names.head, body)
       else
