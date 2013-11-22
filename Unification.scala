@@ -189,62 +189,8 @@ trait Reconstruction extends TypesAndTerms {
   }
 }
 
-// obsolete. replaced by canonical names.
-trait Holes extends TypesAndTerms with Reconstruction {
-  object Hole {
-    def spawn(howMany: Int): Iterable[Hole] =
-      (0 until howMany) map Hole.apply
-  }
-
-  case class Hole(index: Int) extends Type with Term
-
-  trait TypeHoleVisitor[T] extends TypeVisitor[T] {
-    def holeInType(hole: Hole): T
-    override def apply(τ : Type): T = τ match {
-      case hole: Hole => holeInType(hole)
-      case _ => super.apply(τ)
-    }
-  }
-  trait TermHoleVisitor[T] extends TermVisitor[T] {
-    def holeInTerm(hole: Hole): T
-    override def apply(t : Term): T = t match {
-      case hole: Hole => holeInTerm(hole)
-      case _ => super.apply(t)
-    }
-  }
-
-  trait TypeHoleReconstruction
-  extends TypeHoleVisitor[Type] with TypeReconstruction {
-    override def holeInType(holeID: Hole) = holeID.asInstanceOf[Type]
-  }
-
-  trait TermHoleReconstruction
-  extends TermHoleVisitor[Term] with TermReconstruction {
-    override def holeInTerm(holeID: Hole) = holeID.asInstanceOf[Term]
-  }
-
-  object SubstantiationViaHoles
-  {
-    class TypeVisitor(f: Hole => Type)
-    extends TypeHoleVisitor[Type] with TypeReconstruction
-    { override def holeInType(hole: Hole) = f(hole) }
-    class TermVisitor(f: Hole => Term)
-    extends TermHoleVisitor[Term] with TermReconstruction
-    { override def holeInTerm(hole: Hole) = f(hole) }
-  }
-
-  implicit class typeSubstantiationOps(τ : Type) {
-    def <<(f: Hole => Type): Type =
-      new SubstantiationViaHoles.TypeVisitor(f)(τ)
-  }
-  implicit class termSubstantiationOps(t : Term) {
-    def <<(f: Hole => Term): Term =
-      new SubstantiationViaHoles.TermVisitor(f)(t)
-  }
-}
-
 /** Renaming is not compositional. */
-trait Renaming extends Holes {
+trait Renaming extends TypesAndTerms with Reconstruction {
   topLevel =>
 
   implicit class UndefinePartialFunction[S, T]
@@ -263,7 +209,7 @@ trait Renaming extends Holes {
   }
 
   class TypeRenaming(f: PartialFunction[Name, Type])
-  extends TypeHoleReconstruction {
+  extends TypeReconstruction {
     override def α(name: Name): Type =
       if (f.isDefinedAt(name)) f(name)
       else super.α(name)
@@ -275,7 +221,7 @@ trait Renaming extends Holes {
   }
 
   class TermRenaming(f: PartialFunction[Name, Term])
-  extends TermHoleReconstruction {
+  extends TermReconstruction {
     override def χ(name: Name): Term =
       if (f.isDefinedAt(name)) f(name)
       else super.χ(name)
@@ -345,7 +291,6 @@ trait FreeNames extends TypesAndTerms {
   }
 }
 
-// replacement of holes, works in binding positions too!
 trait CanonicalNames extends FreeNames with Renaming {
   class CollectBindings extends Visitor[List[Name]] {
     private[this] type T = List[Name]
