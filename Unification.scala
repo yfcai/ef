@@ -33,6 +33,18 @@ trait FreshNames {
     result
   }
 
+  def getFreshIDs(howMany: Int, toAvoid: Set[Name]): Set[Name] = {
+    def loop(start: Int, howMany: Int, toAvoid: Set[Name]): Set[Name] =
+      if (howMany <= 0)
+        Set.empty
+      else {
+        var i = start
+        while(toAvoid contains ID(i)) i += 1
+        loop(i + 1, howMany - 1, toAvoid + ID(i)) + ID(i)
+      }
+    loop(0, howMany, toAvoid)
+  }
+
   class GenerativeNameGenerator {
     var index: Int = -1
     val alpha: Int = 0x000003B1
@@ -139,17 +151,17 @@ trait Terms extends FreshNames with Types {
 
 trait TypesAndTerms extends Terms with Types {
   trait Visitor[T] extends TypeVisitor[T] with TermVisitor[T] {
-    override def ∀(name: Name, body: T): T
-    override def →(domain: T, range: T): T
-    override def α(name: Name): T
-    override def ℤ : T
+    def ∀(name: Name, body: T): T
+    def →(domain: T, range: T): T
+    def α(name: Name): T
+    def ℤ : T
 
-    override def χ(name: Name): T
-    override def λ(name: Name, body: T): T
-    override def ε(operator: T, operand: T): T
+    def χ(name: Name): T
+    def λ(name: Name, body: T): T
+    def ε(operator: T, operand: T): T
 
-    override def ϕ(value: Int): T
-    override def Σ : T
+    def ϕ(value: Int): T
+    def Σ : T
   }
 }
 
@@ -177,6 +189,7 @@ trait Reconstruction extends TypesAndTerms {
   }
 }
 
+// obsolete. replaced by canonical names.
 trait Holes extends TypesAndTerms with Reconstruction {
   object Hole {
     def spawn(howMany: Int): Iterable[Hole] =
@@ -274,12 +287,12 @@ trait Renaming extends Holes {
   }
 
   implicit class typeRenamingOps(τ : Type) {
-    def rename(f: PartialFunction[Name, Type]): Type =
-      new TypeRenaming(f)(τ)
+    def rename[N <% Name, T <% Type](f: Map[N, T]): Type =
+      new TypeRenaming(f map { case (k, v) => (k: Name, v: Type) })(τ)
   }
   implicit class termRenamingOps(t : Term) {
-    def rename(f: PartialFunction[Name, Term]): Term =
-      new TermRenaming(f)(t)
+    def rename[N <% Name, T <% Term](f: Map[N, T]): Term =
+      new TermRenaming(f map { case (k, v) => (k: Name, v: Term) })(t)
   }
 }
 
@@ -306,12 +319,12 @@ trait GlobalRenaming extends Renaming {
   }
 
   implicit class typeBoudRenamingOps(τ : Type) {
-    def renameAll(f: PartialFunction[Name, Name]): Type =
-      new TypeGlobalRenaming(f)(τ)
+    def renameAll[N <% Name](f: Map[N, N]): Type =
+      new TypeGlobalRenaming(f map { case (k, v) => (k: Name, v: Name) })(τ)
   }
   implicit class termBoundRenamingOps(t : Term) {
-    def renameAll(f: PartialFunction[Name, Name]): Term =
-      new TermGlobalRenaming(f)(t)
+    def renameAll[N <% Name](f: Map[N, N]): Term =
+      new TermGlobalRenaming(f map { case (k, v) => (k: Name, v: Name) })(t)
   }
 }
 
@@ -332,50 +345,111 @@ trait FreeNames extends TypesAndTerms {
   }
 }
 
-trait Substitution extends GlobalRenaming with Holes with FreeNames {
-  def substituteInType(τ : Type, f : Map[Name, Type]): Type = {
-    // 1. Rename target variables to holes
-    val withDrills: Map[Name, Hole] =
-      (f, Hole.spawn(f.size)).zipped.map({
-        case ((name, newType), hole) => (name, hole)
-      })(collection.breakOut)
-    val holesDrilled =
-      τ rename withDrills
-    // 2. Rename bound variables who capture free names
-    //    (those one has to rename are precisely those to avoid)
-    val freeNames =
-      (f map { kv => getFreeNames(kv._2) }).fold(Set.empty)(_ ++ _)
-    val withFresheners: Map[Name, Name] =
-      freeNames.map(
-        name => (name, getFreshName(name, freeNames))
-      )(collection.breakOut)
-    val freshened = holesDrilled renameAll withFresheners
-    // 3. Substantiate by filling holes
-    val forGreatJustice: Map[Hole, Type] =
-      f map { case (name, newType) => (withDrills(name), newType) }
-    freshened << forGreatJustice
+// replacement of holes, works in binding positions too!
+trait CanonicalNames extends FreeNames with Renaming {
+  class CollectBindings extends Visitor[List[Name]] {
+    private[this] type T = List[Name]
+
+    def ∀(name: Name, body: T): T = name :: body
+    def →(domain: T, range: T): T = domain ++ range
+    def α(name: Name): T = Nil
+    def ℤ : T = Nil
+
+    def χ(name: Name): T = Nil
+    def λ(name: Name, body: T): T = name :: body
+    def ε(operator: T, operand: T): T = operator ++ operand
+
+    def ϕ(value: Int): T = Nil
+    def Σ : T = Nil
   }
-  def substituteInTerm(t : Term, f : Map[Name, Term]): Term = {
-    // 1. Rename target variables to holes
-    val withDrills: Map[Name, Hole] =
-      (f, Hole.spawn(f.size)).zipped.map({
-        case ((name, newType), hole) => (name, hole)
+
+  class RenameBindings(newNames: Seq[Name])
+  extends TypeReconstruction with TermReconstruction
+  {
+    private[this] val nameStack =
+      collection.mutable.Stack(newNames.reverse: _*)
+
+    override def ∀(name: Name, body: Type): Type = {
+      val newName = nameStack.pop
+      super.∀(newName, body rename Map(name -> super.α(newName)))
+    }
+
+    override def λ(name: Name, body: Term): Term = {
+      val newName = nameStack.pop
+      super.λ(newName, body rename Map(name -> super.χ(newName)))
+    }
+  }
+
+  private[this] type R = Map[Name, Name]
+
+  def canonizeNames(τ : Type): (Type, R, R) = {
+    val freeNames = getFreeNames(τ)
+    val boundNames = (new CollectBindings)(τ)
+    val freeInverse: Map[Name, Name] =
+      ((0 until freeNames.size), freeNames).zipped.map({
+        case (i, name) => ID(i) -> name
       })(collection.breakOut)
-    val holesDrilled =
-      t rename withDrills
-    // 2. Rename bound variables who capture free names
-    //    (those one has to rename are precisely those to avoid)
-    val freeNames =
+    val freeIDs = freeInverse map { case (id, name) => name -> α(id) }
+    val boundIDs = (0 until boundNames.size) map {i => ID(i + freeNames.size)}
+    val canon = new RenameBindings(boundIDs)(τ rename freeIDs)
+    (canon, freeInverse,
+      (boundIDs, boundNames).zipped.map((k,v) => (k,v))(collection.breakOut))
+  }
+
+  def canonizeNames(t : Term): (Term, R, R) = {
+    val freeNames = getFreeNames(t)
+    val boundNames = (new CollectBindings)(t)
+    val freeInverse: Map[Name, Name] =
+      ((0 until freeNames.size), freeNames).zipped.map({
+        case (i, name) => ID(i) -> name
+      })(collection.breakOut)
+    val freeIDs = freeInverse map { case (id, name) => name -> χ(id) }
+    val boundIDs = (0 until boundNames.size) map {i => ID(i + freeNames.size)}
+    val canon = new RenameBindings(boundIDs)(t rename freeIDs)
+    (canon, freeInverse,
+      (boundIDs, boundNames).zipped.map((k,v) => (k,v))(collection.breakOut))
+  }
+
+  implicit class TypeCanonizeNameOps(τ : Type) {
+    def canonize = canonizeNames(τ)
+  }
+
+  implicit class TermCanonizeNameOps(t : Term) {
+    def canonize = canonizeNames(t)
+  }
+
+  implicit class MapInversOps[K, V](m: Map[K, V]) {
+    def inverse: Map[V, K] = m map (_.swap)
+  }
+}
+
+trait Substitution extends GlobalRenaming with CanonicalNames {
+  def substituteInType(τ : Type, f : Map[Name, Type]): Type = {
+    val (canon, invFree, invBound) = τ.canonize
+    val freeIDs = invFree.inverse
+    val g: Map[Name, Type] = (freeIDs.keySet & f.keySet).map(
+      freeName => freeIDs(freeName) -> f(freeName)
+    )(collection.breakOut)
+    val toAvoid =
       (f map { kv => getFreeNames(kv._2) }).fold(Set.empty)(_ ++ _)
-    val withFresheners: Map[Name, Name] =
-      freeNames.map(
-        name => (name, getFreshName(name, freeNames))
-      )(collection.breakOut)
-    val freshened = holesDrilled renameAll withFresheners
-    // 3. Substantiate by filling holes
-    val forGreatJustice: Map[Hole, Term] =
-      f map { case (name, newTerm) => (withDrills(name), newTerm) }
-    freshened << forGreatJustice
+    val invAll = invFree ++ invBound.map({ case (id, boundName) =>
+      (id, getFreshName(boundName, toAvoid))
+    })
+    (canon rename g) renameAll invAll
+  }
+
+  def substituteInTerm(t : Term, f : Map[Name, Term]): Term = {
+    val (canon, invFree, invBound) = t.canonize
+    val freeIDs = invFree.inverse
+    val g: Map[Name, Term] = (freeIDs.keySet & f.keySet).map(
+      freeName => freeIDs(freeName) -> f(freeName)
+    )(collection.breakOut)
+    val toAvoid =
+      (f map { kv => getFreeNames(kv._2) }).fold(Set.empty)(_ ++ _)
+    val invAll = invFree ++ invBound.map({ case (id, boundName) =>
+      (id, getFreshName(boundName, toAvoid))
+    })
+    (canon rename g) renameAll invAll
   }
 
   implicit class typeSubstitutionOps(τ : Type) {
@@ -392,14 +466,29 @@ trait Substitution extends GlobalRenaming with Holes with FreeNames {
   }
 }
 
-// reader monad?
-trait TypedTerms extends TypesAndTerms {
-  case class TypedTerm(term: Term, getType: Type, subterms: TypedTerm*) {
-    def fold[B](f: (Term, Type, B*) => B): B =
-      f(term, getType, subterms map (_ fold f): _*)
+trait TypedTerms extends GlobalRenaming {
+  case class TypedTerm(canon: Term,
+                       Γ    : Map[Name, Type],
+                       names: Map[Name, Name]) {
+    def getTerm: Term = canon renameAll names
+
+    def getType: Type = (new TypeCheck)(canon)
+
+    class TypeCheck extends TermVisitor[Type] {
+      private[this] type T = Type
+
+      def χ(name: Name): T = Γ(name)
+      def λ(name: Name, body: T): T = Γ(name) →: body
+
+      def ε(operator: T, operand: T): T = operator match {
+        case σ → τ if σ == operand => τ
+      }
+
+      def ϕ(value: Int): T = ℤ
+      def Σ : T = ℤ →: ℤ →: ℤ
+    }
   }
 }
-
 
 trait Pretty extends TypedTerms {
   trait PrettyVisitor extends Visitor[(String, Int)]
@@ -466,10 +555,12 @@ trait Pretty extends TypedTerms {
   def pretty(t : Term): String = PrettyVisitor(t)._1
   def pretty(τ : Type): String = PrettyVisitor(τ)._1
   def pretty(t : TypedTerm): String =
-    "%s : %s".format(pretty(t.term), pretty(t.getType))
+    "%s : %s".format(pretty(t.getTerm), pretty(t.getType))
 }
 
-trait Unification extends Substitution with TypedTerms {
+trait Unification extends Substitution with TypedTerms with CanonicalNames {
+  topLevel =>
+
   object Unification {
     type Context = Map[Name, Type]
 
@@ -478,50 +569,45 @@ trait Unification extends Substitution with TypedTerms {
     private[this]
     def singleton(p: (Name, Type)): Context = Map(p)
 
-    case class Judgement(Γ : Context, t : Term, τ : Type)
+    case class Typing(Γ : Context, τ : Type)
 
     case class EqConstraint(lhs: Type, rhs: Type)
 
+    // Precondition: All names are unique in the term.
     class HindleysPrincipalTypings
-    extends TermVisitor[List[Judgement]] {
-      private[this] type T = List[Judgement]
-
-      // could have used prealgebra composition with Reconstruction
-      private[this]
-      object R extends TermReconstruction with TypeReconstruction
+    extends TermVisitor[Typing] {
+      private[this] type T = Typing
 
       private[this] val nameGenerator = new GenerativeNameGenerator
 
-      def newTypeVar: Type = R.α(nameGenerator.next)
+      def newTypeVar: Type = topLevel.α(nameGenerator.next)
 
       def χ(x: Name): T = {
         val α = newTypeVar
-        Judgement(singleton(x -> α), R.χ(x), α) :: Nil
+        Typing(singleton(x -> α), α)
       }
 
       def λ(x: Name, body: T): T = {
-        val Judgement(_Γ, t, τ) = body.head
-        val σ = _Γ.applyOrElse[Name, Type](x, _ => newTypeVar)
-        Judgement(_Γ - x, R.λ(x, t), σ →: τ) :: body
+        val σ = body.Γ.applyOrElse[Name, Type](x, _ => newTypeVar)
+        Typing(body.Γ, σ →: body.τ)
+        // Note that we don't remove x from body.Γ.
+        // body.Γ(x) is the type argument of this λ.
+        // For the context to be meaningful in this way,
+        // we require all names---even bound ones---be unique.
       }
 
-      def ε(operator: T, operand: T): T = {
-        val Judgement(f_Γ, f, f_τ) :: _ = operator
-        val Judgement(x_Γ, x, σ  ) :: _ = operand
+      def ε(f: T, x: T): T = {
         val τ = newTypeVar
-        val Γ = f_Γ ++ x_Γ
+        val Γ = f.Γ ++ x.Γ
         val mgs = findMostGeneralSubstitution(
-          EqConstraint(f_τ, σ →: τ) :: ((f_Γ.keySet & x_Γ.keySet).map(
-            y => EqConstraint(f_Γ(y), x_Γ(y))
+          EqConstraint(f.τ, x.τ →: τ) :: ((f.Γ.keySet & x.Γ.keySet).map(
+            y => EqConstraint(f.Γ(y), x.Γ(y))
           )(collection.breakOut): List[EqConstraint]))
-        (Judgement(Γ, R.ε(f, x), τ) :: (operator ++ operand)) map {
-          case Judgement(_Γ, t, τ) =>
-            Judgement(_Γ.mapValues(_ substitute mgs), t, τ substitute mgs)
-        }
+        Typing(Γ mapValues (_ substitute mgs), τ substitute mgs)
       }
 
-      def ϕ(value: Int): T = Judgement(∅, R.ϕ(value), ℤ) :: Nil
-      def Σ : T = Judgement(∅, R.Σ, ℤ →: ℤ →: ℤ) :: Nil
+      def ϕ(value: Int): T = Typing(∅, ℤ)
+      def Σ : T = Typing(∅, ℤ →: ℤ →: ℤ)
     }
 
     def findMostGeneralSubstitution(constraints: List[EqConstraint]):
@@ -551,50 +637,33 @@ trait Unification extends Substitution with TypedTerms {
       }
     }
 
-    class DecorateTermsByJudgements(judgements: List[Judgement])
-    extends TermVisitor[TypedTerm]
-    {
-      private[this] type T = TypedTerm
-
-      val jStack = collection.mutable.Stack(judgements.reverse: _*)
-
-      private[this] def default: T = jStack.pop match {
-        case Judgement(_, t, τ) => TypedTerm(t, τ)
-      }
-
-      def λ(name: Name, body: T): T = jStack.pop match {
-        case Judgement(_, t, τ) => TypedTerm(t, τ, body)
-      }
-
-      def ε(operator: T, operand: T): T = jStack.pop match {
-        case Judgement(_, t, τ) => TypedTerm(t, τ, operator, operand)
-      }
-
-      def χ(name: Name): T = default
-      def ϕ(value: Int): T = default
-      def Σ : T            = default
+    def infer(t: Term): TypedTerm = {
+      val (canon, invFree, invBound) = t.canonize
+      val Typing(_Γ, τ) = (new HindleysPrincipalTypings)(canon)
+      TypedTerm(canon, _Γ, invFree ++ invBound)
     }
-
-    def infer(t: Term): TypedTerm =
-      new DecorateTermsByJudgements((new HindleysPrincipalTypings)(t))(t)
   }
 }
 
 object TestEverything
 extends Pretty with Unification {
   def main(args: Array[String]) {
-    val hole1 = Hole.spawn(1).head
-    val hole2 = Hole.spawn(1).head
-    val s = λ("x", "y") { Σ ₋ hole1 ₋ "z" }
-    val σ = "r" →: ∀("r", "a" →: "r") →: hole2 →: "r"
-    val t = (s << Map(hole1 -> (Σ ₋ "x" ₋ "y"))) rename
+    val t = λ("x", "y") { Σ ₋ (Σ ₋ "x" ₋ "y") ₋ "z" } rename
       Map("y" -> "a", "z" -> "b") renameAll
       Map("x" -> "k", "b" -> "c") substitute
-      ("y" -> χ("x"), "c" -> "k" ₋ "k1")
-    val τ = (σ << Map(hole2 -> ℤ)) renameAll
+      ("y" -> χ("x"), "c" -> "k" ₋ "k1" ₋ "y")
+    val τ = "r" →: ∀("r", "a" →: "r") →: ℤ →: "r" renameAll
       Map("r" -> "α") substitute
       ("α" -> "β", "a" -> "α")
+    val (c1, c2) = (τ.canonize, t.canonize)
+
     println(pretty(τ))
+    println(pretty(c1._1))
+    println((c1._2, c1._3))
+
+    println(pretty(t))
+    println(pretty(c2._1))
+    println((c2._2, c2._3))
     println(pretty(Unification infer t))
   }
 }
