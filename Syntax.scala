@@ -47,28 +47,12 @@ trait FreshNames {
 
   class GenerativeNameGenerator {
     var index: Int = -1
-    val alpha: Int = 0x000003B1
 
-    def next: Name = {
-      index = index + 1
-      if (index == -1) sys error "We ran out of generative names"
-      val bytes = Seq(0xFF, 0xFF00, 0xFF0000, 0xFF0000).zipWithIndex map {
-        // >>> is    logical shift
-        // >>  is arithmetic shift
-        case (mask, i) => (index & mask) >>> (i * 8)
-      }
-      val length = bytes.length - bytes.reverse.prefixLength(_ == 0)
-      bytes.slice(0, Math.max(1, length)).
-        map(byte => (alpha + byte).asInstanceOf[Char]).mkString
-    }
-
-/* better version
     def next: Name = {
       index = index + 1
       if (index == -1) sys error "We ran out of generative names"
       ID(index)
     }
- */
   }
 }
 

@@ -144,8 +144,6 @@ object TestUnification extends Unification {
 
     import Unification._
     println(pretty(t inferFrom Γ))
-
-    println(pretty("ω" →: "β"))
     println(pretty("f" ₋ "x" inferFrom ("f" -> ("ω" →: "β"))))
   }
 }
