@@ -61,6 +61,14 @@ trait FreshNames {
       bytes.slice(0, Math.max(1, length)).
         map(byte => (alpha + byte).asInstanceOf[Char]).mkString
     }
+
+/* better version
+    def next: Name = {
+      index = index + 1
+      if (index == -1) sys error "We ran out of generative names"
+      ID(index)
+    }
+ */
   }
 }
 
@@ -86,21 +94,21 @@ trait Types extends FreshNames {
   case class ∀(name: Name, body: Type) extends Type with Binding
   case class →(domain: Type, range: Type) extends Type
   case class α(name: Name) extends Type with Bound
-  case object ℤ extends Type
+  case class ★(operator: Type, operand: Type) extends Type
   case object ? extends Type
 
   trait TypeVisitor[T] {
     def ∀(name: Name, body: T): T
     def →(domain: T, range: T): T
     def α(name: Name): T
-    def ℤ : T
+    def ★(operator: T, operand: T): T
     def ? : T
 
     def apply(τ : Type): T = τ match {
       case topLevel.∀(name, body)    => ∀(name, apply(body))
       case topLevel.→(domain, range) => →(apply(domain), apply(range))
       case topLevel.α(name)          => α(name)
-      case topLevel.ℤ                => ℤ
+      case topLevel.★(f, x)          => ★(apply(f), apply(x))
       case topLevel.?                => ?
     }
   }
@@ -130,24 +138,15 @@ trait Terms extends FreshNames with Types {
   case class λ(name: Name, body: Term) extends Term with Binding
   case class ε(operator: Term, operand: Term) extends Term // εφαρμογή
 
-  case object Σ extends Term // summation of 2 numbers
-  case class  ϕ(value: Int) extends Term // ϕυσικός αριθμός
-
   trait TermVisitor[T] {
     def χ(name: Name): T
     def λ(name: Name, body: T): T
     def ε(operator: T, operand: T): T
 
-    def ϕ(value: Int): T
-    def Σ : T
-
     def apply(t: Term): T = t match {
       case topLevel.χ(name)       => χ(name)
       case topLevel.λ(name, body) => λ(name, apply(body))
       case topLevel.ε(fun, arg)   => ε(apply(fun), apply(arg))
-
-      case topLevel.ϕ(value)      => ϕ(value)
-      case topLevel.Σ             => Σ
     }
   }
 }
@@ -157,41 +156,33 @@ trait TypesAndTerms extends Terms with Types {
     def ∀(name: Name, body: T): T
     def →(domain: T, range: T): T
     def α(name: Name): T
-    def ℤ : T
     def ? : T
+    def ★(operator: T, operand: T): T
 
     def χ(name: Name): T
     def λ(name: Name, body: T): T
     def ε(operator: T, operand: T): T
-
-    def ϕ(value: Int): T
-    def Σ : T
   }
 }
 
 trait Reconstruction extends TypesAndTerms {
   topLevel =>
 
-  trait TypeReconstruction
-  extends TypeVisitor[Type]
-  {
+  trait TypeReconstruction extends TypeVisitor[Type] {
     override def ∀(name: Name, body: Type): Type = topLevel.∀(name, body)
     override def →(domain: Type, range: Type): Type = topLevel.→(domain, range)
     override def α(name: Name): Type = topLevel.α(name)
-    override def ℤ : Type = topLevel.ℤ
     override def ? : Type = topLevel.?
+    override def ★(typeFun: Type, typeArg: Type) = topLevel.★(typeFun, typeArg)
   }
 
-  trait TermReconstruction
-  extends TermVisitor[Term]
-  {
+  trait TermReconstruction extends TermVisitor[Term] {
     override def χ(name: Name): Term = topLevel.χ(name)
     override def λ(name: Name, body: Term): Term = topLevel.λ(name, body)
     override def ε(f: Term, x: Term): Term = topLevel.ε(f, x)
-
-    override def ϕ(value: Int): Term = topLevel.ϕ(value)
-    override def Σ : Term = topLevel.Σ
   }
+
+  trait Reconstruction extends TypeReconstruction with TermReconstruction
 }
 
 /** Renaming is not compositional. */
@@ -249,21 +240,21 @@ trait Renaming extends TypesAndTerms with Reconstruction {
 
 trait GlobalRenaming extends Renaming {
   class TypeGlobalRenaming(f: PartialFunction[Name, Name])
-  extends TypeRenaming(f andThen α) with TypeReconstruction
+  extends TypeRenaming(f andThen α) with Reconstruction
   {
     override def apply(τ : Type): Type = τ match {
       case ∀(name, body) =>
-        super[TypeReconstruction].
+        super[Reconstruction].
           ∀(f.applyOrElse[Name, Name](name, _ => name), apply(body))
       case _ => super.apply(τ)
     }
   }
   class TermGlobalRenaming(f: PartialFunction[Name, Name])
-  extends TermRenaming(f andThen χ) with TermReconstruction
+  extends TermRenaming(f andThen χ) with Reconstruction
   {
     override def apply(t : Term): Term = t match {
       case λ(name, body) =>
-        super[TermReconstruction].
+        super[Reconstruction].
           λ(f.applyOrElse[Name, Name](name, _ => name), apply(body))
       case _ => super.apply(t)
     }
@@ -282,18 +273,15 @@ trait GlobalRenaming extends Renaming {
 trait FreeNames extends TypesAndTerms {
   object getFreeNames extends Visitor[Set[Name]] {
     private[this] type T = Set[Name]
-    override def ∀(name: Name, body: T) = body - name
-    override def →(domain: T, range: T) = domain ++ range
-    override def α(name: Name) = Set(name)
-    override def ℤ = Set.empty
-    override def ? = Set.empty
+    def ∀(name: Name, body: T): T = body - name
+    def →(domain: T, range: T): T = domain ++ range
+    def α(name: Name): T = Set(name)
+    def ? : T = Set.empty
+    def ★(typeFun: T, typeArg: T) = typeFun ++ typeArg
 
-    override def χ(name: Name) = Set(name)
-    override def λ(name: Name, body: T) = body - name
-    override def ε(operator: T, operand: T) = operator ++ operand
-
-    override def ϕ(value: Int) = Set.empty
-    override def Σ = Set.empty
+    def χ(name: Name): T = Set(name)
+    def λ(name: Name, body: T): T = body - name
+    def ε(operator: T, operand: T): T = operator ++ operand
   }
 }
 
@@ -304,15 +292,12 @@ trait CanonicalNames extends FreeNames with Renaming {
     def ∀(name: Name, body: T): T = name :: body
     def →(domain: T, range: T): T = domain ++ range
     def α(name: Name): T = Nil
-    def ℤ : T = Nil
     def ? : T = Nil
+    def ★(typeFun: T, typeArg: T): T = typeFun ++ typeArg
 
     def χ(name: Name): T = Nil
     def λ(name: Name, body: T): T = name :: body
     def ε(operator: T, operand: T): T = operator ++ operand
-
-    def ϕ(value: Int): T = Nil
-    def Σ : T = Nil
   }
 
   // Not compositional at the moment.
@@ -440,9 +425,6 @@ trait TypedTerms extends GlobalRenaming {
       def ε(operator: T, operand: T): T = operator match {
         case σ → τ if σ == operand => τ
       }
-
-      def ϕ(value: Int): T = ℤ
-      def Σ : T = ℤ →: ℤ →: ℤ
     }
   }
 }
@@ -452,60 +434,49 @@ trait Pretty extends TypedTerms {
   {
     private type Domain = (String, Int)
 
-    override def ∀(name: Name, body: Domain) = body match {
-      case (body, pBody) =>
-        ("∀%s. %s".format(
-          name.toString,
-          paren(pBody, priority_∀ + 1, body)
-        ), priority_∀)
+    override def ∀(name: Name, body: Domain) =
+      template("∀%s. %s", priority_∀, (α(name), 0), (body, 1))
+
+    override def →(σ : Domain, τ : Domain) =
+      template("%s → %s", priority_→, (σ, 0), (τ, 1))
+
+    override def ★(f: Domain, x: Domain) =
+      template("%s %s", priority_★, (f, 1), (x, 0))
+
+    override def α(name: Name) = (name.toString, priority_∞)
+    override def ? = ("?", priority_∞)
+
+    def χ(name: Name): Domain = (name.toString, priority_∞)
+
+    override def λ(name: Name, body: Domain): Domain =
+      template("λ%s. %s", priority_λ, (χ(name), 0), (body, 1))
+
+    override def ε(f: Domain, x: Domain) =
+      template("%s %s", priority_ε, (f, 1), (x, 0))
+
+    def template(format: String, priority: Int, subs: (Domain, Int)*):
+        Domain = {
+      val subformats = subs map {
+        case ((sub, psub), pmod) => paren(psub, priority + pmod, sub)
+      }
+      (format.format(subformats: _*), priority)
     }
-
-    override def →(σ : Domain, τ : Domain) = (σ , τ) match {
-      case ((σ, priority_σ), (τ, priority_τ)) =>
-        ("%s → %s".format(
-          paren(priority_σ, priority_→,     σ),
-          paren(priority_τ, priority_→ + 1, τ)
-        ), priority_→)
-    }
-
-    override def α(name: Name) = (name.toString, priority_↓)
-    override def ℤ = ("ℤ", priority_↓)
-    override def ? = ("?", priority_↓)
-
-    def χ(name: Name): Domain = (name.toString, priority_↓)
-
-    override def λ(name: Name, body: Domain): Domain = body match {
-      case (body, pBody) =>
-        ("λ%s. %s".format(
-          name.toString,
-          paren(pBody, priority_λ + 1, body)
-        ), priority_λ)
-    }
-
-    override def ε(f: Domain, x: Domain) = (f, x) match {
-      case ((f, pf), (x, px)) =>
-        ("%s %s".format(
-          paren(pf, priority_ε + 1, f),
-          paren(px, priority_ε,     x)
-        ), priority_ε)
-    }
-
-    override def ϕ(value: Int) = (value.toString, priority_↓)
-    override def Σ = ("Σ", priority_↓)
-
-    val priority_↑ = 3 // outermost priority
-    val priority_λ = 2
-    val priority_∀ = 2
-    val priority_ε = 1
-    val priority_→ = 1
-    val priority_↓ = 0
 
     def paren(innerPriority: Int, outerPriority: Int, text: String):
         String =
-      if (innerPriority < outerPriority)
+      if (innerPriority > outerPriority)
         text
       else
         "(%s)" format text
+
+    val priority_∀ = 1
+    val priority_→ = 5
+    val priority_★ = 9
+
+    val priority_λ = 1
+    val priority_ε = 9
+
+    val priority_∞ = 0x7FFFFFFF // biggest integer out there
   }
 
   object PrettyVisitor extends PrettyVisitor
@@ -514,4 +485,68 @@ trait Pretty extends TypedTerms {
   def pretty(τ : Type): String = PrettyVisitor(τ)._1
   def pretty(t : TypedTerm): String =
     "%s : %s".format(pretty(t.getTerm), pretty(t.getType))
+}
+
+trait MinimallyQuantifiedTypes extends Types with FreeNames with Pretty {
+  private sealed trait MQ {
+    def >>= (f: Set[Name] => MQ): MQ
+  }
+
+  private case object NotMQ extends MQ {
+    def >>= (f: Set[Name] => MQ): MQ = NotMQ
+  }
+
+  private case class Solo(freeNames: Set[Name]) extends MQ {
+    def >>= (f: Set[Name] => MQ): MQ = f(freeNames)
+  }
+
+  private case class Duo(lhs: Set[Name], rhs: Set[Name]) extends MQ {
+    def >>= (f: Set[Name] => MQ): MQ = f(lhs ++ rhs)
+  }
+
+  private class IsMinimallyQuantified extends TypeVisitor[MQ] {
+    private[this] type T = MQ
+
+    def ∀(name: Name, body: T): T = body match {
+      case Duo(lhs, rhs) if (lhs contains name) && (rhs contains name) =>
+        Duo(lhs - name, rhs - name)
+
+      case _ =>
+        NotMQ
+    }
+
+    def →(domain: T, range: T): T =
+      domain >>= { domain =>
+      range  >>= { range  =>
+      Duo(domain, range) }}
+
+    def α(name: Name): T = Solo(Set(name))
+    def ? : T            = Solo(Set.empty)
+
+    def ★(typeFun: T, typeArg: T) =
+      typeFun >>= { typeFun =>
+      typeArg >>= { typeArg =>
+      Solo(typeFun ++ typeArg) }}
+  }
+
+  implicit class MinimallyQuantifiedTypeOps(τ : Type) {
+    def isMinimallyQuantified: Boolean =
+      NotMQ != (new IsMinimallyQuantified)(τ)
+
+    def ensureMinimalQuantification: Type =
+      if (! isMinimallyQuantified)
+        sys error s"Not minimally quantified: ${pretty(τ)}"
+      else
+        τ
+  }
+}
+
+object TestMQ extends MinimallyQuantifiedTypes {
+/*
+  def main(args: Array[String]) {
+    val types = List(
+      //∀("α", )
+    )
+  }
+ */
 }
