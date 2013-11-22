@@ -398,7 +398,7 @@ trait Substitution extends GlobalRenaming with CanonicalNames {
 
 trait TypedTerms extends GlobalRenaming {
   case class TypedTerm(canon: Term,
-                       Γ    : Map[Name, Type],
+                       Γ    : PartialFunction[Name, Type],
                        names: Map[Name, Name]) {
     def getTerm: Term = canon renameAll names
 
