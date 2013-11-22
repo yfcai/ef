@@ -308,6 +308,11 @@ trait CanonicalNames extends FreeNames with Renaming {
     def Σ : T = Nil
   }
 
+  // Not compositional at the moment.
+  // Can be made compositional by enlarging the domain
+  // to (Term, Map[Name, Name]), but the lack of prealgebra
+  // composition means boilerplates. Hence, for now, I
+  // tolerate dirty and shorter code.
   class RenameBindings(newNames: Seq[Name])
   extends TypeReconstruction with TermReconstruction
   {
@@ -590,7 +595,7 @@ trait Unification extends Substitution with TypedTerms with CanonicalNames {
   }
 }
 
-object TestEverything
+object TestUnification
 extends Pretty with Unification {
   def main(args: Array[String]) {
     val t = λ("x", "y") { Σ ₋ (Σ ₋ "x" ₋ "y") ₋ "z" } rename
