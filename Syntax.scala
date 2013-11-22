@@ -75,6 +75,10 @@ trait Types extends FreshNames {
 
   implicit def stringToTypeVariable(s: String): Type = α(s)
 
+  implicit class typeApplicationOps[T <% Type](typeFun: T) {
+    def ₌ (typeArg: Type): Type = ★(typeFun, typeArg)
+  }
+
   case class ∀(name: Name, body: Type) extends Type with Binding
   case class →(domain: Type, range: Type) extends Type
   case class α(name: Name) extends Type with Bound
@@ -472,27 +476,41 @@ trait Pretty extends TypedTerms {
 }
 
 trait MinimallyQuantifiedTypes extends Types with FreeNames with Pretty {
+  // domain M = name -> is free in a good way or a bad way
+  // FYI, true is good, false is bad.
+  private[this] type M = Map[Name, Boolean]
+
   private sealed trait MQ {
-    def >>= (f: Set[Name] => MQ): MQ
+    def >>= (f: M => MQ): MQ
   }
 
   private case object NotMQ extends MQ {
-    def >>= (f: Set[Name] => MQ): MQ = NotMQ
+    def >>= (f: M => MQ): MQ = NotMQ
   }
 
-  private case class Solo(freeNames: Set[Name]) extends MQ {
-    def >>= (f: Set[Name] => MQ): MQ = f(freeNames)
+  private case class Solo(goodAndBad: M) extends MQ {
+    def >>= (f: M => MQ): MQ = f(goodAndBad)
   }
 
-  private case class Duo(lhs: Set[Name], rhs: Set[Name]) extends MQ {
-    def >>= (f: Set[Name] => MQ): MQ = f(lhs ++ rhs)
+  private case class Duo(lhs: M, rhs: M) extends MQ {
+    def >>= (f: M => MQ): MQ = f(merge(lhs, rhs))
   }
+
+  private def merge(lhs: M, rhs: M): M =
+    (lhs map { case (name, goodness) =>
+      if (rhs contains name)
+        (name, goodness && rhs(name))
+      else
+        (name, goodness)
+    }) ++ rhs.filter(p => ! (lhs contains p._1))
 
   private class IsMinimallyQuantified extends TypeVisitor[MQ] {
     private[this] type T = MQ
 
     def ∀(name: Name, body: T): T = body match {
-      case Duo(lhs, rhs) if (lhs contains name) && (rhs contains name) =>
+      case Duo(lhs, rhs)
+          if lhs.getOrElse(name, false) &&
+             rhs.getOrElse(name, false) =>
         Duo(lhs - name, rhs - name)
 
       case _ =>
@@ -504,17 +522,39 @@ trait MinimallyQuantifiedTypes extends Types with FreeNames with Pretty {
       range  >>= { range  =>
       Duo(domain, range) }}
 
-    def α(name: Name): T = Solo(Set(name))
-    def ? : T            = Solo(Set.empty)
+    def α(name: Name): T = Solo(Map(name -> true))
+    def ? : T            = Solo(Map.empty)
 
     def ★(typeFun: T, typeArg: T) =
       typeFun >>= { typeFun =>
       typeArg >>= { typeArg =>
-      Solo(typeFun ++ typeArg) }}
+      Solo(typeArg ++ (typeFun mapValues (! _))) }}
+    // It is important that we don't gather free names in
+    // typeFun. Minimally quantified types forbid quantifying
+    // over a type function. The type function should be
+    // a free variable bound in a bigger context, like
+    // "List".
+  }
+
+  // See above: "The type function should be ..."
+  // In short, all subtree of the type should be in head normal form.
+  def noComplicatedTypeApplication: Type => Boolean = { τ =>
+    def f = noComplicatedTypeApplication
+    τ match {
+      case ∀(name, body)    => f(body)
+      case →(domain, range) => f(domain) && f(range)
+      case α(name)          => true
+      case ?                => true
+
+      case ★(typeFun: ★, typeArg) => f(typeFun) && f(typeArg)
+      case ★(α(_), typeArg)       => f(typeArg)
+      case ★(_, _)                => false
+    }
   }
 
   implicit class MinimallyQuantifiedTypeOps(τ : Type) {
     def isMinimallyQuantified: Boolean =
+      noComplicatedTypeApplication(τ) &&
       NotMQ != (new IsMinimallyQuantified)(τ)
 
     def ensureMinimalQuantification: Type =
@@ -526,11 +566,26 @@ trait MinimallyQuantifiedTypes extends Types with FreeNames with Pretty {
 }
 
 object TestMQ extends MinimallyQuantifiedTypes {
-/*
   def main(args: Array[String]) {
     val types = List(
-      //∀("α", )
+      true  -> ∀("α")("α" →: "α"),
+      true  -> ∀("α", "β")(("α" →: "β") →: ("List" ₌ "α") →: ("List" ₌ "β")),
+      true  -> "List" ₌ ("List" ₌ "α"),
+      true  -> "Map" ₌ ("List" ₌ "α") ₌ ("Map" ₌ "α" ₌ "β"),
+      false -> ∀("α")("α"),
+      false -> ∀("α")("List" ₌ "α"),
+      false -> ∀("α")("α" →: "β"),
+      false -> ∀("β")("α" →: "β"),
+      false -> ("α" →: "β") ₌ "γ",
+      false -> ∀("α")("α" →: "α") ₌ "β",
+      false -> ∀("α")("α") →: "β"
     )
+    types foreach { case (mqHood, τ) =>
+      val yeah = if (mqHood) "Yeah!" else "Nope!"
+      if (mqHood != τ.isMinimallyQuantified) {
+        sys error s"Misjudgement! expect $yeah of ${pretty(τ)}"
+      }
+      println("%s %s".format(yeah, pretty(τ)))
+    }
   }
- */
 }
