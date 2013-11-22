@@ -87,18 +87,21 @@ trait Types extends FreshNames {
   case class →(domain: Type, range: Type) extends Type
   case class α(name: Name) extends Type with Bound
   case object ℤ extends Type
+  case object ? extends Type
 
   trait TypeVisitor[T] {
     def ∀(name: Name, body: T): T
     def →(domain: T, range: T): T
     def α(name: Name): T
     def ℤ : T
+    def ? : T
 
     def apply(τ : Type): T = τ match {
       case topLevel.∀(name, body)    => ∀(name, apply(body))
       case topLevel.→(domain, range) => →(apply(domain), apply(range))
       case topLevel.α(name)          => α(name)
       case topLevel.ℤ                => ℤ
+      case topLevel.?                => ?
     }
   }
 }
@@ -155,6 +158,7 @@ trait TypesAndTerms extends Terms with Types {
     def →(domain: T, range: T): T
     def α(name: Name): T
     def ℤ : T
+    def ? : T
 
     def χ(name: Name): T
     def λ(name: Name, body: T): T
@@ -174,7 +178,8 @@ trait Reconstruction extends TypesAndTerms {
     override def ∀(name: Name, body: Type): Type = topLevel.∀(name, body)
     override def →(domain: Type, range: Type): Type = topLevel.→(domain, range)
     override def α(name: Name): Type = topLevel.α(name)
-    override def ℤ: Type = topLevel.ℤ
+    override def ℤ : Type = topLevel.ℤ
+    override def ? : Type = topLevel.?
   }
 
   trait TermReconstruction
@@ -281,6 +286,7 @@ trait FreeNames extends TypesAndTerms {
     override def →(domain: T, range: T) = domain ++ range
     override def α(name: Name) = Set(name)
     override def ℤ = Set.empty
+    override def ? = Set.empty
 
     override def χ(name: Name) = Set(name)
     override def λ(name: Name, body: T) = body - name
@@ -299,6 +305,7 @@ trait CanonicalNames extends FreeNames with Renaming {
     def →(domain: T, range: T): T = domain ++ range
     def α(name: Name): T = Nil
     def ℤ : T = Nil
+    def ? : T = Nil
 
     def χ(name: Name): T = Nil
     def λ(name: Name, body: T): T = name :: body
@@ -463,6 +470,7 @@ trait Pretty extends TypedTerms {
 
     override def α(name: Name) = (name.toString, priority_↓)
     override def ℤ = ("ℤ", priority_↓)
+    override def ? = ("?", priority_↓)
 
     def χ(name: Name): Domain = (name.toString, priority_↓)
 
