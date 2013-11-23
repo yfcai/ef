@@ -7,22 +7,22 @@ trait FreshNames {
   trait Binding extends Named
   trait Bound   extends Named
 
-  case class NameLiteral(override val toString: String) extends Name
+  case class StringLiteral(override val toString: String) extends Name
 
   case class ID(index: Int) extends Name {
     override def toString = "?" + index
   }
 
-  implicit def stringToNameLiteral(s: String): Name = NameLiteral(s)
+  implicit def stringToStringLiteral(s: String): Name = StringLiteral(s)
 
   def getFreshName(default: Name, toAvoid: Set[Name]): Name = {
     val cons: Int => Name = default match {
-      case NameLiteral(s) => i => s + i
-      case ID(_)          => i => ID(i)
+      case StringLiteral(s) => i => s + i
+      case ID(_)            => i => ID(i)
     }
     val startingID: Int = default match {
-      case NameLiteral(_) => 0
-      case ID(j)          => j
+      case StringLiteral(_) => 0
+      case ID(j)            => j
     }
     var i = startingID
     var result = default

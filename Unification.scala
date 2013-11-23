@@ -91,24 +91,23 @@ extends Substitution
 
     implicit class inferenceByUnificationOps(t: Term) {
       def infer: TypedTerm = inferFrom(∅)
-      def inferFrom(Γ : Context): TypedTerm = {
+
+      def inferFrom(Γ_global : PartialFunction[Name, Type]): TypedTerm = {
         val (canon, invFree, invBound) = t.canonize
-        val Typing(_Γ, τ) = (new HindleysPrincipalTyping)(canon)
+        val Γ0 = (new HindleysPrincipalTyping)(canon).Γ
         val freeIDs = invFree.inverse
-        val Γ0 = Γ map { case (k, v) => (freeIDs(k), v) }
-        val mgs = findMGS(unify(_Γ, Γ0))
-        // test that type variables fixed in Γ0 are never unified
-        // to something else
-        val fixedNames = (Γ map (p => getFreeNames(p._2))).
-          fold(Set.empty[Name])(_ ++ _)
-        mgs foreach { case (lhs, rhs) =>
-          if (fixedNames contains lhs)
-            sys error s"Can't unify fixed name $lhs = ${pretty(rhs)}"
+        val Γ = invFree flatMap { case (id, freeName) =>
+          if (Γ_global isDefinedAt freeName)
+            Map(id -> Γ_global(freeName))
+          else
+            Map.empty[Name, Type]
         }
+        val mgs = findMGS(unify(Γ0, Γ))
         TypedTerm(canon,
-          (_Γ ++ Γ0) mapValues (_ substitute mgs),
+          (Γ0 ++ Γ) mapValues (_ substitute mgs),
           invFree ++ invBound)
       }
+
       def inferFrom[K <% Name, V <% Type](Γ : (K, V)*): TypedTerm =
         inferFrom(Γ.map({
           case (k, v) => (k: Name, v: Type)
@@ -121,7 +120,6 @@ object TestUnification extends Unification {
   def main(args: Array[String]) {
     val Σ = χ("Σ")
     val ℤ = α("ℤ")
-    val Γ = Map(Σ.name -> (ℤ →: ℤ →: ℤ))
     val * = "List"
     val t = λ("x", "y") { Σ ₋ (Σ ₋ "x" ₋ "y") ₋ "z" } rename
       Map("y" -> "a", "z" -> "b") renameAll
@@ -142,8 +140,19 @@ object TestUnification extends Unification {
     println((c2._2, c2._3))
     println()
 
+    val Γ : PartialFunction[Name, Type] = {
+      // summation
+      case name if name == Σ.name =>
+        ℤ →: ℤ →: ℤ
+
+      // integer literals
+      case StringLiteral(name) if name matches "[0-9]+" =>
+        ℤ
+    }
+
     import Unification._
     println(pretty(t inferFrom Γ))
     println(pretty("f" ₋ "x" inferFrom ("f" -> ("ω" →: "β"))))
+    println(pretty(λ("x")("x") ₋ "5" inferFrom Γ))
   }
 }
