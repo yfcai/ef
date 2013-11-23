@@ -437,7 +437,7 @@ trait Pretty extends TypedTerms {
     def template(format: String, priority: Int, subs: (Domain, Int)*):
         Domain = {
       val subformats = subs map {
-        case ((sub, psub), pmod) => paren(psub, priority + pmod, sub)
+        case ((sub, psub), pmod) => paren(psub, priority - pmod, sub)
       }
       (format.format(subformats: _*), priority)
     }
