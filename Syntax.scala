@@ -494,7 +494,7 @@ trait Pretty extends TypedTerms {
   * rule of the concrete syntax.)
   */
 
-trait MinimallyQuantifiedF extends Types with FreeNames with Pretty {
+trait MinimalQuantification extends Types with FreeNames with Pretty {
   // domain M = name -> is free in a good way or a bad way
   // FYI, true is good, false is bad.
   private[this] type M = Map[Name, Boolean]
@@ -580,7 +580,7 @@ trait MinimallyQuantifiedF extends Types with FreeNames with Pretty {
   }
 }
 
-object TestMinimalQuantification extends MinimallyQuantifiedF {
+object TestMinimalQuantification extends MinimalQuantification {
   def main(args: Array[String]) {
     val types = List(
       true  -> ∀("α")("α" →: "α"),
