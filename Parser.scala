@@ -13,14 +13,14 @@ trait Parsing extends SystemMF with Pretty with RegexParsers {
 
     val leftP  = """\(""".r
     val rightP = """\)""".r
-    val forall = """[∀\\]""".r
-    val lambda = """[λ\\]""".r
+    val forall = "[∀]".r
+    val lambda = "[λ]".r
     val dot    = "[.]".r
     val colon  = "[:]".r
-    val arrow  = "→|->".r
+    val arrow  = "[→]".r
     val nil    = "".r
-    val ident  =  """[^()\[\]{}",'`;#|\\]+""".r // racket identifiers
-    val param  = """[^.()\[\]{}",'`;#|\\]+""".r // no dot in params!
+    val ident  = """[^()\[\]{}",'`;#|\\∀λ→ \r\t\f\n]+""".r
+    val param  = """[^()\[\]{}",'`;#|\\∀λ→ \r\t\f\n.]+""".r
 
     // TYPE PARSERS
 
@@ -90,7 +90,12 @@ trait Parsing extends SystemMF with Pretty with RegexParsers {
 }
 
 object TestParser extends Parsing {
-  def τ(s : String) { println(pretty(parseType(s).get)) }
+  def τ(s : String) {
+    val τ = parseType(s).get
+    println(τ)
+    println(pretty(τ))
+    println
+  }
 
   def main(args: Array[String]) {
     τ("α")
