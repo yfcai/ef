@@ -1,6 +1,6 @@
 trait Unification
 extends Substitution
-   with TypedTerms
+   with SimplyTypedTerms
    with CanonicalNames
    with Pretty
 {
@@ -90,9 +90,10 @@ extends Substitution
     }
 
     implicit class inferenceByUnificationOps(t: Term) {
-      def infer: TypedTerm = inferFrom(∅)
+      def infer: SimplyTypedTerm = inferFrom(∅)
 
-      def inferFrom(Γ_global : PartialFunction[Name, Type]): TypedTerm = {
+      def inferFrom(Γ_global : PartialFunction[Name, Type]):
+          SimplyTypedTerm = {
         val (canon, invFree, invBound) = t.canonize
         val Γ0 = (new HindleysPrincipalTyping)(canon).Γ
         val freeIDs = invFree.inverse
@@ -103,12 +104,12 @@ extends Substitution
             Map.empty[Name, Type]
         }
         val mgs = findMGS(unify(Γ0, Γ))
-        TypedTerm(canon,
+        SimplyTypedTerm(canon,
           (Γ0 ++ Γ) mapValues (_ substitute mgs),
           invFree ++ invBound)
       }
 
-      def inferFrom[K <% Name, V <% Type](Γ : (K, V)*): TypedTerm =
+      def inferFrom[K <% Name, V <% Type](Γ : (K, V)*): SimplyTypedTerm =
         inferFrom(Γ.map({
           case (k, v) => (k: Name, v: Type)
         })(collection.breakOut): Map[Name, Type])
