@@ -46,12 +46,17 @@ trait FreshNames {
   }
 
   class GenerativeNameGenerator {
-    var index: Int = -1
+    val initialIndex = -1
+    var index: Int = initialIndex
 
     def next: Name = {
       index = index + 1
-      if (index == -1) sys error "We ran out of generative names"
+      if (index == initialIndex) sys error "We ran out of generative names"
       ID(index)
+    }
+
+    def reset() {
+      index = initialIndex
     }
   }
 }
