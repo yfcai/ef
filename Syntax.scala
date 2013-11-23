@@ -83,21 +83,18 @@ trait Types extends FreshNames {
   case class →(domain: Type, range: Type) extends Type
   case class α(name: Name) extends Type with Bound
   case class ★(operator: Type, operand: Type) extends Type
-  case object ? extends Type
 
   trait TypeVisitor[T] {
     def ∀(name: Name, body: T): T
     def →(domain: T, range: T): T
     def α(name: Name): T
     def ★(operator: T, operand: T): T
-    def ? : T
 
     def apply(τ : Type): T = τ match {
       case topLevel.∀(name, body)    => ∀(name, apply(body))
       case topLevel.→(domain, range) => →(apply(domain), apply(range))
       case topLevel.α(name)          => α(name)
       case topLevel.★(f, x)          => ★(apply(f), apply(x))
-      case topLevel.?                => ?
     }
   }
 }
@@ -144,7 +141,6 @@ trait TypesAndTerms extends Terms with Types {
     def ∀(name: Name, body: T): T
     def →(domain: T, range: T): T
     def α(name: Name): T
-    def ? : T
     def ★(operator: T, operand: T): T
 
     def χ(name: Name): T
@@ -160,7 +156,6 @@ trait Reconstruction extends TypesAndTerms {
     override def ∀(name: Name, body: Type): Type = topLevel.∀(name, body)
     override def →(domain: Type, range: Type): Type = topLevel.→(domain, range)
     override def α(name: Name): Type = topLevel.α(name)
-    override def ? : Type = topLevel.?
     override def ★(typeFun: Type, typeArg: Type) = topLevel.★(typeFun, typeArg)
   }
 
@@ -264,7 +259,6 @@ trait FreeNames extends TypesAndTerms {
     def ∀(name: Name, body: T): T = body - name
     def →(domain: T, range: T): T = domain ++ range
     def α(name: Name): T = Set(name)
-    def ? : T = Set.empty
     def ★(typeFun: T, typeArg: T) = typeFun ++ typeArg
 
     def χ(name: Name): T = Set(name)
@@ -280,7 +274,6 @@ trait CanonicalNames extends FreeNames with Renaming {
     def ∀(name: Name, body: T): T = name :: body
     def →(domain: T, range: T): T = domain ++ range
     def α(name: Name): T = Nil
-    def ? : T = Nil
     def ★(typeFun: T, typeArg: T): T = typeFun ++ typeArg
 
     def χ(name: Name): T = Nil
@@ -432,7 +425,6 @@ trait Pretty extends TypedTerms {
       template("%s %s", priority_★, (f, 1), (x, 0))
 
     override def α(name: Name) = (name.toString, priority_∞)
-    override def ? = ("?", priority_∞)
 
     def χ(name: Name): Domain = (name.toString, priority_∞)
 
@@ -475,7 +467,34 @@ trait Pretty extends TypedTerms {
     "%s : %s".format(pretty(t.getTerm), pretty(t.getType))
 }
 
-trait MinimallyQuantifiedTypes extends Types with FreeNames with Pretty {
+/** The goal of minimally quantified types is to type
+  * a fixed-point combinator without obligatory type
+  * abstractions and type applications.
+  *
+  * Y : (∀ α . ((α -> α) -> (α -> α)) -> (α -> α))
+  * Y f =
+  *   let
+  *     s : (∀ β . β -> α -> α) -> (α -> α)
+  *     s x = f (x x)
+  *   in
+  *     s s
+  *
+  * Y = λ f : (α -> α) -> (α -> α) .
+  *       (λ x : ∀ β . β -> α -> α . f (x x))
+  *       (λ x : ∀ β . β -> α -> α . f (x x))
+  *
+  * concrete  = let { s : σ → τ ; s x = sdef } in body
+  *
+  * sugar     = let(σ, τ, s, x, sdef, body)
+  *
+  * desugared = (λ s : σ → τ. body) (λ x : σ. sdef)
+  *
+  * (There's extra consideration about quantifications
+  * in the sugar, to be handled by the quantification
+  * rule of the concrete syntax.)
+  */
+
+trait MinimallyQuantifiedF extends Types with FreeNames with Pretty {
   // domain M = name -> is free in a good way or a bad way
   // FYI, true is good, false is bad.
   private[this] type M = Map[Name, Boolean]
@@ -510,8 +529,12 @@ trait MinimallyQuantifiedTypes extends Types with FreeNames with Pretty {
     def ∀(name: Name, body: T): T = body match {
       case Duo(lhs, rhs)
           if lhs.getOrElse(name, false) &&
-             rhs.getOrElse(name, false) =>
+             rhs.getOrElse(name, true ) =>
         Duo(lhs - name, rhs - name)
+
+      case Solo(goodAndBad)
+          if goodAndBad.getOrElse(name, false) =>
+        Solo(goodAndBad - name)
 
       case _ =>
         NotMQ
@@ -523,28 +546,20 @@ trait MinimallyQuantifiedTypes extends Types with FreeNames with Pretty {
       Duo(domain, range) }}
 
     def α(name: Name): T = Solo(Map(name -> true))
-    def ? : T            = Solo(Map.empty)
 
     def ★(typeFun: T, typeArg: T) =
       typeFun >>= { typeFun =>
       typeArg >>= { typeArg =>
       Solo(typeArg ++ (typeFun mapValues (! _))) }}
-    // It is important that we don't gather free names in
-    // typeFun. Minimally quantified types forbid quantifying
-    // over a type function. The type function should be
-    // a free variable bound in a bigger context, like
-    // "List".
   }
 
-  // See above: "The type function should be ..."
-  // In short, all subtree of the type should be in head normal form.
+  // All subtree of the type should be in head normal form.
   def noComplicatedTypeApplication: Type => Boolean = { τ =>
     def f = noComplicatedTypeApplication
     τ match {
       case ∀(name, body)    => f(body)
       case →(domain, range) => f(domain) && f(range)
       case α(name)          => true
-      case ?                => true
 
       case ★(typeFun: ★, typeArg) => f(typeFun) && f(typeArg)
       case ★(α(_), typeArg)       => f(typeArg)
@@ -565,20 +580,20 @@ trait MinimallyQuantifiedTypes extends Types with FreeNames with Pretty {
   }
 }
 
-object TestMinimalQuantification extends MinimallyQuantifiedTypes {
+object TestMinimalQuantification extends MinimallyQuantifiedF {
   def main(args: Array[String]) {
     val types = List(
       true  -> ∀("α")("α" →: "α"),
       true  -> ∀("α", "β")(("α" →: "β") →: ("List" ₌ "α") →: ("List" ₌ "β")),
       true  -> "List" ₌ ("List" ₌ "α"),
       true  -> "Map" ₌ ("List" ₌ "α") ₌ ("Map" ₌ "α" ₌ "β"),
-      false -> ∀("α")("α"),
-      false -> ∀("α")("List" ₌ "α"),
-      false -> ∀("α")("α" →: "β"),
+      true  -> ∀("α")("α"),
+      true  -> ∀("α")("List" ₌ "α"),
+      true  -> ∀("α")("α" →: "β"),
+      true  -> ∀("α")("α") →: "β",
       false -> ∀("β")("α" →: "β"),
       false -> ("α" →: "β") ₌ "γ",
-      false -> ∀("α")("α" →: "α") ₌ "β",
-      false -> ∀("α")("α") →: "β"
+      false -> ∀("α")("α" →: "α") ₌ "β"
     )
     types foreach { case (mqHood, τ) =>
       val yeah = if (mqHood) "Yeah!" else "Nope!"
