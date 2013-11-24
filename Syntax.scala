@@ -310,15 +310,21 @@ trait CanonicalNames extends FreeNames with Renaming {
 
   private[this] type R = Map[Name, Name]
 
+  private[this] case class CanonID(index: Int) extends Name {
+    override def toString: String = "!" + index
+  }
+
   def canonizeNames(τ : Type): (Type, R, R) = {
     val freeNames = getFreeNames(τ)
     val boundNames = (new CollectBindings)(τ)
     val freeInverse: Map[Name, Name] =
       ((0 until freeNames.size), freeNames).zipped.map({
-        case (i, name) => ID(i) -> name
+        case (i, name) => CanonID(i) -> name
       })(collection.breakOut)
     val freeIDs = freeInverse map { case (id, name) => name -> α(id) }
-    val boundIDs = (0 until boundNames.size) map {i => ID(i + freeNames.size)}
+    val boundIDs = (0 until boundNames.size) map {i =>
+      CanonID(i + freeNames.size)
+    }
     val canon = new RenameBindings(boundIDs)(τ rename freeIDs)
     (canon, freeInverse,
       (boundIDs, boundNames).zipped.map((k,v) => (k,v))(collection.breakOut))
@@ -329,10 +335,12 @@ trait CanonicalNames extends FreeNames with Renaming {
     val boundNames = (new CollectBindings)(t)
     val freeInverse: Map[Name, Name] =
       ((0 until freeNames.size), freeNames).zipped.map({
-        case (i, name) => ID(i) -> name
+        case (i, name) => CanonID(i) -> name
       })(collection.breakOut)
     val freeIDs = freeInverse map { case (id, name) => name -> χ(id) }
-    val boundIDs = (0 until boundNames.size) map {i => ID(i + freeNames.size)}
+    val boundIDs = (0 until boundNames.size) map {i =>
+      CanonID(i + freeNames.size)
+    }
     val canon = new RenameBindings(boundIDs)(t rename freeIDs)
     (canon, freeInverse,
       (boundIDs, boundNames).zipped.map((k,v) => (k,v))(collection.breakOut))
