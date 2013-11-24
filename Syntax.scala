@@ -219,10 +219,14 @@ trait Renaming extends TypesAndTerms with Reconstruction {
   implicit class typeRenamingOps(τ : Type) {
     def rename[N <% Name, T <% Type](f: Map[N, T]): Type =
       new TypeRenaming(f map { case (k, v) => (k: Name, v: Type) })(τ)
+    def rename[N <% Name, T <% Type](s: (N, T)*): Type =
+      rename(Map(s: _*))
   }
   implicit class termRenamingOps(t : Term) {
     def rename[N <% Name, T <% Term](f: Map[N, T]): Term =
       new TermRenaming(f map { case (k, v) => (k: Name, v: Term) })(t)
+    def rename[N <% Name, T <% Term](s: (N, T)*): Term =
+      rename(Map(s: _*))
   }
 }
 
@@ -493,17 +497,17 @@ trait Pretty extends TypedTerms {
   * a fixed-point combinator without obligatory type
   * abstractions and type applications.
   *
-  * Y : (∀ α . ((α -> α) -> (α -> α)) -> (α -> α))
+  * Y : (∀ α . ((α → α) → (α → α)) → (α → α))
   * Y f =
   *   let
-  *     s : (∀ β . β -> α -> α) -> (α -> α)
+  *     s : (∀ β . β → α → α) → (α → α)
   *     s x = f (x x)
   *   in
   *     s s
   *
-  * Y = λ f : (α -> α) -> (α -> α) .
-  *       (λ x : ∀ β . β -> α -> α . f (x x))
-  *       (λ x : ∀ β . β -> α -> α . f (x x))
+  * Y = λ f : (α → α) → (α → α) .
+  *       (λ x : ∀ β . β → α → α . f (x x))
+  *       (λ x : ∀ β . β → α → α . f (x x))
   *
   * concrete  = let { s : σ → τ ; s x = sdef } in body
   *
