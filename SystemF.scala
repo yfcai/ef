@@ -2,12 +2,12 @@ trait SystemMF
 extends TypedTerms with MinimalQuantification with Substitution
 {
   case class SMFTerm(
-    t: Term,
-    Γ: PartialFunction[Name, Type],
-    nameScheme: Map[Name, Name]
+    canon: Term,
+    Γ    : PartialFunction[Name, Type],
+    names: Map[Name, Name]
   )
   extends TypedTerm {
-    def getTerm: Term = t
+    def getTerm: Term = canon renameAll names
     def getType: Type = ???
   }
 }
