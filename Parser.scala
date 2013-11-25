@@ -105,17 +105,32 @@ trait Parsing extends SystemMF with Pretty with RegexParsers {
 
     // INTERNAL STUFF
 
+    // internal parsers
+
     lazy val topLevel: Parser[SMFTerm] = termExpr ^^ {
       case SMF(t, _Γ, names) => SMFTerm(t, _Γ, names)
     }
+
+    def opList[T](operator: Regex, operand: Parser[T]): Parser[List[T]] =
+      operand ~ (operator ~> operand).+ ^^ {
+        case operand ~ others => operand :: others
+      }
+
+    def paren[T](innard: Parser[T]): Parser[T] =
+      leftP ~> innard <~ rightP
+
+    // name generation
+    private[this] case class ID(index: Int) extends IDNumber
+    val name = new GenerativeNameGenerator(ID)
 
     // finite version of SMFTerm
     case class SMF(t : Term, Γ : Map[Name, Type], n: Map[Name, Name])
     object ZeroInfo extends SMF(ZeroInfoTerm, ∅, ∅) with Type
     case object ZeroInfoTerm extends Term
 
-    val name = new GenerativeNameGenerator
+    def ∅[K, V] = Map.empty[K, V]
 
+    // result data struct
     sealed trait Result[T] { def get: T }
     case class OK[T](get: T) extends Result[T]
     case class KO[T](msg: String) extends Result[T] {
@@ -126,16 +141,6 @@ trait Parsing extends SystemMF with Pretty with RegexParsers {
         case Success(result, _) => OK(result)
         case failure: NoSuccess => KO(failure.msg)
       }
-
-    def ∅[K, V] = Map.empty[K, V]
-
-    def opList[T](operator: Regex, operand: Parser[T]): Parser[List[T]] =
-      operand ~ (operator ~> operand).+ ^^ {
-        case operand ~ others => operand :: others
-      }
-
-    def paren[T](innard: Parser[T]): Parser[T] =
-      leftP ~> innard <~ rightP
   }
 }
 

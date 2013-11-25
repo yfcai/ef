@@ -9,21 +9,20 @@ trait FreshNames {
 
   case class StringLiteral(override val toString: String) extends Name
 
-  case class ID(index: Int) extends Name {
+  trait IDNumber extends Name {
+    def index: Int
     override def toString = "?" + index
   }
 
   implicit def stringToStringLiteral(s: String): Name = StringLiteral(s)
 
   def getFreshName(default: Name, toAvoid: Set[Name]): Name = {
-    val cons: Int => Name = default match {
-      case StringLiteral(s) => i => s + i
-      case ID(_)            => i => ID(i)
+    val name = default match {
+      case StringLiteral(s) => s
+      case _                => "x"
     }
-    val startingID: Int = default match {
-      case StringLiteral(_) => 0
-      case ID(j)            => j
-    }
+    val cons: Int => Name = i => name + i
+    val startingID: Int = -1
     var i = startingID
     var result = default
     while (toAvoid contains result) {
@@ -33,26 +32,15 @@ trait FreshNames {
     result
   }
 
-  def getFreshIDs(howMany: Int, toAvoid: Set[Name]): Set[Name] = {
-    def loop(start: Int, howMany: Int, toAvoid: Set[Name]): Set[Name] =
-      if (howMany <= 0)
-        Set.empty
-      else {
-        var i = start
-        while(toAvoid contains ID(i)) i += 1
-        loop(i + 1, howMany - 1, toAvoid + ID(i)) + ID(i)
-      }
-    loop(0, howMany, toAvoid)
-  }
-
-  class GenerativeNameGenerator {
+  class GenerativeNameGenerator(cons: Int => Name)
+  {
     val initialIndex = -1
     var index: Int = initialIndex
 
     def next: Name = {
       index = index + 1
       if (index == initialIndex) sys error "We ran out of generative names"
-      ID(index)
+      cons(index)
     }
 
     def reset() {
@@ -314,9 +302,7 @@ trait CanonicalNames extends FreeNames with Renaming {
 
   private[this] type R = Map[Name, Name]
 
-  private[this] case class CanonID(index: Int) extends Name {
-    override def toString: String = "!" + index
-  }
+  private[this] case class CanonID(index: Int) extends IDNumber
 
   def canonizeNames(τ : Type): (Type, R, R) = {
     val freeNames = getFreeNames(τ)

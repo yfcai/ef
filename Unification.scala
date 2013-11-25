@@ -23,7 +23,9 @@ extends Substitution
     extends TermVisitor[Typing] {
       private[this] type T = Typing
 
-      private[this] val nameGenerator = new GenerativeNameGenerator
+      private[this] case class ID(index: Int) extends IDNumber
+
+      private[this] val nameGenerator = new GenerativeNameGenerator(ID)
 
       def newTypeVar: Type = topLevel.α(nameGenerator.next)
 
