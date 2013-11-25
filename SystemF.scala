@@ -21,13 +21,17 @@ trait MostGeneralSubstitution extends Substitution {
 
   def mostGeneralSubstitution(
     constraints: List[EqConstraint]
-    //,against: Set[Name]
+  ): Map[Name, Type] =
+    mostGeneralSubstitution(constraints, new UniversalSet[Name])
+
+  def mostGeneralSubstitution(
+    constraints: List[EqConstraint],
+    against: Set[Name]
   ): Map[Name, Type] =
   {
     type Eq = EqConstraint
     val  Eq = EqConstraint
-    def findMGS(cs: List[Eq]) = mostGeneralSubstitution(cs)
-    constraints match {
+    def loop(constraints: List[Eq]): Map[Name, Type] = constraints match {
       case Nil =>
         Map.empty
 
@@ -36,16 +40,18 @@ trait MostGeneralSubstitution extends Substitution {
         ???
 
       case Eq(σ1 → τ1, σ2 → τ2) :: others =>
-        findMGS(Eq(σ1, σ2) :: Eq(τ1, τ2) :: others)
+        loop(Eq(σ1, σ2) :: Eq(τ1, τ2) :: others)
 
       case Eq(★(f1, τ1), ★(f2, τ2)) :: others =>
-        findMGS(Eq(f1, f2) :: Eq(τ1, τ2) :: others)
+        loop(Eq(f1, f2) :: Eq(τ1, τ2) :: others)
 
       case Eq(α(name1), α(name2)) :: others if name1 == name2 =>
-        findMGS(others)
+        loop(others)
 
+      // TODO: VERIFY SUBSTITUTION IS ALLOWD BY `against`
+      // COMMIT SUICIDE OTHERWISE
       case Eq(α(name), τ) :: others =>
-        val mgs = findMGS(others map { case Eq(τ1, τ2) =>
+        val mgs = loop(others map { case Eq(τ1, τ2) =>
           Eq(τ1 substitute (name -> τ), τ2 substitute (name -> τ))
         })
         val new_τ = τ substitute mgs
@@ -54,12 +60,13 @@ trait MostGeneralSubstitution extends Substitution {
         mgs.updated(name, new_τ)
 
       case Eq(τ, α(name)) :: others =>
-        findMGS(Eq(α(name), τ) :: others)
+        loop(Eq(α(name), τ) :: others)
 
       case Eq(τ1, τ2) :: others =>
-        if (τ1 == τ2) findMGS(others)
+        if (τ1 == τ2) loop(others)
         else sys error "Inconsistent equality constraints"
     }
+    loop(constraints)
   }
 }
 
