@@ -1,5 +1,45 @@
+trait MostGeneralSubstitution extends Substitution {
+  case class EqConstraint(lhs: Type, rhs: Type)
+
+  def mostGeneralSubstitution(constraints: List[EqConstraint]):
+      Map[Name, Type] = {
+    type Eq = EqConstraint
+    val  Eq = EqConstraint
+    def findMGS(cs: List[Eq]) = mostGeneralSubstitution(cs)
+    constraints match {
+      case Nil =>
+        Map.empty
+
+      case Eq(σ1 → τ1, σ2 → τ2) :: others =>
+        findMGS(Eq(σ1, σ2) :: Eq(τ1, τ2) :: others)
+
+      case Eq(★(f1, τ1), ★(f2, τ2)) :: others =>
+        findMGS(Eq(f1, f2) :: Eq(τ1, τ2) :: others)
+
+      case Eq(α(name1), α(name2)) :: others if name1 == name2 =>
+        findMGS(others)
+
+      case Eq(α(name), τ) :: others =>
+        val mgs = findMGS(others map { case Eq(τ1, τ2) =>
+          Eq(τ1 substitute (name -> τ), τ2 substitute (name -> τ))
+        })
+        val new_τ = τ substitute mgs
+        if ((mgs contains name) && mgs(name) != new_τ)
+          sys error s"Can't unify ${mgs(name)} = ${new_τ}"
+        mgs.updated(name, new_τ)
+
+      case Eq(τ, α(name)) :: others =>
+        findMGS(Eq(α(name), τ) :: others)
+
+      case Eq(τ1, τ2) :: others =>
+        if (τ1 == τ2) findMGS(others)
+        else sys error "Inconsistent equality constraints"
+    }
+  }
+}
+
 trait Unification
-extends Substitution
+extends MostGeneralSubstitution
    with SimplyTypedTerms
    with CanonicalNames
    with Pretty
@@ -16,7 +56,8 @@ extends Substitution
 
     private case class Typing(Γ : Context, τ : Type)
 
-    private case class EqConstraint(lhs: Type, rhs: Type)
+    private def findMGS(constraints: List[EqConstraint]) =
+      mostGeneralSubstitution(constraints)
 
     // Precondition: All names are unique in the term.
     private class HindleysPrincipalTyping
@@ -56,40 +97,6 @@ extends Substitution
       (Γ1.keySet & Γ2.keySet).map(
         x => EqConstraint(Γ1(x), Γ2(x))
       )(collection.breakOut)
-
-    private def findMGS(constraints: List[EqConstraint]): Map[Name, Type] = {
-      type Eq = EqConstraint
-      val  Eq = EqConstraint
-      constraints match {
-        case Nil =>
-          Map.empty
-
-        case Eq(σ1 → τ1, σ2 → τ2) :: others =>
-          findMGS(Eq(σ1, σ2) :: Eq(τ1, τ2) :: others)
-
-        case Eq(★(f1, τ1), ★(f2, τ2)) :: others =>
-          findMGS(Eq(f1, f2) :: Eq(τ1, τ2) :: others)
-
-        case Eq(α(name1), α(name2)) :: others if name1 == name2 =>
-          findMGS(others)
-
-        case Eq(α(name), τ) :: others =>
-          val mgs = findMGS(others map { case Eq(τ1, τ2) =>
-            Eq(τ1 substitute (name -> τ), τ2 substitute (name -> τ))
-          })
-          val new_τ = τ substitute mgs
-          if ((mgs contains name) && mgs(name) != new_τ)
-            sys error s"Can't unify ${mgs(name)} = ${new_τ}"
-          mgs.updated(name, new_τ)
-
-        case Eq(τ, α(name)) :: others =>
-            findMGS(Eq(α(name), τ) :: others)
-
-        case Eq(τ1, τ2) :: others =>
-          if (τ1 == τ2) findMGS(others)
-          else sys error "Inconsistent equality constraints"
-      }
-    }
 
     implicit class inferenceByUnificationOps(t: Term) {
       def infer: SimplyTypedTerm = inferFrom(∅)
