@@ -479,33 +479,6 @@ trait Pretty extends TypedTerms {
     "%s : %s".format(pretty(t.getTerm), pretty(t.getType))
 }
 
-/** The goal of minimally quantified types is to type
-  * a fixed-point combinator without obligatory type
-  * abstractions and type applications.
-  *
-  * Y : (∀ α . ((α → α) → (α → α)) → (α → α))
-  * Y f =
-  *   let
-  *     s : (∀ β . β → α → α) → (α → α)
-  *     s x = f (x x)
-  *   in
-  *     s s
-  *
-  * Y = λ f : (α → α) → (α → α) .
-  *       (λ x : ∀ β . β → α → α . f (x x))
-  *       (λ x : ∀ β . β → α → α . f (x x))
-  *
-  * concrete  = let { s : σ → τ ; s x = sdef } in body
-  *
-  * sugar     = let(σ, τ, s, x, sdef, body)
-  *
-  * desugared = (λ s : σ → τ. body) (λ x : σ. sdef)
-  *
-  * (There's extra consideration about quantifications
-  * in the sugar, to be handled by the quantification
-  * rule of the concrete syntax.)
-  */
-
 trait MinimalQuantification extends Types with FreeNames with Pretty {
   // domain M = name -> is free in a good way or a bad way
   // FYI, true is good, false is bad.
