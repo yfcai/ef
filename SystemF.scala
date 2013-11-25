@@ -1,5 +1,5 @@
 trait SystemMF
-extends TypedTerms with MinimalQuantification with Substitution
+extends TypedTerms with MinimalQuantification with MostGeneralSubstitution
 {
   case class SMFTerm(
     canon: Term,
@@ -13,85 +13,54 @@ extends TypedTerms with MinimalQuantification with Substitution
 
   // UNIFYING QUANTIFIED TYPES
 
-  /** Establish injective correspondence from source to target names */
-  def unifyNames(source: Set[Name], target: Set[Name], σ : Type, τ : Type):
-      Map[Name, Name] = {
-    type T = Map[Name, Name]
-    require((source & target).isEmpty)
 
-    def merge(lhs: T, rhs: T): T = {
-      lhs.foldRight(rhs) { case ((key, value), acc) =>
-        if (acc contains key) {
-          val value2 = acc(key)
-          if (value == value2)
-            acc
-          else
-            sys error s"merge conflict: $key = $value and $value2"
-        }
-        else
-          acc.updated(key, value)
-      }
-    }
+}
 
-    case class ID(index: Int) extends IDNumber
-    val name = new GenerativeNameGenerator(ID)
+trait MostGeneralSubstitution extends Substitution {
+  case class EqConstraint(lhs: Type, rhs: Type)
 
-    val forbiddens = collection.mutable.Set.empty[Name]
-
-    def loop(σ : Type, τ : Type): T = (σ, τ) match {
-      case (∀(name1, body1), ∀(name2, body2)) =>
-        val newName = name.next
-        loop(body1 rename (name1 -> newName),
-             body2 rename (name2 -> newName))
-
-      case (σ1 → τ1, σ2 → τ2) =>
-        merge(loop(σ1, σ2), loop(τ1, τ2))
-
-      case (★(f1, σ1), ★(f2, σ2)) =>
-        merge(loop(f1, f2), loop(σ1, σ2))
-
-      case (α(a1), α(a2)) if a1 == a2 =>
+  def mostGeneralSubstitution(
+    constraints: List[EqConstraint]
+    //,against: Set[Name]
+  ): Map[Name, Type] =
+  {
+    type Eq = EqConstraint
+    val  Eq = EqConstraint
+    def findMGS(cs: List[Eq]) = mostGeneralSubstitution(cs)
+    constraints match {
+      case Nil =>
         Map.empty
 
-      case (α(a1), α(a2)) if a1 != a2 =>
-        if ((source contains a1) && (target contains a2))
-          Map(a1 -> a2)
-        else if ((source contains a2) && (target contains a1))
-          Map(a2 -> a1)
-        else
-          sys error s"irreconcilable names: $a1 and $a2"
+      case Eq(σ : ∀, τ : ∀) :: others =>
+        // TODO 
+        ???
 
-      case (α(a1), τ2) =>
-        if (source contains a1)
-          sys error s"source name ${a1} matches nontarget ${τ2}"
-        else {
-          if (target contains a1) forbiddens += a1
-          Map.empty
-        }
+      case Eq(σ1 → τ1, σ2 → τ2) :: others =>
+        findMGS(Eq(σ1, σ2) :: Eq(τ1, τ2) :: others)
 
-      case (τ1, α(a2)) =>
-        loop(α(a2), τ1)
+      case Eq(★(f1, τ1), ★(f2, τ2)) :: others =>
+        findMGS(Eq(f1, f2) :: Eq(τ1, τ2) :: others)
 
-      case _ =>
-        sys error s"irreconcilable types: ${σ} and ${τ}"
+      case Eq(α(name1), α(name2)) :: others if name1 == name2 =>
+        findMGS(others)
+
+      case Eq(α(name), τ) :: others =>
+        val mgs = findMGS(others map { case Eq(τ1, τ2) =>
+          Eq(τ1 substitute (name -> τ), τ2 substitute (name -> τ))
+        })
+        val new_τ = τ substitute mgs
+        if ((mgs contains name) && mgs(name) != new_τ)
+          sys error s"Can't unify ${mgs(name)} = ${new_τ}"
+        mgs.updated(name, new_τ)
+
+      case Eq(τ, α(name)) :: others =>
+        findMGS(Eq(α(name), τ) :: others)
+
+      case Eq(τ1, τ2) :: others =>
+        if (τ1 == τ2) findMGS(others)
+        else sys error "Inconsistent equality constraints"
     }
-
-    val result = loop(σ, τ)
-
-    val valueSet: Set[Name] = result.map({
-      case (key, value) => value
-    })(collection.breakOut)
-
-    if (! (valueSet & forbiddens).isEmpty)
-      sys error s"forbidden names used: ${valueSet & forbiddens}"
-
-    if (result.keySet != source)
-      sys error s"""|unsettled names: ${source -- result.keySet}
-                    |extraneous names: ${result.keySet -- source}""".
-                    stripMargin
-    result
   }
-
 }
 
 object TestSystemMF extends SystemMF {
