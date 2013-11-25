@@ -76,7 +76,7 @@ trait Parsing extends SystemMF with Pretty with RegexParsers {
         case _ ~ ((pName, pType)) ~ _ ~ body =>
           val id = name.next
           SMF(
-            λ(id, body.t rename (pName -> χ(id))),
+            λ(id, body.t rename (pName -> id)),
             body.Γ.updated(id, pType),
             body.n.updated(id, pName)
           )

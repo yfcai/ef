@@ -207,14 +207,14 @@ trait Renaming extends TypesAndTerms with Reconstruction {
   implicit class typeRenamingOps(τ : Type) {
     def rename[N <% Name, T <% Type](f: Map[N, T]): Type =
       new TypeRenaming(f map { case (k, v) => (k: Name, v: Type) })(τ)
-    def rename[N <% Name, T <% Type](s: (N, T)*): Type =
-      rename(Map(s: _*))
+    def rename[N <% Name, T <% Name](s: (N, T)*): Type =
+      rename(Map(s map (kv => (kv._1, α(kv._2))): _*))
   }
   implicit class termRenamingOps(t : Term) {
     def rename[N <% Name, T <% Term](f: Map[N, T]): Term =
       new TermRenaming(f map { case (k, v) => (k: Name, v: Term) })(t)
-    def rename[N <% Name, T <% Term](s: (N, T)*): Term =
-      rename(Map(s: _*))
+    def rename[N <% Name, T <% Name](s: (N, T)*): Term =
+      rename(Map(s map (kv => (kv._1, χ(kv._2))): _*))
   }
 }
 
@@ -291,12 +291,12 @@ trait CanonicalNames extends FreeNames with Renaming {
 
     override def ∀(name: Name, body: Type): Type = {
       val newName = nameStack.pop
-      super.∀(newName, body rename Map(name -> super.α(newName)))
+      super.∀(newName, body rename (name -> newName))
     }
 
     override def λ(name: Name, body: Term): Term = {
       val newName = nameStack.pop
-      super.λ(newName, body rename Map(name -> super.χ(newName)))
+      super.λ(newName, body rename (name -> newName))
     }
   }
 
