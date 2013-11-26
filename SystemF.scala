@@ -10,8 +10,6 @@ extends TypedTerms with MinimalQuantification with MostGeneralSubstitution
     def getTerm: Term = canon renameAll names
     def getType: Type = ???
   }
-
-  // UNIFYING QUANTIFIED TYPES
 }
 
 trait PeelAwayQuantifiers extends Types {
@@ -195,5 +193,10 @@ object TestSystemMF extends SystemMF {
     try { println(mostGeneralSubstitution(
       EqConstraint(∀("α")("α" →: "γ"), ∀("γ")("γ" →: "γ")) :: Nil
     )) } catch { case e: Throwable => println(e.getMessage()) }
+
+    // Map(γ -> ★(α(List),α(δ)))
+    println(mostGeneralSubstitution(
+      EqConstraint(∀("α")("α" →: "γ"), ∀("γ")("γ" →: ★("List", "δ"))) :: Nil
+    ))
   }
 }
