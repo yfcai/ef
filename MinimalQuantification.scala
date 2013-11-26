@@ -85,9 +85,29 @@ trait MinimalQuantification extends Types with FreeNames with Pretty {
 
   implicit class MinimallyQuantifyingNameOps(quantified: Set[Name]) {
     def quantifyMinimallyOver(τ : Type): Type =
-      // TODO: Make myself reasonable!
-      //       I cause the error at the end of TestSystemMF.
-      ∀(quantified & getFreeNames(τ))(τ)  }
+      quantifyMinimally(quantified, τ)
+
+    private[this]
+    def quantifyMinimally(quantified: Set[Name], τ : Type): Type = τ match {
+      case ∀(name, body) =>
+        ∀(name, quantifyMinimally(quantified - name, body))
+
+      case ★(f, α) =>
+        val freeNames = getFreeNames(f) ++ getFreeNames(α)
+        ∀(freeNames & quantified)(★(f, α))
+
+      case σ → τ =>
+        val freeNames = getFreeNames(σ)
+        ∀(freeNames & quantified)(σ →:
+            quantifyMinimally(quantified -- freeNames, τ))
+
+      case α(name) =>
+        if (quantified contains name)
+          ∀(name, α(name))
+        else
+          α(name)
+    }
+  }
 }
 
 object TestMinimalQuantification extends MinimalQuantification {
