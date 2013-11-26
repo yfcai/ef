@@ -7,8 +7,118 @@ extends TypedTerms with MinimalQuantification with MostGeneralSubstitution
     names: Map[Name, Name]
   )
   extends TypedTerm {
-    def getTerm: Term = canon renameAll names
-    def getType: Type = ???
+    lazy val getTerm: Term = canon renameAll names
+
+    lazy val getType: Type = {
+      case class ID(index: Int) extends SecretLocalName
+      val nameGenerator = new GenerativeNameGenerator(ID)
+
+      def getReplacement(source: Set[Name]):
+          (Set[Name], Map[Name, Name]) = {
+        val names = source map (_ => nameGenerator.next)
+        val renaming: Map[Name, Name] = (source, names).zipped.map({
+          case (oldName, newName) => (oldName, newName)
+        })(collection.breakOut)
+        (names, renaming)
+      }
+
+      def loop(t : Term, boundTypeVars : Set[Name]): Type =
+      {
+        t match {
+          case χ(name) =>
+            Γ(name)
+
+          case λ(name, body) =>
+            val σ = Γ(name)
+            val quantifiedNames = getFreeNames(σ) -- boundTypeVars
+            val τ = loop(body, boundTypeVars ++ quantifiedNames)
+            ∀(quantifiedNames)(σ →: τ)
+
+          case ε(operator, operand) =>
+            val operatorType = loop(operator, boundTypeVars)
+            val operandType  = loop(operand , boundTypeVars)
+            val (setC, sigma1) = peelAwayQuantifiers(operandType )
+            // MatchError on following line means t is ill-typed
+            val (setB, sigma → tau0) = peelAwayQuantifiers(operatorType)
+            val (setA, sigma0) = peelAwayQuantifiers(sigma)
+            val (namesA, substA) = getReplacement(setA)
+            val (namesB, substB) = getReplacement(setB)
+            val (namesC, substC) = getReplacement(setC)
+            if (! (setA & setB).isEmpty)
+              sys error s"nonminimally quantified type: $operatorType"
+            val substAB = substA ++ substB
+            val σ0 = sigma0 rename substAB
+            val σ1 = sigma1 rename substC
+            val MGS4App(typeAppsB, typeAppsC, survivors) =
+              getMGS4App(namesA, namesB, namesC, σ0, σ1)
+            val τ  = tau0 rename substAB substitute typeAppsB
+            // Get back original names
+            val invBC = substC.foldRight(substB.inverse) {
+              case ((nameC, idC), acc) =>
+                if (acc contains nameC)
+                  acc.updated(idC, getFreshName(nameC, acc.keySet))
+                else
+                  acc.updated(idC, nameC)
+            }
+            val realSurvivors = survivors & getFreeNames(τ)
+            val survivorNames = realSurvivors map invBC
+            ∀(survivorNames)(τ rename invBC)
+        }
+      }
+      loop(canon, Set.empty)
+    }
+  }
+
+  case class MGS4App(typeAppsB: Map[Name, Type],
+                     typeAppsC: Map[Name, Type],
+                     survivors: Set[Name])
+
+  def getMGS4App(A: Set[Name], B: Set[Name], C: Set[Name],
+                σ0: Type, σ1: Type): MGS4App =
+  {
+    // Now we have:
+    //
+    //   operatorType = ∀B. (∀A. σ0) → τ
+    //
+    //   operandType  = ∀C. σ1
+    //
+    // Our task here is to instantiate B and C suitably so
+    // that (∀A. σ0) is EQUAL to σ1.
+    val Eq  = EqConstraint
+    val all = A ++ B ++ C
+    val mgs = mostGeneralSubstitution(List(Eq(σ0, σ1)), all)
+    // It remains to verify that `mgs` is appropriate in
+    // the following sense.
+    //
+    // 1. All variables of A are injectively unified to variables
+    //    of C.
+    val A2C: Map[Name, Name] = mgs flatMap {
+      case (x, α(y)) if (A contains x) && (C contains y) =>
+        Some(x -> y)
+      case (y, α(x)) if (A contains x) && (C contains y) =>
+        Some(x -> y)
+      case (x, τ)    if (A contains x) =>
+        sys error s"A-variable $x unified to non-C $τ"
+      case (y, α(x)) if (A contains x) =>
+        sys error s"A-variable $x unified to non-C $y"
+      case _ =>
+        None
+    }
+    val CnA = A2C.inverse.keySet
+    assert(A2C.keySet == A)    // A is completely covered
+    assert(CnA.size == A.size) // Unification is injective on A
+    // 2. A-variables and those C-variables unified to A-variables
+    //    are used nowhere else.
+    val forbiddens = A ++ CnA
+    val outerMGS = mgs -- forbiddens
+    outerMGS foreach { case (name, τ) =>
+      val badNames = getFreeNames(τ) & forbiddens
+      if (! badNames.isEmpty)
+        sys error s"use of forbidden names $badNames\n in $name = $τ"
+    }
+    MGS4App(outerMGS restrict B,
+            outerMGS restrict C,
+            (B ++ C) -- outerMGS.keySet)
   }
 }
 
@@ -160,6 +270,15 @@ object TestSystemMF extends SystemMF {
   val instArgQ = Set("δ": Name)
   val instQ    = Set("γ": Name)
 
+  val chooseId =
+    SMFTerm("choose" ₋ "id",
+            Map(StringLiteral("choose") -> chooseType,
+                StringLiteral("id")     -> idType),
+            Map.empty)
+
+  val chooseIdId =
+    SMFTerm(chooseId.getTerm ₋ "id", chooseId.Γ, Map.empty)
+
   def main(args: Array[String]) {
     List(chooseType, idType, instType) foreach {_.ensureMinimalQuantification}
 
@@ -198,5 +317,12 @@ object TestSystemMF extends SystemMF {
     println(mostGeneralSubstitution(
       EqConstraint(∀("α")("α" →: "γ"), ∀("γ")("γ" →: ★("List", "δ"))) :: Nil
     ))
+
+    // cool stuff
+    println()
+    println(pretty(chooseId))
+
+    println()
+    println(pretty(chooseIdId))
   }
 }
