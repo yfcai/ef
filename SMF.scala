@@ -37,32 +37,42 @@ extends TypedTerms with MinimalQuantification with MostGeneralSubstitution
           case ε(operator, operand) =>
             val operatorType = loop(operator, boundTypeVars)
             val operandType  = loop(operand , boundTypeVars)
-            val (setC, sigma1) = peelAwayQuantifiers(operandType )
             // MatchError on following line means t is ill-typed
-            val (setB, sigma → tau0) = peelAwayQuantifiers(operatorType)
-            val (setA, sigma0) = peelAwayQuantifiers(sigma)
-            val (namesA, substA) = getReplacement(setA)
-            val (namesB, substB) = getReplacement(setB)
-            val (namesC, substC) = getReplacement(setC)
-            if (! (setA & setB).isEmpty)
-              sys error s"nonminimally quantified type: $operatorType"
-            val substAB = substA ++ substB
-            val σ0 = sigma0 rename substAB
-            val σ1 = sigma1 rename substC
-            val MGS4App(typeAppsB, typeAppsC, survivors) =
-              getMGS4App(namesA, namesB, namesC, σ0, σ1)
-            val τ  = tau0 rename substAB substitute typeAppsB
-            // Get back original names
-            val invBC = substC.foldRight(substB.inverse) {
-              case ((nameC, idC), acc) =>
-                if (acc contains nameC)
-                  acc.updated(idC, getFreshName(nameC, acc.keySet))
-                else
-                  acc.updated(idC, nameC)
+            val (setB, innerOperatorType) = peelAwayQuantifiers(operatorType)
+            innerOperatorType match {
+              case α(name) if setB == Set(name) =>
+                ∀(name, α(name))
+                // If operator type is ∀α. α, then we should allow
+                // the application into false. All other legal cases
+                // are covered below.
+
+              case _ =>
+                val (sigma → tau0) = innerOperatorType
+                val (setA, sigma0) = peelAwayQuantifiers(sigma)
+                val (setC, sigma1) = peelAwayQuantifiers(operandType )
+                val (namesA, substA) = getReplacement(setA)
+                val (namesB, substB) = getReplacement(setB)
+                val (namesC, substC) = getReplacement(setC)
+                if (! (setA & setB).isEmpty)
+                  sys error s"nonminimally quantified type: $operatorType"
+                val substAB = substA ++ substB
+                val σ0 = sigma0 rename substAB
+                val σ1 = sigma1 rename substC
+                val MGS4App(typeAppsB, typeAppsC, survivors) =
+                  getMGS4App(namesA, namesB, namesC, σ0, σ1)
+                val τ  = tau0 rename substAB substitute typeAppsB
+                // Get back original names
+                val invBC = substC.foldRight(substB.inverse) {
+                  case ((nameC, idC), acc) =>
+                    if (acc contains nameC)
+                      acc.updated(idC, getFreshName(nameC, acc.keySet))
+                    else
+                      acc.updated(idC, nameC)
+                }
+                val realSurvivors = survivors & getFreeNames(τ)
+                val survivorNames = realSurvivors map invBC
+                ∀(survivorNames)(τ rename invBC)
             }
-            val realSurvivors = survivors & getFreeNames(τ)
-            val survivorNames = realSurvivors map invBC
-            ∀(survivorNames)(τ rename invBC)
         }
       }
       loop(canon, Set.empty)
@@ -288,6 +298,11 @@ object TestSystemMF extends SystemMF {
   val chooseIdId =
     SMFTerm(chooseId.getTerm ₋ "id", chooseId.Γ, Map.empty)
 
+  val undefinedUndefined =
+    SMFTerm("undefined" ₋ "undefined",
+            Map(StringLiteral("undefined") -> ∀("α")("α")),
+            Map.empty)
+
   def main(args: Array[String]) {
     List(chooseType, idType, instType) foreach {_.ensureMinimalQuantification}
 
@@ -333,5 +348,8 @@ object TestSystemMF extends SystemMF {
 
     println()
     println(pretty(chooseIdId))
+
+    println()
+    println(pretty(undefinedUndefined))
   }
 }
