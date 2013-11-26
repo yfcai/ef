@@ -210,14 +210,18 @@ trait Renaming extends TypesAndTerms with Reconstruction {
   implicit class typeRenamingOps(τ : Type) {
     def rename[N <% Name, T <% Type](f: Map[N, T]): Type =
       new TypeRenaming(f map { case (k, v) => (k: Name, v: Type) })(τ)
+    def rename(f: Map[Name, Name]): Type =
+      new TypeRenaming(f map { case (k, v) => (k: Name, α(v))    })(τ)
     def rename[N <% Name, T <% Name](s: (N, T)*): Type =
-      rename(Map(s map (kv => (kv._1, α(kv._2))): _*))
+      rename(Map(s map (p => (p._1: Name, p._2: Name)): _*))
   }
   implicit class termRenamingOps(t : Term) {
     def rename[N <% Name, T <% Term](f: Map[N, T]): Term =
       new TermRenaming(f map { case (k, v) => (k: Name, v: Term) })(t)
+    def rename(f: Map[Name, Name]): Term =
+      new TermRenaming(f map { case (k, v) => (k: Name, χ(v))    })(t)
     def rename[N <% Name, T <% Name](s: (N, T)*): Term =
-      rename(Map(s map (kv => (kv._1, χ(kv._2))): _*))
+      rename(Map(s map (p => (p._1: Name, p._2: Name)): _*))
   }
 }
 
