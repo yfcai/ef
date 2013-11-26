@@ -9,7 +9,7 @@ trait FreshNames {
 
   case class StringLiteral(override val toString: String) extends Name
 
-  trait IDNumber extends Name {
+  trait SecretLocalName extends Name {
     def index: Int
     override def toString = "?" + index
   }
@@ -59,11 +59,14 @@ trait Types extends FreshNames {
   }
 
   object ∀ {
-    def apply(names: String*)(body: => Type): ∀ =
-      if (names.size <= 1)
-        ∀(names.head, body)
+    def apply(names: String*)(body: => Type): Type =
+      ∀(names map StringLiteral)(body)
+
+    def apply(names: Iterable[Name])(body: Type): Type =
+      if (names.isEmpty)
+        body
       else
-        ∀(names.head, ∀(names.tail: _*)(body))
+        ∀(names.head, ∀(names.tail)(body))
   }
 
   implicit def stringToTypeVariable(s: String): Type = α(s)
@@ -264,7 +267,7 @@ trait FreeNames extends TypesAndTerms {
   }
 }
 
-trait CanonicalNames extends FreeNames with Renaming {
+trait CanonicalNames extends FreeNames with Renaming with MapOperations {
   class CollectBindings extends Visitor[List[Name]] {
     private[this] type T = List[Name]
 
@@ -302,7 +305,7 @@ trait CanonicalNames extends FreeNames with Renaming {
 
   private[this] type R = Map[Name, Name]
 
-  private[this] case class CanonID(index: Int) extends IDNumber
+  private[this] case class CanonID(index: Int) extends SecretLocalName
 
   def canonizeNames(τ : Type): (Type, R, R) = {
     val freeNames = getFreeNames(τ)
@@ -342,10 +345,6 @@ trait CanonicalNames extends FreeNames with Renaming {
 
   implicit class TermCanonizeNameOps(t : Term) {
     def canonize = canonizeNames(t)
-  }
-
-  implicit class MapInversOps[K, V](m: Map[K, V]) {
-    def inverse: Map[V, K] = m map (_.swap)
   }
 }
 

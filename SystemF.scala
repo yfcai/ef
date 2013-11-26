@@ -48,7 +48,7 @@ extends Substitution
   {
     type Eq = EqConstraint
     val  Eq = EqConstraint
-    case class MGSID(index: Int) extends IDNumber
+    case class MGSID(index: Int) extends SecretLocalName
     case class AreBijective(preimage: Set[Name], image: Set[Name])
     val nameGenerator = new GenerativeNameGenerator(MGSID)
     val bijectionConstraints =
@@ -131,10 +131,10 @@ extends Substitution
 
     // make sure that finalResult contains no made-up names
     for {
-      (AreBijective(preimage, image), σ, τ) <- bijectionConstraints
       (_, newType) <- finalResult
+      freeNames = getFreeNames(newType)
+      (AreBijective(preimage, image), σ, τ) <- bijectionConstraints
     } {
-      val freeNames = getFreeNames(newType)
       val badNames = (freeNames & preimage) ++ (freeNames & image)
       if (! badNames.isEmpty)
         sys error s"we were wrong about $σ = $τ"

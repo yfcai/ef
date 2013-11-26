@@ -120,7 +120,7 @@ trait Parsing extends SystemMF with Pretty with RegexParsers {
       leftP ~> innard <~ rightP
 
     // name generation
-    private[this] case class ID(index: Int) extends IDNumber
+    private[this] case class ID(index: Int) extends SecretLocalName
     val name = new GenerativeNameGenerator(ID)
 
     // finite version of SMFTerm

@@ -21,7 +21,7 @@ extends MostGeneralSubstitution
     extends TermVisitor[Typing] {
       private[this] type T = Typing
 
-      private[this] case class ID(index: Int) extends IDNumber
+      private[this] case class ID(index: Int) extends SecretLocalName
 
       private[this] val nameGenerator = new GenerativeNameGenerator(ID)
 
