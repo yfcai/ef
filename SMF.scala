@@ -133,6 +133,15 @@ trait PeelAwayQuantifiers extends Types {
     case _ =>
       (Set.empty[Name], τ)
   }
+
+  def listOfQuantifiers(τ : Type): (List[Name], Type) = τ match {
+    case ∀(name, body) =>
+      val (otherQuantifiedNames, realBody) = listOfQuantifiers(body)
+      (name :: otherQuantifiedNames, realBody)
+
+    case _ =>
+      (Nil, τ)
+  }
 }
 
 trait MostGeneralSubstitution
