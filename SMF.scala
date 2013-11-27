@@ -62,14 +62,17 @@ extends TypedTerms with MinimalQuantification with MostGeneralSubstitution
                   getMGS4App(namesA, namesB, namesC, σ0, σ1)
                 val τ  = tau0 rename substAB substitute typeAppsB
                 // Get back original names
-                val invBC = substC.foldRight(substB.inverse) {
-                  case ((nameC, idC), acc) =>
-                    if (acc contains nameC)
-                      acc.updated(idC, getFreshName(nameC, acc.keySet))
-                    else
-                      acc.updated(idC, nameC)
+                val (invBC, _) =
+                  substC.foldRight(
+                    substB.inverse,
+                    substB.keySet ++ getFreeNames(τ)) {
+                  case ((nameC, idC), (acc, toAvoid)) =>
+                    val newNameC = getFreshName(nameC, toAvoid)
+                    (acc.updated(idC, newNameC), toAvoid + newNameC)
                 }
-                (survivors map invBC) quantifyMinimallyOver (τ rename invBC)
+                (survivors map invBC).quantifyMinimallyOver(
+                  τ substitute invBC.map({ case (id, name) => (id, α(name)) })
+                )
             }
         }
       }
@@ -307,6 +310,18 @@ object TestSystemMF extends SystemMF {
                 StringLiteral("undefined") -> ∀("α")("α")),
             Map.empty)
 
+  val constId =
+    SMFTerm("const" ₋ "id",
+            Map(StringLiteral("const") -> ∀("α")("α" →: ∀("β")("β" →: "α")),
+                StringLiteral("id") -> idType),
+            Map.empty)
+
+  val const2Id =
+    SMFTerm("const2" ₋ "id",
+            Map(StringLiteral("const2") -> ∀("α")("α" →: "β" →: "α"),
+                StringLiteral("id") -> idType),
+            Map.empty)
+
   def main(args: Array[String]) {
     List(chooseType, idType, instType) foreach {_.ensureMinimalQuantification}
 
@@ -367,5 +382,13 @@ object TestSystemMF extends SystemMF {
     // quantified
     println(pretty(constUndefined))
     constUndefined.getType.ensureMinimalQuantification
+
+    // name capturing problems
+    println()
+    println(constId.Γ)
+    println(pretty(constId))
+    println()
+    println(const2Id.Γ)
+    println(pretty(const2Id))
   }
 }
