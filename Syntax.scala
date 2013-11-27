@@ -395,21 +395,26 @@ trait Substitution extends GlobalRenaming with CanonicalNames {
   }
 }
 
-trait TypedTerms extends TypesAndTerms {
+trait TypedTerms extends TypesAndTerms with GlobalRenaming {
   trait TypedTerm {
     def getType: Type
     def getTerm: Term
   }
+
+  trait CanonizedTerm extends TypedTerm {
+    def canon: Term
+    def names: Map[Name, Name]
+
+    def getTerm: Term = canon renameAll names
+  }
 }
 
-trait SimplyTypedTerms extends TypedTerms with GlobalRenaming {
+trait SimplyTypedTerms extends TypedTerms {
   case class SimplyTypedTerm(canon: Term,
                        Γ    : PartialFunction[Name, Type],
                        names: Map[Name, Name])
-  extends TypedTerm
+  extends CanonizedTerm
   {
-    def getTerm: Term = canon renameAll names
-
     def getType: Type = (new TypeCheck)(canon)
 
     class TypeCheck extends TermVisitor[Type] {
