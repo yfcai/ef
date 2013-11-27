@@ -322,6 +322,11 @@ object TestSystemMF extends SystemMF {
                 StringLiteral("id") -> idType),
             Map.empty)
 
+  val selfApp =
+    SMFTerm(λ("x")("x" ₋ "x"),
+            Map(StringLiteral("x") -> idType),
+            Map.empty)
+
   def main(args: Array[String]) {
     List(chooseType, idType, instType) foreach {_.ensureMinimalQuantification}
 
@@ -362,6 +367,9 @@ object TestSystemMF extends SystemMF {
     ))
 
     // cool stuff
+    println
+    println(pretty(selfApp))
+
     println()
     println(pretty(chooseId))
 
