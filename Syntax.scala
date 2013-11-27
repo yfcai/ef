@@ -349,6 +349,11 @@ trait CanonicalNames extends FreeNames with Renaming with MapOperations {
 
   implicit class TermCanonizeNameOps(t : Term) {
     def canonize = canonizeNames(t)
+
+    def hasCanonicalNames: Boolean = {
+      val names: List[Name] = (new CollectBindings)(t) ++ getFreeNames(t)
+      names.size == Set(names: _*).size
+    }
   }
 }
 
