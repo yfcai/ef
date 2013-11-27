@@ -2,24 +2,43 @@
 trait SystemFExamples extends SystemF {
   import SystemF._
 
+  def buildMap[N <% Name, T <% Type](seq: (N, T)*): Map[Name, Type] =
+    seq.map({ case (k, v) => (k: Name, v: Type) })(collection.breakOut)
+
+  def list(τ : Type): Type = ★("List", τ)
+
+  /** Church-encoding of Booleans is practical and convenient. */
+  val bool: Type = ∀("α")("α" →: "α" →: "α")
+
+  val primitives: Map[Name, Type] = buildMap(
+    "undefined" -> ∀("α")("α"),
+    "fix"   -> ∀("α")(("α" →: "α") →: ("α" →: "α")),
+    "succ"  -> "ℕ" →: "ℕ",
+    "nil"   -> ∀("α")(list("α")),
+    "cons"  -> ∀("α")("α" →: list("α") →: list("α")),
+    "isnil" -> ∀("α")(list("α") →: bool),
+    "head"  -> ∀("α")(list("α") →: "α"),
+    "tail"  -> ∀("α")(list("α") →: list("α"))
+  )
+
   /** An example of implementing primitives and literals by an infinite
     * global environment
     */
-  val Γ0: PartialFunction[Name, Type] =
-    Map(("succ": Name) -> "ℕ" →: "ℕ").orElse[Name, Type] {
-      // natural literals
-      case StringLiteral(s) if s matches """\d+""" =>
-        α("ℕ")
-    }
-
-  private[this]
-  def fTerm[T <% Type](canon: Term, localTypes: (String, T)*): FTerm =
-    fTerm(canon, localTypes.to_Γ)
-
-  private[this]
-  def fTerm(canon: Term, localTypes: PartialFunction[Name, Type]): FTerm = {
-    FTerm(canon, localTypes orElse Γ0, Map.empty[Name, Name])
+  val Γ0: PartialFunction[Name, Type] = primitives.orElse[Name, Type] {
+    // natural literals
+    case StringLiteral(s) if s matches """\d+""" =>
+      α("ℕ")
   }
+
+  private[this]
+  def fTerm[T <% Type](desc: String, canon: Term, localTypes: (String, T)*):
+      (String, FTerm) =
+    fTerm(desc, canon, localTypes.to_Γ)
+
+  private[this]
+  def fTerm(desc: String, canon: Term,
+            localTypes: PartialFunction[Name, Type]): (String, FTerm) =
+    (desc, FTerm(canon, localTypes orElse Γ0, Map.empty[Name, Name]))
 
   private[this]
   implicit class SequenceToContext[T <% Type](seq: Seq[(String, T)]) {
@@ -40,45 +59,77 @@ trait SystemFExamples extends SystemF {
         PartialFunction[Name, Type] = extend(seq.to_Γ)
   }
 
-  val id = fTerm(Λ("α", λ("x")("x")), "x" -> "α")
+  val id = fTerm("id", Λ("α", λ("x")("x")), "x" -> "α")
 
-  val idNat = fTerm(id.canon □ "ℕ", "x" -> "α")
+  val idNat = fTerm("idNat", id._2.canon □ "ℕ", "x" -> "α")
 
-  val double = fTerm(
+  val double = fTerm("double",
     Λ("α", λ("f", "a")("f" ₋ ("f" ₋ "a"))),
     "f" -> "α" →: "α",
     "a" -> α("α")
   )
 
-  val doubleNat = fTerm(double.canon □ "ℕ", double.Γ)
+  val doubleTerm    = double._2.canon
+  val doubleContext = double._2.Γ
 
-  val doubleNatArrowNat = fTerm(double.canon □ ("ℕ" →: "ℕ"), double.Γ)
+  val doubleNat = fTerm("doubleNat", doubleTerm □ "ℕ", doubleContext)
+
+  val doubleNatArrowNat = fTerm(
+    "doubleNatArrowNat",
+    doubleTerm □ ("ℕ" →: "ℕ"), doubleContext
+  )
 
   val quadrupleSucc3 = fTerm(
-    doubleNat.canon ₋ λ("x")("succ" ₋ ("succ" ₋ "x")) ₋ "3",
-    double.Γ.extend("x" -> "ℕ")
+    "quadrupleSucc3",
+    doubleNat._2.canon ₋ λ("x")("succ" ₋ ("succ" ₋ "x")) ₋ "3",
+    doubleContext.extend("x" -> "ℕ")
   )
 
   val selfApp = fTerm(
-    λ("x")("x" □ (id.getType) ₋ "x"),
-    "x" -> id.getType
+    "selfApp",
+    λ("x")("x" □ (id._2.getType) ₋ "x"),
+    "x" -> id._2.getType
   )
 
   val quadruple = fTerm(
-    Λ("α", double.canon □ ("α" →: "α") ₋ (double.canon □ "α")),
-    double.Γ
+    "quadruple",
+    Λ("α", doubleTerm □ ("α" →: "α") ₋ (doubleTerm □ "α")),
+    doubleContext
+  )
+
+  val map = fTerm(
+    "map",
+    Λ("α", Λ("β",
+      λ("f") {
+        "fix" □ (list("α") →: list("β")) ₋ λ("m", "l") {
+          "isnil" □ α("α") ₋ "l" □ list("β") ₋ (
+            "nil" □ α("β")
+          ) ₋ (
+            "cons" □ α("β") ₋ ("f" ₋ ("head" □ α("α") ₋ "l")) ₋
+                              ("m" ₋ ("tail" □ α("α") ₋ "l"))
+          )
+        }
+      }
+    )),
+    "f" -> "α" →: "β",
+    "m" -> list("α") →: list("β"),
+    "l" -> list("α")
   )
 
   val listOfSystemFExamples = List(
     id, idNat, double, doubleNat, doubleNatArrowNat,
-    quadrupleSucc3, selfApp, quadruple
+    quadrupleSucc3, selfApp, quadruple, map
   )
 }
 
-object TestF extends SystemFExamples with PrettyF {
+object TestF extends SystemFExamples with PrettyF with MinimalQuantification {
   def main(args: Array[String]) {
+    primitives foreach (_._2.ensureMinimalQuantification)
+
     listOfSystemFExamples foreach {
-      t => println(pretty(t))
+      case (desc, t) =>
+        println(s"$desc : ${pretty(t.getType)}")
+        println(s"$desc = ${pretty(t.getTerm)}\n")
     }
   }
 }
