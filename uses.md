@@ -1,8 +1,8 @@
 ### Uses of impredicative polymorphism
 
 - Really cool real-world case (abstract & concrete aspects)
-  http://stackoverflow.com/q/3076909
-  http://stackoverflow.com/q/8343239
+  [http://stackoverflow.com/q/3076909](http://stackoverflow.com/a/3077295)
+  [http://stackoverflow.com/q/8343239](http://stackoverflow.com/q/8343239)
 
 - Church numbers as arguments:
   Prevent Church addition from adding non-numbers.

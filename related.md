@@ -1,5 +1,10 @@
 Related works, in the voice of System MF personified.
 
+### Survey by others
+
+A nice, human-readable summary of the most important related works:
+[http://stackoverflow.com/a/3077295](http://stackoverflow.com/a/3077295)
+
 ### Type reconstruction
 
 #### Dimitrios Vytiniotis, Stephanie Weirich, Simon Peyton Jones:
