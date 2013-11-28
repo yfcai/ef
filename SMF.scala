@@ -9,7 +9,10 @@ extends TypedTerms with MinimalQuantification with MostGeneralSubstitution
   extends TypedTerm {
     lazy val getTerm: Term = canon renameAll names
 
-    lazy val getType: Type = {
+    lazy val getType: Type = typeOfSubterm(canon, Set.empty)
+
+    // TODO: Cache me to speed up typing, maybe... but how?
+    def typeOfSubterm(subterm: Term, boundTypeVars: Set[Name]): Type = {
       case class ID(index: Int) extends SecretLocalName
       val nameGenerator = new GenerativeNameGenerator(ID)
 
@@ -76,7 +79,7 @@ extends TypedTerms with MinimalQuantification with MostGeneralSubstitution
             }
         }
       }
-      loop(canon, Set.empty)
+      loop(subterm, boundTypeVars)
     }
   }
 
