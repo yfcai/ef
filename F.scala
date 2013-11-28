@@ -4,6 +4,22 @@ trait SystemF extends TypedTerms with Substitution {
   object SystemF {
     case class Λ(alpha: Name, body: Term) extends Term
     case class □(term: Term, typeArg: Type) extends Term
+
+    object Λ {
+      def apply(typeVars: Iterable[Name])(body: => Term): Term =
+        if (typeVars.isEmpty)
+          body
+        else
+          Λ(typeVars.head, apply(typeVars.tail)(body))
+    }
+
+    object □ {
+      def apply(term: Term, typeArgs: Seq[Type]): Term =
+        if (typeArgs.isEmpty)
+          term
+        else
+          apply(□(term, typeArgs.head), typeArgs.tail)
+    }
   }
 
   implicit class typeApplicationForTerms[T <% Term](t: T) {
