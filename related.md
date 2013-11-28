@@ -8,9 +8,9 @@ A nice, human-readable summary of the most important related works:
 ### Type reconstruction
 
 #### Dimitrios Vytiniotis, Stephanie Weirich, Simon Peyton Jones:
-     FPH: First-class polymorphism for Haskell:
-     Declarative, constraint-free type inference for impredicative
-     polymorphism
+FPH: First-class polymorphism for Haskell:
+Declarative, constraint-free type inference for impredicative
+polymorphism
 
 Most similarly motivated work ever! I wish my title could mention
 "decidable" and "impredicative" in the same breath, too.
