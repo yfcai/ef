@@ -32,15 +32,23 @@ trait FreshNames {
     result
   }
 
-  class GenerativeNameGenerator(cons: Int => Name)
+  class GenerativeNameGenerator(
+    cons: Int => Name,
+    shouldAvoid: Name => Boolean = _ => false)
   {
     val initialIndex = -1
     var index: Int = initialIndex
 
     def next: Name = {
-      index = index + 1
-      if (index == initialIndex) sys error "We ran out of generative names"
-      cons(index)
+      var result: Name = null
+      do {
+        index = index + 1
+        if (index == initialIndex)
+          sys error "We ran out of generative names"
+        result = cons(index)
+      }
+      while (shouldAvoid(result))
+      result
     }
 
     def reset() {
