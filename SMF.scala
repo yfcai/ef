@@ -16,15 +16,6 @@ extends TypedTerms with MinimalQuantification with MostGeneralSubstitution
       case class ID(index: Int) extends SecretLocalName
       val nameGenerator = new GenerativeNameGenerator(ID)
 
-      def getReplacement(source: Set[Name]):
-          (Set[Name], Map[Name, Name]) = {
-        val names = source map (_ => nameGenerator.next)
-        val renaming: Map[Name, Name] = (source, names).zipped.map({
-          case (oldName, newName) => (oldName, newName)
-        })(collection.breakOut)
-        (names, renaming)
-      }
-
       def loop(t : Term, boundTypeVars : Set[Name]): Type =
       {
         t match {
@@ -40,7 +31,6 @@ extends TypedTerms with MinimalQuantification with MostGeneralSubstitution
           case ε(operator, operand) =>
             val operatorType = loop(operator, boundTypeVars)
             val operandType  = loop(operand , boundTypeVars)
-            // MatchError on following line means t is ill-typed
             val (setB, innerOperatorType) = peelAwayQuantifiers(operatorType)
             innerOperatorType match {
               case α(name) if setB == Set(name) =>
@@ -53,9 +43,9 @@ extends TypedTerms with MinimalQuantification with MostGeneralSubstitution
                 val (sigma → tau0) = innerOperatorType
                 val (setA, sigma0) = peelAwayQuantifiers(sigma)
                 val (setC, sigma1) = peelAwayQuantifiers(operandType )
-                val (namesA, substA) = getReplacement(setA)
-                val (namesB, substB) = getReplacement(setB)
-                val (namesC, substC) = getReplacement(setC)
+                val (namesA, substA) = getReplacement(setA, nameGenerator)
+                val (namesB, substB) = getReplacement(setB, nameGenerator)
+                val (namesC, substC) = getReplacement(setC, nameGenerator)
                 if (! (setA & setB).isEmpty)
                   sys error s"nonminimally quantified type: $operatorType"
                 val substAB = substA ++ substB
@@ -81,6 +71,16 @@ extends TypedTerms with MinimalQuantification with MostGeneralSubstitution
       }
       loop(subterm, boundTypeVars)
     }
+  }
+
+  def getReplacement(source: Set[Name],
+                     nameGenerator: GenerativeNameGenerator):
+      (Set[Name], Map[Name, Name]) = {
+    val names = source map (_ => nameGenerator.next)
+    val renaming: Map[Name, Name] = (source, names).zipped.map({
+      case (oldName, newName) => (oldName, newName)
+    })(collection.breakOut)
+    (names, renaming)
   }
 
   case class MGS4App(typeAppsB: Map[Name, Type],
@@ -277,7 +277,7 @@ extends Substitution
   }
 }
 
-object TestSystemMF extends SystemMF {
+trait SystemMFExamples extends SystemMF {
 
   val chooseType: Type = ∀("α")("α" →: "α" →: "α")
   val chooseBody: Type =        "α" →: "α" →: "α"
@@ -329,7 +329,9 @@ object TestSystemMF extends SystemMF {
     SMFTerm(λ("x")("x" ₋ "x"),
             Map(StringLiteral("x") -> idType),
             Map.empty)
+}
 
+object TestSystemMF extends SystemMFExamples {
   def main(args: Array[String]) {
     List(chooseType, idType, instType) foreach {_.ensureMinimalQuantification}
 
