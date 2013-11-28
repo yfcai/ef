@@ -186,7 +186,7 @@ extends CompilerToF
 {
   def main(args: Array[String]) {
     listOfSystemMFExamples foreach {
-      example => println(pretty(example.toSystemF))
+      example => println() ; println(pretty(example.toSystemF))
     }
   }
 }
