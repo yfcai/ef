@@ -51,7 +51,7 @@ extends TypedTerms with MinimalQuantification with MostGeneralSubstitution
                 val substAB = substA ++ substB
                 val σ0 = sigma0 rename substAB
                 val σ1 = sigma1 rename substC
-                val MGS4App(typeAppsB, typeAppsC, survivors) =
+                val MGS4App(typeAppsB, typeAppsC, survivors, _) =
                   getMGS4App(namesA, namesB, namesC, σ0, σ1)
                 val τ  = tau0 rename substAB substitute typeAppsB
                 // Get back original names
@@ -83,9 +83,14 @@ extends TypedTerms with MinimalQuantification with MostGeneralSubstitution
     (names, renaming)
   }
 
+  /** @param forbidden   Map quantified names in formal argument type
+    *                    to the quantified names in actual arguement
+    *                    types to which they are unified.
+    */
   case class MGS4App(typeAppsB: Map[Name, Type],
                      typeAppsC: Map[Name, Type],
-                     survivors: Set[Name])
+                     survivors: Set[Name],
+                     forbidden: Map[Name, Name])
 
   def getMGS4App(A: Set[Name], B: Set[Name], C: Set[Name],
                 σ0: Type, σ1: Type): MGS4App =
@@ -132,7 +137,8 @@ extends TypedTerms with MinimalQuantification with MostGeneralSubstitution
     }
     MGS4App(outerMGS restrict B,
             outerMGS restrict C,
-            (B ++ C) -- outerMGS.keySet)
+            (B ++ C) -- outerMGS.keySet,
+            A2C)
   }
 }
 
@@ -366,9 +372,14 @@ trait SystemMFExamples extends SystemMF {
             Map(StringLiteral("x") -> idType),
             Map.empty)
 
+  val selfAppId =
+    SMFTerm(selfApp.canon ₋ λ("y")("y"),
+            selfApp.Γ orElse Map(StringLiteral("y") -> α("β")),
+            Map.empty)
+
   val listOfSystemMFExamples: List[SMFTerm] =
     List(chooseId, chooseIdId, undefinedUndefined, constUndefined,
-         constId, const2Id, selfApp)
+         constId, const2Id, selfApp, selfAppId)
 }
 
 object TestSystemMF extends SystemMFExamples {
@@ -411,21 +422,7 @@ object TestSystemMF extends SystemMFExamples {
       EqConstraint(∀("α")("α" →: "γ"), ∀("γ")("γ" →: ★("List", "δ"))) :: Nil
     ))
 
-    // cool stuff
-    println
-    println(pretty(selfApp))
-
-    println()
-    println(pretty(chooseId))
-
-    println()
-    println(pretty(chooseIdId))
-
-    println()
-    println(pretty(undefinedUndefined))
-
     // type soundness issue
-    println()
     // make sure precondition is met (global environment contains
     // only values of minimally quantified types)
     constUndefined.Γ.asInstanceOf[Map[Name, Type]].foreach {
@@ -433,15 +430,10 @@ object TestSystemMF extends SystemMFExamples {
     }
     // test that the result type of application is still minimally
     // quantified
-    println(pretty(constUndefined))
     constUndefined.getType.ensureMinimalQuantification
 
-    // name capturing problems
-    println()
-    println(constId.Γ)
-    println(pretty(constId))
-    println()
-    println(const2Id.Γ)
-    println(pretty(const2Id))
+    listOfSystemMFExamples foreach {
+      example => println() ; println(pretty(example))
+    }
   }
 }

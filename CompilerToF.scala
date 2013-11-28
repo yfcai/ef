@@ -32,13 +32,15 @@ extends SystemMF
           val t = loop(operand , boundTypeVars)
           val operatorType = getSystemFType(s, Γ)
           val operandType  = getSystemFType(t, Γ)
-          val TypeArgs4App(sTypeArgs, tTypeArgs, survivors) =
+          val TypeArgs4App(sTypeArgs, tTypeArgs, survivors, forbidden) =
             getTypeArgsInApp(operatorType, operandType)
           val resultType = doTypeApp(operatorType, sTypeArgs) match {
             case σ → τ => τ
           }
           val argQList = argumentQuantificationList(resultType)
-          val etaBody = □(s, sTypeArgs) ₋ □(t, tTypeArgs)
+          val etaBody =
+            □(s, sTypeArgs) ₋
+            Λ(forbidden)(□(t, tTypeArgs))
           val (result, additionalArgTypes) =
             etaExpandAndQuantify(etaBody, survivors, argQList, nameGenerator)
           argTypes ++= additionalArgTypes
@@ -64,7 +66,6 @@ extends SystemMF
                            argQList: List[(Seq[Name], Type)],
                            newName: GenerativeNameGenerator):
       (Term, collection.Map[Name, Type]) = {
-    case object Hole extends Name
     val stillToQuantify = collection.mutable.Set.empty[Name] ++ toQuantify
     val argQs                 = argQList.init
     val (resultQ, resultType) = argQList.last
@@ -110,9 +111,11 @@ extends SystemMF
     (result, argTypes)
   }
 
+  /** @param forbidden  See `SystemMF.getMGS4App`. */
   case class TypeArgs4App(operatorTypeArgs: List[Type],
                           operandTypeArgs : List[Type],
-                          toBeQuantified  : Set[Name])
+                          toBeQuantified  : Set[Name],
+                          forbidden       : Seq[Name])
 
   // Duplicates type checker and has hacks. Refactor?
   /** @return (operator-type-arguments, operand-type-arguments) */
@@ -124,7 +127,8 @@ extends SystemMF
     val (listB, innerOperatorType) = listOfQuantifiers(operatorType)
     innerOperatorType match {
       case α(name) if listB == List(name) =>
-        TypeArgs4App(List(operandType →: ∀("α")("α")), Nil, Set.empty)
+        TypeArgs4App(List(operandType →: ∀("α")("α")), Nil,
+                     Set.empty, Seq.empty)
 
       case _ =>
         val (sigma → tau0)  = innerOperatorType
@@ -141,7 +145,7 @@ extends SystemMF
         val substAB = substA ++ substB
         val σ0 = sigma0 rename substAB
         val σ1 = sigma1 rename substC
-        val MGS4App(typeAppsB, typeAppsC, survivors) =
+        val MGS4App(typeAppsB, typeAppsC, survivors, forbidden) =
           getMGS4App(namesA, namesB, namesC, σ0, σ1)
         val τ  = tau0 rename substAB substitute typeAppsB
         val (invBC, _) =
@@ -168,7 +172,8 @@ extends SystemMF
         TypeArgs4App(
           listToTypeArgs(listB, substB, typeAppsB),
           listToTypeArgs(listC, substC, typeAppsC),
-          survivors map invBC
+          survivors map invBC,
+          listA map (substA andThen forbidden andThen substC.inverse)
         )
     }
   }
