@@ -266,7 +266,7 @@ trait GlobalRenaming extends Renaming {
 }
 
 trait FreeNames extends TypesAndTerms {
-  object getFreeNames extends Visitor[Set[Name]] {
+  trait FreeNamesVisitor extends Visitor[Set[Name]] {
     private[this] type T = Set[Name]
     def ∀(name: Name, body: T): T = body - name
     def →(domain: T, range: T): T = domain ++ range
@@ -277,6 +277,18 @@ trait FreeNames extends TypesAndTerms {
     def λ(name: Name, body: T): T = body - name
     def ε(operator: T, operand: T): T = operator ++ operand
   }
+
+  object getFreeNames extends FreeNamesVisitor
+}
+
+trait AllNames extends FreeNames {
+  trait AllNamesVisitor extends FreeNamesVisitor {
+    private[this] type T = Set[Name]
+    override def ∀(name: Name, body: T): T = body + name
+    override def λ(name: Name, body: T): T = body + name
+  }
+
+  object getAllNames extends AllNamesVisitor
 }
 
 trait CanonicalNames extends FreeNames with Renaming with MapOperations {
