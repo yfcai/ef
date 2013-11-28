@@ -1,3 +1,11 @@
+### Use of impredicativity
+
+#### Yasohiko Minamide, Greg Morrisett, Robert Harper: Typed closure conversion
+
+#### Philip Wadler and Stefen Blott: How to make ad-hoc polymorphism less ad hoc.
+
+### Type reconstruction
+
 #### Barry Jay and Simon Peyton Jones: Scrap your type applications
 
 Where I start from. I scrap type abstractions, too.
@@ -24,4 +32,4 @@ They say it's undecidable. I have to isolate the aspect of myself that makes the
 
 #### Mark P. Jones: First-class polymorphism with type inference
 
-They convert nested quantifiers to prenex form. I do the opposite.
+They convert nested quantifiers to prenex form. I do the opposite.
