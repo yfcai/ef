@@ -1,6 +1,10 @@
 import scala.language.implicitConversions
 
-trait SystemF extends TypedTerms with Substitution {
+trait SystemF
+extends TypedTerms
+   with Substitution
+   with PeelAwayQuantifiers
+{
   object SystemF {
     case class Λ(alpha: Name, body: Term) extends Term
     case class □(term: Term, typeArg: Type) extends Term
@@ -96,10 +100,18 @@ trait SystemF extends TypedTerms with Substitution {
         ∀(alpha, loop(body))
 
       case □(term, typeArg) =>
-        val ∀(alpha, typeBody) = loop(term)
-        typeBody substitute (alpha -> typeArg)
+        doTypeApp(loop(term), List(typeArg))
     }
     loop(canon)
+  }
+
+  def doTypeApp(τ : Type, typeArgs: List[Type]): Type = {
+    val (quantifiedNames, typeBody) = listOfQuantifiers(τ, typeArgs.size)
+    val accordingToPlan: Map[Name, Type] =
+      (quantifiedNames, typeArgs).zipped.map({
+        case (name, typeArg) => (name, typeArg)
+      })(collection.breakOut)
+    typeBody substitute accordingToPlan
   }
 }
 

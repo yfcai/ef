@@ -148,13 +148,49 @@ trait PeelAwayQuantifiers extends Types {
       (Set.empty[Name], τ)
   }
 
-  def listOfQuantifiers(τ : Type): (List[Name], Type) = τ match {
-    case ∀(name, body) =>
-      val (otherQuantifiedNames, realBody) = listOfQuantifiers(body)
+  /** @param τ Type to inspect
+    * @param n Maximum number of quantified names to return
+    * @return (list-of-quantified-names, the-rest-of-τ)
+    */
+  def listOfQuantifiers(τ : Type, n: Int = -1):
+      (List[Name], Type) = τ match {
+    case ∀(name, body) if n != 0 =>
+      val (otherQuantifiedNames, realBody) =
+        listOfQuantifiers(body, if (n > 0) n - 1 else n)
       (name :: otherQuantifiedNames, realBody)
+
+    case _ if n > 0 =>
+      sys error "Too many type arguments for ${τ}"
 
     case _ =>
       (Nil, τ)
+  }
+
+  /** Suppose
+    *
+    *   τ = ∀α β. α → (∀γ. (∀δ. δ → γ) → β → α)
+    *
+    * then
+    *
+    *   argumentQuantificationList(τ) =
+    *     ( {α, β}, α         ) ::
+    *     (    {γ}, ∀δ. δ → γ ) ::
+    *     (      ∅, β         ) ::
+    *     (      ∅, α         ) :: Nil
+    */
+  def argumentQuantificationList(τ : Type): List[(Seq[Name], Type)] = {
+    def loop(τ : Type, currentQuantifiers: Seq[Name]):
+        List[(Seq[Name], Type)] = τ match {
+      case ∀(alpha, body) =>
+        loop(body, currentQuantifiers :+ alpha)
+
+      case σ → τ =>
+        (currentQuantifiers, σ) :: loop(τ, Seq.empty)
+
+      case nonfunctionType =>
+        (currentQuantifiers, nonfunctionType) :: Nil
+    }
+    loop(τ, Seq.empty)
   }
 }
 
@@ -329,6 +365,10 @@ trait SystemMFExamples extends SystemMF {
     SMFTerm(λ("x")("x" ₋ "x"),
             Map(StringLiteral("x") -> idType),
             Map.empty)
+
+  val listOfSystemMFExamples: List[SMFTerm] =
+    List(chooseId, chooseIdId, undefinedUndefined, constUndefined,
+         constId, const2Id, selfApp)
 }
 
 object TestSystemMF extends SystemMFExamples {
