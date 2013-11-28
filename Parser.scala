@@ -3,7 +3,7 @@ import scala.util.parsing.combinator._
 import scala.util.matching.Regex
 
 trait Parsing extends SystemMF with Pretty with RegexParsers {
-  object parse extends Parser {
+  object parseTerm extends Parser {
     def apply(input: String) = {
       name.reset
       useParser(topLevel)(input)
@@ -153,7 +153,7 @@ object TestParser extends Parsing {
   }
 
   def t(s : String) {
-    val t = parse(s).get
+    val t = parseTerm(s).get
     println(t)
     println(pretty(t.getTerm))
     println
@@ -162,7 +162,7 @@ object TestParser extends Parsing {
   val Y = """|λ f : (α → α) → (α → α) .
              |  (λ x : ∀ β . β → α → α . f (x x))
              |  (λ x : ∀ β . β → α → α . f (x x))
-             |""".stripMargin
+             |""".stripMargin // is ill-typed
 
   def main(args: Array[String]) {
     τ("α")
