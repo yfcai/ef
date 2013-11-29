@@ -41,18 +41,35 @@ trait Racketeer extends Terms {
   val racketFinale = "))"
 }
 
-object CompilerToRacket extends FileParser with Racketeer {
-  def process(result: List[Expr]): Unit = {
-    println(racketPrelude)
-    result foreach {
-      case DefExpr(name, term) =>
-        println(s"(define $name ${toRacket(term.getTerm)})")
-        println()
+trait RacketFileParser extends FileParser with Racketeer {
+  def getRacketCode(result: List[Expr]): String = {
+    (racketPrelude +:
+      (result map {
+        case DefExpr(name, term) =>
+          s"(define $name ${toRacket(term.getTerm)})"
+        case NakedExpr(term) =>
+          toRacket(term.getTerm)
+      }) :+ racketFinale).mkString
+  }
+}
 
-      case NakedExpr(term) =>
-        println(toRacket(term.getTerm))
-        println()
-    }
-    println(racketFinale)
+object CompilerToRacket extends RacketFileParser {
+  def process(result: List[Expr]) {
+    println(getRacketCode(result))
+  }
+}
+
+object ExecuterInRacket extends RacketFileParser {
+  def process(result: List[Expr]) {
+    // cargo code from:
+    // http://stackoverflow.com/a/6041248
+    import sys.process._
+    val code = getRacketCode(result)
+    val proc = Process("racket /dev/stdin")
+    val io = new ProcessIO (
+      in  => {in.write(code getBytes "UTF-8") ; in.close},
+      out => {scala.io.Source.fromInputStream(out).getLines.foreach(println)},
+      err => {scala.io.Source.fromInputStream(err).getLines.foreach(println)})
+    proc run io
   }
 }
