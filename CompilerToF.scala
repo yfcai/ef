@@ -1,4 +1,4 @@
-trait CompilerToF
+trait CompilationToF
 extends SystemMF
    with SystemF
    with AllNames
@@ -179,8 +179,8 @@ extends SystemMF
   }
 }
 
-object TestCompilerToF
-extends CompilerToF
+object TestCompilationToF
+extends CompilationToF
    with SystemMFExamples
    with PrettyF
 {
@@ -188,5 +188,17 @@ extends CompilerToF
     listOfSystemMFExamples foreach {
       example => println() ; println(pretty(example.toSystemF))
     }
+  }
+}
+
+object CompilerToF extends CompilationToF with FileParser with PrettyF {
+  def process(result: List[Expr]): Unit = result foreach {
+    case DefExpr(name, term) =>
+      val t = term.toSystemF
+      println(s"$name = ${pretty(t)}\n")
+
+    case NakedExpr(term) =>
+      println(pretty(term.toSystemF))
+      println()
   }
 }
