@@ -324,16 +324,3 @@ trait FileParser extends DecimalModuleParser {
     process(parseModule(content))
   }
 }
-
-object TypeChecker extends FileParser with Pretty {
-  def process(result: List[Expr]): Unit = result foreach {
-    case DefExpr(name, term) =>
-      println(s"$name : ${pretty(term.getType)}")
-      println(s"$name = ${pretty(term.getTerm)}")
-      println()
-
-    case NakedExpr(term) =>
-      println(pretty(term))
-      println()
-  }
-}
