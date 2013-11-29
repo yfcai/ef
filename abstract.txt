@@ -11,7 +11,7 @@ System F. There is hitherto no completely satisfying solution.
 Type inference and many forms of partial type reconstruction are
 undecidable for System F. It led people to question the
 feasibility of polymorphism expressed in terms of forall
-quantifiers in the first place.
+quantifiers in general.
 
 Our work shows that impredicative polymorphism does not imply an
 unacceptable amount of type annotation. We demonstrate a subset
