@@ -195,10 +195,13 @@ object CompilerToF extends CompilationToF with FileParser with PrettyF {
   def process(result: List[Expr]): Unit = result foreach {
     case DefExpr(name, term) =>
       val t = term.toSystemF
-      println(s"$name = ${pretty(t)}\n")
+      println(s"$name : ${pretty(t.getType)}")
+      println(s"$name = ${pretty(t)}")
+      println()
 
     case NakedExpr(term) =>
-      println(pretty(term.toSystemF))
+      val t = term.toSystemF
+      println(s"${pretty(t)} : ${pretty(t.getType)}")
       println()
   }
 }

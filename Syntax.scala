@@ -233,6 +233,30 @@ trait Renaming extends TypesAndTerms with Reconstruction {
   }
 }
 
+trait AlphaEquivalence extends Renaming with FreeNames {
+  def α_equivalent(σ : Type, τ : Type): Boolean = (σ, τ) match {
+    case (∀(name1, body1), ∀(name2, body2)) =>
+      val newName =
+        getFreshName(name1,
+          getFreeNames(body1) ++ getFreeNames(body2))
+      α_equivalent(body1 rename (name1 -> newName),
+                   body2 rename (name2 -> newName))
+
+    case (★(σ1, τ1), ★(σ2, τ2)) =>
+      α_equivalent(σ1, σ2) && α_equivalent(τ1, τ2)
+
+    case (σ1 → τ1, σ2 → τ2) =>
+      α_equivalent(σ1, σ2) && α_equivalent(τ1, τ2)
+
+    case (α(name1), α(name2)) =>
+      name1 == name2
+
+    case _ =>
+      false
+  }
+
+}
+
 trait GlobalRenaming extends Renaming {
   class TypeGlobalRenaming(f: PartialFunction[Name, Name])
   extends TypeRenaming(f andThen α) with Reconstruction

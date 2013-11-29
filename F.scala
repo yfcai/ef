@@ -4,6 +4,7 @@ trait SystemF
 extends TypedTerms
    with Substitution
    with PeelAwayQuantifiers
+   with AlphaEquivalence
 {
   object SystemF {
     case class Λ(alpha: Name, body: Term) extends Term
@@ -89,7 +90,7 @@ extends TypedTerms
       case ε(operator, operand) =>
         val σ0 → τ = loop(operator)
         val σ1     = loop(operand)
-        if (σ0 != σ1)
+        if (! α_equivalent(σ0, σ1))
           sys error s"""|Operand type mismatch in application $canon:
                         |operator : ${σ0} → ${τ}
                         |operand  : ${σ1}
