@@ -2,6 +2,8 @@ id = λx : α. x
 
 double = λf : α → α. λx : α. f (f x)
 
+data ℤ
+
 postulate + : ℤ → ℤ → ℤ
 
 seven = double (+ 2) 3
@@ -9,6 +11,8 @@ seven = double (+ 2) 3
 selfApp = λx : ∀α. α → α. x x
 
 quadruple = double double
+
+data List
 
 postulate nil : ∀α. List α
 
@@ -22,10 +26,13 @@ postulate head : ∀α. List α → α
 
 postulate tail : ∀α. List α → List α
 
-postulate fix : ∀α. (α → α) → (α → α)
+postulate fix : ∀α. (α → α) → α
 
 map = λf : α → β.
         fix (λm : List α → List β. λl : List α.
                (isnil l)
                  nil
                  (cons (f (head l)) (m  (tail l))))
+
+map (quadruple (λx : ℤ. (+ x x)))
+    (cons 1 (cons 2 (cons 3 (cons 4 (cons 5 nil)))))
