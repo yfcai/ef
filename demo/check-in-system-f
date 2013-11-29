@@ -1,0 +1,4 @@
+#!/bin/bash
+MAIN=CompilerToF
+DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
+exec scala -classpath $DIR/../target/scala-2.10/classes $MAIN $*
