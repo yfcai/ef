@@ -29,6 +29,7 @@ trait Parsing extends SystemMF with Pretty with RegexParsers {
     val equals = "=".r
     val pstlt  = "postulate".r
     val talias = "type".r
+    val tdecl  = "data".r
 
     // MODULE PARSERS
 
@@ -37,12 +38,14 @@ trait Parsing extends SystemMF with Pretty with RegexParsers {
       var result: List[Expr] = Nil
       var Γ : Map[Name, Type] = Map.empty
       var aliases = collection.mutable.Seq.empty[(Name, Type)]
+      val decls   = collection.mutable.Set.empty[Name]
       def smf2term(smf: SMF) = {
         val context: Map[Name, Type] = (Γ ++ smf.Γ) map {
           case (name, τ) =>
             (name, τ substitute (aliases: _*))
         }
-        SMFTerm(smf.t, context orElse literals, smf.n)
+        SMFTerm(smf.t, context orElse literals,
+                Set.empty[Name] ++ decls, smf.n)
       }
       paragraph.* ^^ { paragraphs =>
         paragraphs foreach { _ match {
@@ -65,7 +68,10 @@ trait Parsing extends SystemMF with Pretty with RegexParsers {
             result = NakedExpr(smf2term(smf)) :: result
 
           case TypeAlias(name, τ) =>
-            aliases :+= ((name, τ substitute (aliases: _*)))
+            aliases = aliases :+ ((name, τ substitute (aliases: _*)))
+
+          case TypeDeclaration(name) =>
+            decls += name
         }}
         result.reverse
       }
@@ -74,6 +80,7 @@ trait Parsing extends SystemMF with Pretty with RegexParsers {
     lazy val paragraph: Parser[Paragraph] =
       phase ^^ { s =>
         useParser( typeAlias
+                 | typeDeclaration
                  | postulate
                  | definition
                  | nakedTopLevelExpr
@@ -84,6 +91,9 @@ trait Parsing extends SystemMF with Pretty with RegexParsers {
       talias ~ ident ~ equals ~ typeExpr ^^ {
         case _ ~ alpha ~ _ ~ τ => TypeAlias(alpha, τ)
       }
+
+    lazy val typeDeclaration: Parser[Paragraph] =
+      tdecl ~> ident ^^ (x => TypeDeclaration(x))
 
     lazy val postulate: Parser[Paragraph] =
       pstlt ~ ident ~ colon ~ typeExpr ^^ {
@@ -144,7 +154,7 @@ trait Parsing extends SystemMF with Pretty with RegexParsers {
     lazy val nakedTermExpr: Parser[SMFTerm] = {
       name.reset
       termExpr ^^ {
-        case SMF(t, _Γ, names) => SMFTerm(t, _Γ, names)
+        case SMF(t, _Γ, names) => SMFTerm(t, _Γ, Set.empty, names)
       }
     }
 
@@ -222,6 +232,7 @@ trait Parsing extends SystemMF with Pretty with RegexParsers {
     case class Postulate(name: String, τ : Type) extends Paragraph
     case class NakedParagraph(smf: SMF) extends Paragraph
     case class TypeAlias(alpha: Name, τ : Type) extends Paragraph
+    case class TypeDeclaration(alpha: Name) extends Paragraph
 
 
 

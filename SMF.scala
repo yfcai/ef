@@ -2,14 +2,15 @@ trait SystemMF
 extends TypedTerms with MinimalQuantification with MostGeneralSubstitution
 {
   case class SMFTerm(
-    canon: Term,
-    Γ    : PartialFunction[Name, Type],
-    names: Map[Name, Name]
+    canon      : Term,
+    Γ          : PartialFunction[Name, Type],
+    globalTypes: Set[Name],
+    names      : Map[Name, Name]
   )
   extends TypedTerm {
     lazy val getTerm: Term = canon renameAll names
 
-    lazy val getType: Type = typeOfSubterm(canon, Set.empty)
+    lazy val getType: Type = typeOfSubterm(canon, globalTypes)
 
     // TODO: Cache me to speed up typing, maybe... but how?
     def typeOfSubterm(subterm: Term, boundTypeVars: Set[Name]): Type = {
@@ -339,42 +340,49 @@ trait SystemMFExamples extends SystemMF {
     SMFTerm("choose" ₋ "id",
             Map(StringLiteral("choose") -> chooseType,
                 StringLiteral("id")     -> idType),
+            Set.empty,
             Map.empty)
 
   val chooseIdId =
-    SMFTerm(chooseId.getTerm ₋ "id", chooseId.Γ, Map.empty)
+    SMFTerm(chooseId.getTerm ₋ "id", chooseId.Γ, Set.empty, Map.empty)
 
   val undefinedUndefined =
     SMFTerm("undefined" ₋ "undefined",
             Map(StringLiteral("undefined") -> ∀("α")("α")),
+            Set.empty,
             Map.empty)
 
   val constUndefined =
     SMFTerm("const" ₋ "undefined",
             Map(StringLiteral("const") -> ∀("α")("α" →: ∀("β")("β" →: "α")),
                 StringLiteral("undefined") -> ∀("α")("α")),
+            Set.empty,
             Map.empty)
 
   val constId =
     SMFTerm("const" ₋ "id",
             Map(StringLiteral("const") -> ∀("α")("α" →: ∀("β")("β" →: "α")),
                 StringLiteral("id") -> idType),
+            Set.empty,
             Map.empty)
 
   val const2Id =
     SMFTerm("const2" ₋ "id",
             Map(StringLiteral("const2") -> ∀("α")("α" →: "β" →: "α"),
                 StringLiteral("id") -> idType),
+            Set("β": Name),
             Map.empty)
 
   val selfApp =
     SMFTerm(λ("x")("x" ₋ "x"),
             Map(StringLiteral("x") -> idType),
+            Set.empty,
             Map.empty)
 
   val selfAppId =
     SMFTerm(selfApp.canon ₋ λ("y")("y"),
             selfApp.Γ orElse Map(StringLiteral("y") -> α("β")),
+            Set.empty,
             Map.empty)
 
   val listOfSystemMFExamples: List[SMFTerm] =
