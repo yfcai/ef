@@ -57,7 +57,7 @@ weird2 = cons (+ 1) weird1
 
 weird3 = cons (map id) weird1
 
-weird4 = cons selfApp nil
+weird4 = cons selfApp weird1
 
 fph2 = f id weird4
 
