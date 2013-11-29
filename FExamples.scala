@@ -129,7 +129,7 @@ object TestF extends SystemFExamples with PrettyF with MinimalQuantification {
     listOfSystemFExamples foreach {
       case (desc, t) =>
         println(s"$desc : ${pretty(t.getType)}")
-        println(s"$desc = ${pretty(t.getTerm)}\n")
+        println(s"$desc = ${pretty(t)}\n")
     }
   }
 }

@@ -116,11 +116,13 @@ extends TypedTerms
 }
 
 trait PrettyF extends SystemF with Pretty {
-  class SystemFPrettyVisitor
+  class SystemFPrettyVisitor(t: FTerm)
   extends PrettyVisitor
      with FTermVisitor[(String, Int)]
   {
     private[this] type T = (String, Int)
+    private[this] def lookupName = t.names.withDefault(x => x)
+    private[this] def lookupType(id: Name): String = apply(t.Γ(id))._1
 
     def Λ(alpha: Name, body: T): T =
       template("Λ%s. %s", priority_Λ, (α(alpha), 0), (body, 1))
@@ -130,10 +132,20 @@ trait PrettyF extends SystemF with Pretty {
         (term, 1),
         ((pretty(typeArg), priority_∞), 0))
 
+    /** Add type annotations to lambdas */
+    override def λ(id: Name, body: T): T =
+      template("λ%s. %s", priority_λ,
+        ((s"${lookupName(id)} : ${lookupType(id)}", priority_∞), 0),
+         (body, 1))
+
+    /** Do renaming on variables */
+    override def χ(id: Name): T =
+      (lookupName(id).toString, priority_∞)
+
     def priority_Λ = priority_λ
     def priority_□ = priority_ε
   }
 
-  override def pretty(t: Term): String =
-    (new SystemFPrettyVisitor)(t)._1
+  def pretty(t: FTerm): String =
+    new SystemFPrettyVisitor(t)(t.canon)._1
 }
