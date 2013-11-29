@@ -34,5 +34,28 @@ map = λf : α → β.
                  nil
                  (cons (f (head l)) (m  (tail l))))
 
-map (quadruple (+ 1))
-    (cons 1 (cons 2 (cons 3 (cons 4 (cons 5 nil)))))
+pierce = map (quadruple (+ 1))
+             (cons 1 (cons 2 (cons 3 (cons 4 (cons 5 nil)))))
+
+
+choose = λx : α. λy : α. x
+
+choose1 = choose id
+
+choose2 = choose id id
+
+f = cons
+
+ids = cons id (cons id (cons id nil))
+
+fph = f id ids
+
+
+weird1 = cons id nil
+
+weird2 = cons (+ 1) weird1
+
+weird3 = cons (map id) weird1
+
+
+pierce
