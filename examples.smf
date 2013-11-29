@@ -34,5 +34,5 @@ map = λf : α → β.
                  nil
                  (cons (f (head l)) (m  (tail l))))
 
-map (quadruple (λx : ℤ. (+ x x)))
+map (quadruple (+ 1))
     (cons 1 (cons 2 (cons 3 (cons 4 (cons 5 nil)))))
