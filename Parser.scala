@@ -1,12 +1,10 @@
-// For Parsers
 import scala.util.parsing.combinator._
 import scala.util.matching.Regex
 
 trait Parsing extends SystemMF with Pretty with RegexParsers {
   object parseTerm extends Parser {
     def apply(input: String) = {
-      name.reset
-      useParser(topLevel)(input)
+      useParser(nakedTermExpr)(input)
     }
   }
 
@@ -27,6 +25,82 @@ trait Parsing extends SystemMF with Pretty with RegexParsers {
     val arrow  = "[→]".r
     val nil    = "".r
     val ident  = """[^()\[\]{}",'`;#|\\∀λ→ \r\t\f\n.]+""".r
+    val phase  = """([^\n]|\n[^\n])+""".r // delimited by blank line
+    val equals = "=".r
+    val pstlt  = "postulate".r
+    val talias = "type".r
+
+    // MODULE PARSERS
+
+    def module(literals: PartialFunction[Name, Type]):
+        Parser[List[Expr]] = {
+      var result: List[Expr] = Nil
+      var Γ : Map[Name, Type] = Map.empty
+      var aliases = collection.mutable.Seq.empty[(Name, Type)]
+      def smf2term(smf: SMF) = {
+        val context: Map[Name, Type] = (Γ ++ smf.Γ) map {
+          case (name, τ) =>
+            (name, τ substitute (aliases: _*))
+        }
+        SMFTerm(smf.t, context orElse literals, smf.n)
+      }
+      paragraph.* ^^ { paragraphs =>
+        paragraphs foreach { _ match {
+          case Postulate(name, τ) =>
+            if (Γ contains name) sys error (
+              s"postulate duplicates existing name: $name : $τ"
+            )
+            Γ = Γ.updated(name, τ substitute (aliases: _*))
+
+          case Definition(name, smf) =>
+            if (Γ contains name) sys error (
+                s"definition duplicates existing name: $name = ${smf.t}"
+            )
+            require((smf.Γ.keySet & Γ.keySet).isEmpty)
+            val term = smf2term(smf)
+            Γ = Γ.updated(name, term.getType)
+            result = DefExpr(name, term) :: result
+
+          case NakedParagraph(smf) =>
+            result = NakedExpr(smf2term(smf)) :: result
+
+          case TypeAlias(name, τ) =>
+            aliases :+= ((name, τ substitute (aliases: _*)))
+        }}
+        result.reverse
+      }
+    }
+
+    lazy val paragraph: Parser[Paragraph] =
+      phase ^^ { s =>
+        useParser( typeAlias
+                 | postulate
+                 | definition
+                 | nakedTopLevelExpr
+                 )(s).get
+      }
+
+    lazy val typeAlias: Parser[Paragraph] =
+      talias ~ ident ~ equals ~ typeExpr ^^ {
+        case _ ~ alpha ~ _ ~ τ => TypeAlias(alpha, τ)
+      }
+
+    lazy val postulate: Parser[Paragraph] =
+      pstlt ~ ident ~ colon ~ typeExpr ^^ {
+        case _ ~ name ~ _ ~ τ => Postulate(name, τ)
+      }
+
+    lazy val definition: Parser[Paragraph] = {
+      name.reset
+      ident ~ equals ~ termExpr ^^ {
+        case name ~ _ ~ smf => Definition(name, smf)
+      }
+    }
+
+    lazy val nakedTopLevelExpr: Parser[Paragraph] = {
+      name.reset
+      termExpr ^^ NakedParagraph
+    }
 
     // TYPE PARSERS
 
@@ -66,6 +140,13 @@ trait Parsing extends SystemMF with Pretty with RegexParsers {
     lazy val parenType: Parser[Type] = paren(typeExpr)
 
     // TERM PARSERS
+
+    lazy val nakedTermExpr: Parser[SMFTerm] = {
+      name.reset
+      termExpr ^^ {
+        case SMF(t, _Γ, names) => SMFTerm(t, _Γ, names)
+      }
+    }
 
     lazy val termExpr: Parser[SMF] = abs      | belowAbs
     lazy val belowAbs: Parser[SMF] = app      | belowApp
@@ -107,10 +188,6 @@ trait Parsing extends SystemMF with Pretty with RegexParsers {
 
     // internal parsers
 
-    lazy val topLevel: Parser[SMFTerm] = termExpr ^^ {
-      case SMF(t, _Γ, names) => SMFTerm(t, _Γ, names)
-    }
-
     def opList[T](operator: Regex, operand: Parser[T]): Parser[List[T]] =
       operand ~ (operator ~> operand).+ ^^ {
         case operand ~ others => operand :: others
@@ -129,6 +206,24 @@ trait Parsing extends SystemMF with Pretty with RegexParsers {
     case object ZeroInfoTerm extends Term
 
     def ∅[K, V] = Map.empty[K, V]
+
+    // data structure for file parsing
+
+    /** Result of parsing a module */
+    sealed trait Expr
+
+    /** Result of parsing a paragraph */
+    sealed trait Paragraph
+
+    case class DefExpr(name: Name, term: SMFTerm) extends Expr
+    case class NakedExpr(get: SMFTerm) extends Expr
+
+    case class Definition(name: String, smf: SMF) extends Paragraph
+    case class Postulate(name: String, τ : Type) extends Paragraph
+    case class NakedParagraph(smf: SMF) extends Paragraph
+    case class TypeAlias(alpha: Name, τ : Type) extends Paragraph
+
+
 
     // result data struct
     sealed trait Result[T] { def get: T }
@@ -173,5 +268,61 @@ object TestParser extends Parsing {
     t("λ f : α → β → γ . f (g x) (h y)")
     t("λ x : ∀ β . β → α → α . f (x x)")
     t(Y)
+  }
+}
+
+trait DecimalLiterals extends FreshNames with Types {
+  final val decimalLiteral: PartialFunction[Name, Type] = {
+    case StringLiteral(s) if s matches "(-)?[0-9]+" => "ℤ"
+  }
+}
+
+trait DecimalModuleParser extends Parsing with DecimalLiterals {
+  object parseModule extends Parser {
+    lazy val moduleParser = module(decimalLiteral)
+
+    def apply(content: String): List[Expr] =
+      useParser(moduleParser)(content).get
+  }
+
+  type Expr      = parseModule.Expr
+  type DefExpr   = parseModule.DefExpr
+  val  DefExpr   = parseModule.DefExpr
+  type NakedExpr = parseModule.NakedExpr
+  val  NakedExpr = parseModule.NakedExpr
+}
+
+trait FileParser extends DecimalModuleParser {
+  def process(result: List[Expr]): Unit
+
+  def main(args: Array[String]) {
+    val content: String = try {
+      val Array(filename) = args
+      val source = scala.io.Source.fromFile(filename)
+      val content = source.getLines mkString "\n"
+      source.close()
+      content
+    }
+    catch { case e: Throwable =>
+      Console.err.println(
+        """|Usage: <this-command> <one-single-file>
+           |""".stripMargin)
+      sys exit -1
+    }
+
+    process(parseModule(content))
+  }
+}
+
+object TypeChecker extends FileParser with Pretty {
+  def process(result: List[Expr]): Unit = result foreach {
+    case DefExpr(name, term) =>
+      println(s"$name : ${pretty(term.getType)}")
+      println(s"$name = ${pretty(term.getTerm)}")
+      println()
+
+    case NakedExpr(term) =>
+      println(pretty(term))
+      println()
   }
 }
