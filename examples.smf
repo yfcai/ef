@@ -1,0 +1,31 @@
+id = λx : α. x
+
+double = λf : α → α. λx : α. f (f x)
+
+postulate + : ℤ → ℤ → ℤ
+
+seven = double (+ 2) 3
+
+selfApp = λx : ∀α. α → α. x x
+
+quadruple = double double
+
+postulate nil : ∀α. List α
+
+postulate cons : ∀α. α → List α → List α
+
+type Bool = ∀α. α → α → α
+
+postulate isnil : ∀α. α → Bool
+
+postulate head : ∀α. List α → α
+
+postulate tail : ∀α. List α → List α
+
+postulate fix : ∀α. (α → α) → (α → α)
+
+map = λf : α → β.
+        fix (λm : List α → List β. λl : List α.
+               (isnil l)
+                 nil
+                 (cons (f (head l)) (m  (tail l))))
