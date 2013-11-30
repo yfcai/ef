@@ -46,19 +46,18 @@ choose2 = choose id id
 
 f = cons
 
-ids = cons id (cons id (cons id nil))
+ids = cons id nil
 
 fph = f id ids
 
 
-weird1 = cons id nil
+weird2 = cons (+ 1) ids
 
-weird2 = cons (+ 1) weird1
+weird3 = cons (map id) ids
 
-weird3 = cons (map id) weird1
-
-weird4 = cons selfApp weird1
+weird4 = cons selfApp ids
 
 fph2 = f id weird4
+
 
 pierce
