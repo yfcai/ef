@@ -47,7 +47,7 @@ extends SystemMF
           result
       }
 
-      FTerm(loop(smf.canon, Set.empty), Γ, smf.names)
+      FTerm(loop(smf.canon, smf.globalTypes), Γ, smf.names)
     }
 
     private[this]
