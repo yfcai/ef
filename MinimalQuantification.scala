@@ -1,80 +1,72 @@
-trait MinimalQuantification extends Types with FreeNames with Pretty {
-  // domain M = name -> is free in a good way or a bad way
-  // FYI, true is good, false is bad.
-  private[this] type M = Map[Name, Boolean]
+trait MinimalQuantification
+extends Types
+   with Pretty
+   with FreeNames
+   with PeelAwayQuantifiers
+{
+  /** Test that leaves of a type application tree (★) are legal.
+    *
+    * ∀ is forbidden to be either a left or a right leaf.
+    * → is forbidden to be a left leaf.
+    * α can be both.
+    *
+    * If τ passes the test, then all type applications in τ are
+    * in head normal form. Furthermore, the type (List (∀α. α))
+    * fails this test, because we can always construct the more
+    * general type (∀α. List α) by the following function in
+    * System F:
+    *
+    *     λl : List (∀α. α). Λα. map (λx : ∀α. α. x [α]) l
+    */
+  class TypeAppsAreWellFormed extends TypeVisitor[Boolean] {
+    private[this] type T = Boolean
 
-  private sealed trait MQ {
-    def >>= (f: M => MQ): MQ
-  }
+    def ∀(name: Name, body: T): T = body
 
-  private case object NotMQ extends MQ {
-    def >>= (f: M => MQ): MQ = NotMQ
-  }
+    def →(domain: T, range: T): T = domain && range
 
-  private case class Solo(goodAndBad: M) extends MQ {
-    def >>= (f: M => MQ): MQ = f(goodAndBad)
-  }
+    def ★(typeFun: T, typeArg: T) = typeFun && typeArg
 
-  private case class Duo(lhs: M, rhs: M) extends MQ {
-    def >>= (f: M => MQ): MQ = f(merge(lhs, rhs))
-  }
+    def α(name: Name): T = true
 
-  private def merge(lhs: M, rhs: M): M =
-    (lhs map { case (name, goodness) =>
-      if (rhs contains name)
-        (name, goodness && rhs(name))
-      else
-        (name, goodness)
-    }) ++ rhs.filter(p => ! (lhs contains p._1))
+    override def apply(τ : Type): T = τ match {
+      case ★(→(_, _), _)
+         | ★(∀(_, _), _)
+         | ★(_, ∀(_, _)) => false
 
-  private class IsMinimallyQuantified extends TypeVisitor[MQ] {
-    private[this] type T = MQ
-
-    def ∀(name: Name, body: T): T = body match {
-      case Duo(lhs, rhs)
-          if lhs.getOrElse(name, false) &&
-             rhs.getOrElse(name, true ) =>
-        Duo(lhs - name, rhs - name)
-
-      case Solo(goodAndBad)
-          if goodAndBad.getOrElse(name, false) =>
-        Solo(goodAndBad - name)
-
-      case _ =>
-        NotMQ
+      case _ => super.apply(τ)
     }
-
-    def →(domain: T, range: T): T =
-      domain >>= { domain =>
-      range  >>= { range  =>
-      Duo(domain, range) }}
-
-    def α(name: Name): T = Solo(Map(name -> true))
-
-    def ★(typeFun: T, typeArg: T) =
-      typeFun >>= { typeFun =>
-      typeArg >>= { typeArg =>
-      Solo(typeArg ++ (typeFun mapValues (! _))) }}
   }
 
-  // All subtree of the type should be in head normal form.
-  def noComplicatedTypeApplication: Type => Boolean = { τ =>
-    def f = noComplicatedTypeApplication
-    τ match {
-      case ∀(name, body)    => f(body)
-      case →(domain, range) => f(domain) && f(range)
-      case α(name)          => true
+  class IsMinimallyQuantified extends TypeVisitor[Boolean] {
+    private[this] type T = Boolean
 
-      case ★(typeFun: ★, typeArg) => f(typeFun) && f(typeArg)
-      case ★(α(_), typeArg)       => f(typeArg)
-      case ★(_, _)                => false
+    def ∀(name: Name, body: T): T = sys error "we're not supposed to be here"
+
+    def →(domain: T, range: T): T = domain && range
+
+    def ★(typeFun: T, typeArg: T) = typeFun && typeArg
+
+    def α(name: Name): T = true
+
+    override def apply(τ : Type): T = τ match {
+      case forallType @ ∀(_, _) =>
+        val (quantifiers, body) = peelAwayQuantifiers(forallType)
+        body match {
+          case σ → τ =>
+            (quantifiers -- getFreeNames(σ)   ).isEmpty && apply(body)
+
+          case _ =>
+            (quantifiers -- getFreeNames(body)).isEmpty && apply(body)
+        }
+
+      case _ => super.apply(τ)
     }
   }
 
   implicit class MinimallyQuantifiedTypeOps(τ : Type) {
     def isMinimallyQuantified: Boolean =
-      noComplicatedTypeApplication(τ) &&
-      NotMQ != (new IsMinimallyQuantified)(τ)
+      (new TypeAppsAreWellFormed)(τ) && (new IsMinimallyQuantified)(τ)
 
     def ensureMinimalQuantification: Type =
       if (! isMinimallyQuantified)
@@ -123,7 +115,8 @@ object TestMinimalQuantification extends MinimalQuantification {
       true  -> ∀("α")("α") →: "β",
       false -> ∀("β")("α" →: "β"),
       false -> ("α" →: "β") ₌ "γ",
-      false -> ∀("α")("α" →: "α") ₌ "β"
+      false -> ∀("α")("α" →: "α") ₌ "β",
+      false -> ★("List", ∀("α")("α"))
     )
     types foreach { case (mqHood, τ) =>
       val yeah = if (mqHood) "Yeah!" else "Nope!"
@@ -134,4 +127,3 @@ object TestMinimalQuantification extends MinimalQuantification {
     }
   }
 }
-
