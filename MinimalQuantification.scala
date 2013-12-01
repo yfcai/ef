@@ -6,17 +6,9 @@ extends Types
 {
   /** Test that leaves of a type application tree (★) are legal.
     *
-    * ∀ is forbidden to be either a left or a right leaf.
+    * ∀ is forbidden to be a left leaf.
     * → is forbidden to be a left leaf.
     * α can be both.
-    *
-    * If τ passes the test, then all type applications in τ are
-    * in head normal form. Furthermore, the type (List (∀α. α))
-    * fails this test, because we can always construct the more
-    * general type (∀α. List α) by the following function in
-    * System F:
-    *
-    *     λl : List (∀α. α). Λα. map (λx : ∀α. α. x [α]) l
     */
   class TypeAppsAreWellFormed extends TypeVisitor[Boolean] {
     private[this] type T = Boolean
@@ -31,8 +23,7 @@ extends Types
 
     override def apply(τ : Type): T = τ match {
       case ★(→(_, _), _)
-         | ★(∀(_, _), _)
-         | ★(_, ∀(_, _)) => false
+         | ★(∀(_, _), _) => false
 
       case _ => super.apply(τ)
     }
@@ -111,12 +102,12 @@ object TestMinimalQuantification extends MinimalQuantification {
       true  -> "Map" ₌ ("List" ₌ "α") ₌ ("Map" ₌ "α" ₌ "β"),
       true  -> ∀("α")("α"),
       true  -> ∀("α")("List" ₌ "α"),
+      true  -> ★("Contravariant", ∀("α")("α")),
       true  -> ∀("α")("α" →: "β"),
       true  -> ∀("α")("α") →: "β",
       false -> ∀("β")("α" →: "β"),
       false -> ("α" →: "β") ₌ "γ",
-      false -> ∀("α")("α" →: "α") ₌ "β",
-      false -> ★("List", ∀("α")("α"))
+      false -> ∀("α")("α" →: "α") ₌ "β"
     )
     types foreach { case (mqHood, τ) =>
       val yeah = if (mqHood) "Yeah!" else "Nope!"

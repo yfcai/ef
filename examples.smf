@@ -60,4 +60,12 @@ weird4 = cons selfApp ids
 fph2 = f id weird4
 
 
-pierce
+data Contra
+
+postulate contra : ∀α. (α → ℤ) → Contra α
+
+weird5 = contra id
+
+postulate bot-to-int : (∀α. α) → ℤ
+
+weird6 = contra bot-to-int
