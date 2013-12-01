@@ -29,10 +29,10 @@ postulate tail : ∀α. List α → List α
 postulate fix : ∀α. (α → α) → α
 
 map = λf : α → β.
-        fix (λm : List α → List β. λl : List α.
+        fix (λmap-f : List α → List β. λl : List α.
                (isnil l)
                  nil
-                 (cons (f (head l)) (m  (tail l))))
+                 (cons (f (head l)) (map-f (tail l))))
 
 pierce = map (quadruple (+ 1))
              (cons 1 (cons 2 (cons 3 (cons 4 (cons 5 nil)))))
