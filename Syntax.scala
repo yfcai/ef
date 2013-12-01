@@ -488,7 +488,10 @@ trait Pretty extends TypedTerms {
       template("∀%s. %s", priority_∀, (α(name), 0), (body, 1))
 
     override def →(σ : Domain, τ : Domain) =
-      template("%s → %s", priority_→, (σ, 0), (τ, 1))
+      template("%s → %s", priority_→, (σ, 0), (τ, 2))
+      // rhs comes with a priority modifier of 2 so that
+      // (∀α. α → ∀β. β → α)    is printed without superfluous
+      // parentheses around ∀β.
 
     override def ★(f: Domain, x: Domain) =
       template("%s %s", priority_★, (f, 1), (x, 0))
@@ -519,8 +522,8 @@ trait Pretty extends TypedTerms {
         "(%s)" format text
 
     val priority_∀ = 1
-    val priority_→ = 5
-    val priority_★ = 9
+    val priority_→ = 2
+    val priority_★ = 3
 
     val priority_λ = 1
     val priority_ε = 9
