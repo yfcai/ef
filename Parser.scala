@@ -18,13 +18,16 @@ trait Parsing extends SystemMF with Pretty with RegexParsers {
 
     val leftP  = """\(""".r
     val rightP = """\)""".r
+    val leftB  = """\[""".r
+    val rightB = """\]""".r
     val forall = "[∀]".r
     val lambda = "[λ]".r
+    val LAMBDA = "[Λ]".r
     val dot    = "[.]".r
     val colon  = "[:]".r
     val arrow  = "[→]".r
     val nil    = "".r
-    val ident  = """[^()\[\]{}",'`;#|\\∀λ→ \r\t\f\n.]+""".r
+    val ident  = """[^()\[\]{}",'`;#|\\∀λΛ→ \r\t\f\n.]+""".r
     val phase  = """([^\n]|\n[^\n])+""".r // delimited by blank line
     val equals = "=".r
     val pstlt  = "postulate".r
@@ -220,7 +223,7 @@ trait Parsing extends SystemMF with Pretty with RegexParsers {
     // data structure for file parsing
 
     /** Result of parsing a module */
-    sealed trait Expr
+    trait Expr
 
     /** Result of parsing a paragraph */
     sealed trait Paragraph
@@ -250,37 +253,90 @@ trait Parsing extends SystemMF with Pretty with RegexParsers {
   }
 }
 
-object TestParser extends Parsing {
-  def τ(s : String) {
-    val τ = parseType(s).get
-    println(τ)
-    println(pretty(τ))
-    println
-  }
+// hacked-together System F parser for the demo
+trait ParsingF extends Parsing with PrettyF {
+  import SystemF._
 
-  def t(s : String) {
-    val t = parseTerm(s).get
-    println(t)
-    println(pretty(t.getTerm))
-    println
-  }
+  trait ParserF extends Parser {
+    override
+    lazy val termExpr: Parser[SMF] = abs | belowAbs
 
-  val Y = """|λ f : (α → α) → (α → α) .
-             |  (λ x : ∀ β . β → α → α . f (x x))
-             |  (λ x : ∀ β . β → α → α . f (x x))
-             |""".stripMargin // is ill-typed
+    override
+    lazy val belowAbs: Parser[SMF] = typeAbstraction | belowAbsT
 
-  def main(args: Array[String]) {
-    τ("α")
-    τ("∀ α . α → β → γ")
-    τ("∀ α β γ . α → (β → γ) → ((δ → ε) → η) → ζ")
-    τ("∀α β. (α → β) → List α → List β")
+    lazy val belowAbsT: Parser[SMF] = app | belowApp
 
-    t("λ f : α → β → γ . f (g x) (h y)")
-    t("λ x : ∀ β . β → α → α . f (x x)")
-    t(Y)
+    override
+    lazy val belowApp: Parser[SMF] = typeApplication | belowAppT
+
+    lazy val belowAppT: Parser[SMF] = variable | parenTerm
+
+    lazy val typeAbstraction: Parser[SMF] =
+      LAMBDA ~ typeParamList ~ dot ~ termExpr ^^ {
+        case _ ~ params ~ _ ~ body =>
+          SMF(
+            Λ(params map {alpha => alpha: Name})(body.t),
+            body.Γ,
+            body.n
+          )
+      }
+
+    lazy val typeApplication: Parser[SMF] =
+      belowAppT ~ (leftB ~> typeExpr <~ rightB) ^^ {
+        case smf ~ typeArg =>
+          SMF(smf.t □ typeArg, smf.Γ, smf.n)
+      }
+
+    case class DefExprF(name: Name, term: FTerm) extends Expr
+    case class NakedExprF(get: FTerm) extends Expr
+
+    // a copy of super.module
+    override
+    def module(literals: PartialFunction[Name, Type]):
+        Parser[List[Expr]] = {
+      var result: List[Expr] = Nil
+      var Γ : Map[Name, Type] = Map.empty
+      var aliases = collection.mutable.Seq.empty[(Name, Type)]
+      val decls   = collection.mutable.Set.empty[Name]
+      def smf2term(smf: SMF) = {
+        val context: Map[Name, Type] = (Γ ++ smf.Γ) map {
+          case (name, τ) =>
+            (name, τ substitute (aliases: _*))
+        }
+        FTerm(smf.t, context orElse literals, smf.n)
+      }
+      paragraph.* ^^ { paragraphs =>
+        paragraphs foreach { _ match {
+          case Postulate(name, τ) =>
+            if (Γ contains name) sys error (
+              s"postulate duplicates existing name: $name : $τ"
+            )
+            Γ = Γ.updated(name, τ substitute (aliases: _*))
+
+          case Definition(name, smf) =>
+            if (Γ contains name) sys error (
+                s"definition duplicates existing name: $name = ${smf.t}"
+            )
+            require((smf.Γ.keySet & Γ.keySet).isEmpty)
+            val term = smf2term(smf)
+            Γ = Γ.updated(name, term.getType)
+            result = DefExprF(name, term) :: result
+
+          case NakedParagraph(smf) =>
+            result = NakedExprF(smf2term(smf)) :: result
+
+          case TypeAlias(name, τ) =>
+            aliases = aliases :+ ((name, τ substitute (aliases: _*)))
+
+          case TypeDeclaration(name) =>
+            decls += name
+        }}
+        result.reverse
+      }
+    }
   }
 }
+
 
 trait DecimalLiterals extends FreshNames with Types {
   final val decimalLiteral: PartialFunction[Name, Type] = {
@@ -322,5 +378,37 @@ trait FileParser extends DecimalModuleParser {
     }
 
     process(parseModule(content))
+  }
+}
+
+object TestParser extends Parsing {
+  def τ(s : String) {
+    val τ = parseType(s).get
+    println(τ)
+    println(pretty(τ))
+    println
+  }
+
+  def t(s : String) {
+    val t = parseTerm(s).get
+    println(t)
+    println(pretty(t.getTerm))
+    println
+  }
+
+  val Y = """|λ f : (α → α) → (α → α) .
+             |  (λ x : ∀ β . β → α → α . f (x x))
+             |  (λ x : ∀ β . β → α → α . f (x x))
+             |""".stripMargin // is ill-typed
+
+  def main(args: Array[String]) {
+    τ("α")
+    τ("∀ α . α → β → γ")
+    τ("∀ α β γ . α → (β → γ) → ((δ → ε) → η) → ζ")
+    τ("∀α β. (α → β) → List α → List β")
+
+    t("λ f : α → β → γ . f (g x) (h y)")
+    t("λ x : ∀ β . β → α → α . f (x x)")
+    t(Y)
   }
 }

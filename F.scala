@@ -150,3 +150,48 @@ trait PrettyF extends SystemF with Pretty {
   def pretty(t: FTerm): String =
     new SystemFPrettyVisitor(t)(t.canon)._1
 }
+
+// hacked-together executable of system F type checker for demo
+object TypeCheckerF extends ParsingF with DecimalLiterals {
+  def process(result: List[Expr]): Unit = result foreach {
+    case DefExprF(name, term) =>
+      println(s"$name : ${pretty(term.getType)}")
+      println(s"$name = ${pretty(term.getTerm)}")
+      println()
+
+    case NakedExprF(term) =>
+      println(s"${pretty(term.getTerm)} : ${pretty(term.getType)}")
+      println()
+  }
+
+  def main(args: Array[String]) {
+    val content: String = try {
+      val Array(filename) = args
+      val source = scala.io.Source.fromFile(filename)
+      val content = source.getLines mkString "\n"
+      source.close()
+      content
+    }
+    catch { case e: Throwable =>
+      Console.err.println(
+        """|Usage: <this-command> <one-single-file>
+           |""".stripMargin)
+      sys exit -1
+    }
+
+    process(parseModule(content))
+  }
+
+  object parseModule extends ParserF {
+    lazy val moduleParser = module(decimalLiteral)
+
+    def apply(content: String): List[Expr] =
+      useParser(moduleParser)(content).get
+  }
+
+  type Expr       = parseModule.Expr
+  type DefExprF   = parseModule.DefExprF
+  val  DefExprF   = parseModule.DefExprF
+  type NakedExprF = parseModule.NakedExprF
+  val  NakedExprF = parseModule.NakedExprF
+}
