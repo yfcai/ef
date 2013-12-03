@@ -259,17 +259,9 @@ trait ParsingF extends Parsing with PrettyF with RenamingF {
 
   trait ParserF extends Parser {
     override
-    lazy val termExpr: Parser[SMF] = abs | belowAbs
-
-    override
     lazy val belowAbs: Parser[SMF] = typeAbstraction | belowAbsT
 
     lazy val belowAbsT: Parser[SMF] = app | belowApp
-
-    override
-    lazy val belowApp: Parser[SMF] = typeApplication | belowAppT
-
-    lazy val belowAppT: Parser[SMF] = variable | parenTerm
 
     // override old abs by a body that's different only after
     // implicits are resolved
@@ -295,11 +287,33 @@ trait ParsingF extends Parsing with PrettyF with RenamingF {
           )
       }
 
-    lazy val typeApplication: Parser[SMF] =
-      belowAppT ~ (leftB ~> typeExpr <~ rightB) ^^ {
-        case smf ~ typeArg =>
-          SMF(smf.t □ typeArg, smf.Γ, smf.n)
+    override
+    lazy val app: Parser[SMF] = opList(nil, typeArg | belowApp) ^^ {
+      _.foldLeft[SMF](ZeroInfo) { (f, x) =>
+        if (ZeroInfo == f)
+          x
+        else {
+          assert((f.Γ.keySet & x.Γ.keySet).isEmpty)
+          assert((f.n.keySet & x.n.keySet).isEmpty)
+          x.t match {
+            case TypeApp(typeArg) =>
+              SMF(f.t □ typeArg, f.Γ, f.n)
+
+            case _ =>
+              SMF(ε(f.t, x.t), f.Γ ++ x.Γ, f.n ++ x.n)
+          }
+        }
       }
+    }
+
+    // hack
+    lazy val typeArg: Parser[SMF] =
+      leftB ~> typeExpr <~ rightB ^^ {
+        case typeArg =>
+          SMF(TypeApp(typeArg), Map.empty, Map.empty)
+      }
+
+    case class TypeApp(τ : Type) extends Term
 
     case class DefExprF(name: Name, term: FTerm) extends Expr
     case class NakedExprF(get: FTerm) extends Expr
