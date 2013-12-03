@@ -20,7 +20,7 @@ postulate cons : ∀α. α → List α → List α
 
 type Bool = ∀α. α → α → α
 
-postulate isnil : ∀α. α → Bool
+postulate isnil : ∀α. List α → Bool
 
 postulate head : ∀α. List α → α
 
@@ -35,7 +35,7 @@ map = λf : α → β.
                  (cons (f (head l)) (map-f (tail l))))
 
 pierce = map (quadruple (+ 1))
-             (cons 1 (cons 2 (cons 3 (cons 4 (cons 5 nil)))))
+             (cons 1 (cons 2 (cons 3 (cons 4 nil))))
 
 
 choose = λx : α. λy : α. x
