@@ -254,7 +254,7 @@ trait Parsing extends SystemMF with Pretty with RegexParsers {
 }
 
 // hacked-together System F parser for the demo
-trait ParsingF extends Parsing with PrettyF {
+trait ParsingF extends Parsing with PrettyF with RenamingF {
   import SystemF._
 
   trait ParserF extends Parser {
@@ -270,6 +270,20 @@ trait ParsingF extends Parsing with PrettyF {
     lazy val belowApp: Parser[SMF] = typeApplication | belowAppT
 
     lazy val belowAppT: Parser[SMF] = variable | parenTerm
+
+    // override old abs by a body that's different only after
+    // implicits are resolved
+    override
+    lazy val abs: Parser[SMF] =
+      lambda ~ termParam ~ dot ~ termExpr ^^ {
+        case _ ~ ((pName, pType)) ~ _ ~ body =>
+          val id = name.next
+          SMF(
+            λ(id, body.t rename (pName -> id)),
+            body.Γ.updated(id, pType),
+            body.n.updated(id, pName)
+          )
+      }
 
     lazy val typeAbstraction: Parser[SMF] =
       LAMBDA ~ typeParamList ~ dot ~ termExpr ^^ {

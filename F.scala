@@ -152,6 +152,27 @@ trait PrettyF extends SystemF with Pretty {
 }
 
 // hacked-together executable of system F type checker for demo
+trait RenamingF extends Renaming with SystemF {
+  trait FTermReconstruction
+  extends FTermVisitor[Term]
+     with TermReconstruction {
+    override def Λ(alpha: Name, body: Term): Term = SystemF.Λ(alpha, body)
+    override def □(t: Term, typeArg: Type): Term = SystemF.□(t, typeArg)
+  }
+
+  class FTermRenaming(f: PartialFunction[Name, Term])
+  extends TermRenaming(f) with FTermReconstruction
+
+  implicit class termRenamingOpsF(t : Term) {
+    def rename[N <% Name, T <% Term](f: Map[N, T]): Term =
+      new FTermRenaming(f map { case (k, v) => (k: Name, v: Term) })(t)
+    def rename(f: Map[Name, Name]): Term =
+      new FTermRenaming(f map { case (k, v) => (k: Name, χ(v))    })(t)
+    def rename[N <% Name, T <% Name](s: (N, T)*): Term =
+      rename(Map(s map (p => (p._1: Name, p._2: Name)): _*))
+  }
+}
+
 object TypeCheckerF
 extends ParsingF
    with PrettyF
