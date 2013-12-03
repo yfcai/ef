@@ -69,3 +69,18 @@ weird5 = contra id
 postulate bot-to-int : (∀α. α) → ℤ
 
 weird6 = contra bot-to-int
+
+
+data Name
+
+data Pair
+
+postulate pair : ∀α β. α → β → Pair α β
+
+postulate george : Name
+
+poly = λf : ∀α. α → α. pair (f 1) (f george)
+
+revapp = λx : α. λf : α → β. f x
+
+revapp poly
