@@ -167,7 +167,7 @@ trait PeelAwayQuantifiers extends Types {
       (name :: otherQuantifiedNames, realBody)
 
     case _ if n > 0 =>
-      sys error "Too many type arguments for ${τ}"
+      sys error s"Too many type arguments for ${τ}"
 
     case _ =>
       (Nil, τ)
