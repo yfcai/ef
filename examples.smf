@@ -83,4 +83,6 @@ poly = λf : ∀α. α → α. pair (f 1) (f george)
 
 revapp = λx : α. λf : α → β. f x
 
-revapp poly
+revapp id
+
+revapp id poly
