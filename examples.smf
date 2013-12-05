@@ -71,6 +71,13 @@ postulate bot-to-int : (∀α. α) → ℤ
 weird6 = contra bot-to-int
 
 
+
+compose = λf : β → γ. λg : α → β. λx : α. f (g x)
+
+ill-typed-in-Haskell = compose selfApp selfApp
+
+
+
 data Name
 
 data Pair
