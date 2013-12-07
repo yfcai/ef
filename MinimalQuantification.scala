@@ -2,7 +2,7 @@ trait MinimalQuantification
 extends Types
    with Pretty
    with FreeNames
-   with PeelAwayQuantifiers
+   with PeeledNormalForm
 {
   /** Test that leaves of a type application tree (★) are legal.
     *
@@ -89,6 +89,35 @@ extends Types
           ∀(name, α(name))
         else
           α(name)
+    }
+  }
+}
+
+trait PeeledNormalForm extends PeelAwayQuantifiers {
+  trait PNF
+
+  case class FunPNF(quantifiers: List[Name], domain: PNF, range: PNF)
+  extends PNF
+
+  case class AppPNF(quantifiers: List[Name], typeFun: PNF, typeArg: PNF)
+  extends PNF
+
+  case class VarPNF(quantifiers: List[Name], name: Name)
+  extends PNF
+
+  implicit class peeledNormalForm(τ : Type) {
+    def toPNF: PNF = τ match {
+      case ∀(_, _) =>
+        val (quantifiers, body) = listOfQuantifiers(τ)
+        body match {
+          case σ0 → σ1 => FunPNF(quantifiers, σ0.toPNF, σ1.toPNF)
+          case ★(f, a) => AppPNF(quantifiers, f.toPNF, a.toPNF)
+          case α(x)    => VarPNF(quantifiers, x)
+        }
+
+      case σ0 → σ1 => FunPNF(Nil, σ0.toPNF, σ1.toPNF)
+      case ★(f, a) => AppPNF(Nil, f.toPNF, a.toPNF)
+      case α(x)    => VarPNF(Nil, x)
     }
   }
 }
