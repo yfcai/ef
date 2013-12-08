@@ -149,47 +149,6 @@ trait PeeledNormalForm extends PeelAwayQuantifiers {
   }
 }
 
-trait PrenexForm extends PeeledNormalForm {
-  case class PrenexType(forall: List[Name], exists: List[Name], π : PNF) {
-    def toType: Type =
-      if (exists.isEmpty)
-        ∀(forall)(π.toType)
-      else π match {
-        case FunPNF(Nil, dom, rng) =>
-          ∀(forall)(∀(exists)(dom.toType) →: rng.toType)
-      }
-  }
-
-  def prenexPNF(π : PNF): PrenexType = π match {
-    case FunPNF(_A, σ0, τ0) =>
-      val PrenexType(forall_σ, exists_σ, σ) = prenexPNF(σ0)
-      val PrenexType(forall_τ, exists_τ, τ) = prenexPNF(τ0)
-      val (qs_σ, qs_τ) = (forall_σ ++ exists_σ, forall_τ ++ exists_τ)
-      val freeNames = σ0.freeNames ++ τ0.freeNames
-      val freshNames = getFreshNames(qs_σ ++ qs_τ, freeNames)
-      val (fresh_σ, fresh_τ) = freshNames splitAt qs_σ.length
-      val subst_σ = (Map.empty[Name, Name] ++ (qs_σ, fresh_σ).zipped).
-        withDefault(identity)
-      val subst_τ = (Map.empty[Name, Name] ++ (qs_τ, fresh_τ).zipped).
-        withDefault(identity)
-      PrenexType(
-        _A ++ (exists_σ map subst_σ) ++ (forall_τ map subst_τ),
-              (forall_σ map subst_σ) ++ (exists_τ map subst_τ),
-        FunPNF(Nil, (σ renameAll subst_σ), (τ renameAll subst_τ))
-      )
-
-    case AppPNF(qs, fun, arg) =>
-      PrenexType(qs, Nil, AppPNF(Nil, fun, arg))
-
-    case VarPNF(qs, x) =>
-      PrenexType(qs, Nil, VarPNF(Nil, x))
-  }
-
-  implicit class PrenexNormalFormOps(τ : Type) {
-    def toPrenex: Type = prenexPNF(τ.toPNF).toType
-  }
-}
-
 object TestMinimalQuantification
 extends MinimalQuantification
    with PrenexForm
@@ -217,7 +176,8 @@ extends MinimalQuantification
       if (mqHood != τ.isMinimallyQuantified) {
         sys error s"Misjudgement! expect $yeah of ${pretty(τ)}"
       }
-      val (prenex, mq) = (τ.toPrenex, τ.quantifyMinimally)
+      τ.toPrenex // test for name clashes
+      val (prenex, mq) = (τ.toPrenexType, τ.quantifyMinimally)
       println(pretty(prenex))
       if (prenex != mq) println(pretty(mq))
       println()
