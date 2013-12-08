@@ -1,5 +1,6 @@
 trait SystemMF
 extends TypedTerms
+   with PrenexForm
    with MinimalQuantification
    with MostGeneralSubstitution
 {
@@ -54,9 +55,9 @@ extends TypedTerms
                 val substAB = substA ++ substB
                 val σ0 = sigma0 rename substAB
                 val σ1 = sigma1 rename substC
-                val MGS4App(typeAppsB, typeAppsC, survivors, _) =
-                  getMGS4App(namesA, namesB, namesC, σ0, σ1)
-                val τ  = tau0 rename substAB substitute typeAppsB
+                val MGS4App(typeAppsBC, survivors, _) =
+                  getMGS4App(namesA, namesB ++ namesC, σ0, σ1)
+                val τ  = tau0 rename substAB substitute typeAppsBC
                 // Get back original names
                 val (invBC, _) =
                   substC.foldRight(
@@ -93,23 +94,16 @@ extends TypedTerms
     *                    types to which they are unified.
     */
   case class MGS4App(typeAppsB: Map[Name, Type],
-                     typeAppsC: Map[Name, Type],
                      survivors: Set[Name],
                      forbidden: Map[Name, Name])
 
-  def getMGS4App(A: Set[Name], B: Set[Name], C: Set[Name],
+  /** Unify σ0 and σ1 such that A is unified to a subset of B
+    * that is used nowhere else. */
+  def getMGS4App(A: Set[Name], B: Set[Name],
                 σ0: Type, σ1: Type): MGS4App =
   {
-    // Now we have:
-    //
-    //   operatorType = ∀B. (∀A. σ0) → τ
-    //
-    //   operandType  = ∀C. σ1
-    //
-    // Our task here is to instantiate B and C suitably so
-    // that (∀A. σ0) is EQUAL to σ1.
     val Eq  = EqConstraint
-    val all = A ++ B ++ C
+    val all = A ++ B
     val mgs = mostGeneralSubstitution(List(Eq(σ0, σ1)), all)
     // It remains to verify that `mgs` is appropriate in
     // the following sense.
@@ -117,9 +111,9 @@ extends TypedTerms
     // 1. All variables of A are injectively unified to variables
     //    of C.
     val A2C: Map[Name, Name] = mgs flatMap {
-      case (x, α(y)) if (A contains x) && (C contains y) =>
+      case (x, α(y)) if (A contains x) && (B contains y) =>
         Some(x -> y)
-      case (y, α(x)) if (A contains x) && (C contains y) =>
+      case (y, α(x)) if (A contains x) && (B contains y) =>
         Some(x -> y)
       case (x, τ)    if (A contains x) =>
         sys error s"A-variable $x unified to non-C $τ"
@@ -141,8 +135,7 @@ extends TypedTerms
         sys error s"use of forbidden names $badNames\n in $name = $τ"
     }
     MGS4App(outerMGS restrict B,
-            outerMGS restrict C,
-            (B ++ C) -- outerMGS.keySet,
+            B -- outerMGS.keySet,
             A2C)
   }
 }

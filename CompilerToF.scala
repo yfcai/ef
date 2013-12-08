@@ -145,9 +145,9 @@ extends SystemMF
         val substAB = substA ++ substB
         val σ0 = sigma0 rename substAB
         val σ1 = sigma1 rename substC
-        val MGS4App(typeAppsB, typeAppsC, survivors, forbidden) =
-          getMGS4App(namesA, namesB, namesC, σ0, σ1)
-        val τ  = tau0 rename substAB substitute typeAppsB
+        val MGS4App(typeAppsBC, survivors, forbidden) =
+          getMGS4App(namesA, namesB ++ namesC, σ0, σ1)
+        val τ  = tau0 rename substAB substitute typeAppsBC
         val (invBC, _) =
           substC.foldRight(
             substB.inverse,
@@ -170,8 +170,8 @@ extends SystemMF
         }
 
         TypeArgs4App(
-          listToTypeArgs(listB, substB, typeAppsB),
-          listToTypeArgs(listC, substC, typeAppsC),
+          listToTypeArgs(listB, substB, typeAppsBC restrict namesB),
+          listToTypeArgs(listC, substC, typeAppsBC restrict namesC),
           survivors map invBC,
           listA map (substA andThen forbidden andThen substC.inverse)
         )
