@@ -1,5 +1,7 @@
 trait SystemMF
-extends TypedTerms with MinimalQuantification with MostGeneralSubstitution
+extends TypedTerms
+   with MinimalQuantification
+   with MostGeneralSubstitution
 {
   case class SMFTerm(
     canon      : Term,
@@ -43,7 +45,7 @@ extends TypedTerms with MinimalQuantification with MostGeneralSubstitution
               case _ =>
                 val (sigma → tau0) = innerOperatorType
                 val (setA, sigma0) = peelAwayQuantifiers(sigma)
-                val (setC, sigma1) = peelAwayQuantifiers(operandType )
+                val (setC, sigma1) = peelAwayQuantifiers(operandType)
                 val (namesA, substA) = getReplacement(setA, nameGenerator)
                 val (namesB, substB) = getReplacement(setB, nameGenerator)
                 val (namesC, substC) = getReplacement(setC, nameGenerator)
