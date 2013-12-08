@@ -1,4 +1,9 @@
 ...
+We show, with this file, that functors made up of sums, products
+and exponents are transparent to quantifiers.
+...
+
+...
 For conjunctive functors, we can put quantifiers inside
 or outside functor argument at will.
 ...
@@ -84,7 +89,6 @@ s2-to-s1
 
 ...
 What about contravariant functors?
-Universal quantifiers turn into existentials and vice versa.
 ...
 
 data Contra
@@ -95,21 +99,26 @@ postulate decontra : ∀α. Contra α → α → ℤ
 
 postulate c1 : ∀α. Contra (α → α)
 
+postulate c2 : Contra (∀α. α → α)
+
 contra-outside-in =
-  Λα. λc : Contra (α → α).
-    contra [∀α. α → α] (λx : ∀α. α → α. decontra [α → α] c (x [α]))
+  λc : ∀α. Contra (α → α).
+    contra [∀α. α → α] (λx : ∀α. α → α. decontra [α → α] (c [α]) (x [α]))
 
 c1
 
-contra-outside-in [α] (c1 [α])
+contra-outside-in c1
 
 contra-inside-out =
-  λf : Contra (∀α. α → α) → Name.
-    Λα. λc : Contra (α → α). f (contra-outside-in [α] c)
+  λc : Contra (∀α. α → α).
+    Λα. contra [α → α] (λy : α → α. (decontra [∀α. α → α] c) (Λα. y))
+
+c2
+
+contra-inside-out c2
 
 ...
 What about invariant functors?
-They seem very much rigid.
 ...
 
 data Invariant
@@ -118,10 +127,29 @@ postulate box : ∀α. (α → α) → Invariant α
 
 postulate unbox : ∀α. Invariant α → (α → α)
 
-invariant-inside-out =
-  λi : Invariant (∀α. α).
-    unbox [∀α. α] i
+postulate i1 : ∀α. Invariant (α → α)
 
 invariant-outside-in =
   λi : ∀α. Invariant (α → α).
-    Λα. unbox [α → α] (i [α])
+    box [∀α. α → α] (λx : ∀α. α → α. Λα. unbox [α → α] (i [α]) (x [α]))
+
+i1
+
+invariant-outside-in i1
+
+invariant-inside-out =
+  λi : Invariant (∀α. α → α).
+    Λα. box [α → α] (λx : α → α. unbox [∀α. α → α] i (Λα. x) [α])
+
+...
+Can one extract foralls? Yes, one can.
+...
+
+postulate revappId : ∀β. ((∀α. α → α) → β) → β
+
+pullOut =
+  λf :  ∀β. ((∀α. α → α) → β) → β.
+    Λα β. λg : (α → α) → β.
+      f [β] (λx : ∀α. α → α. g (x [α]))
+
+pullOut revappId
