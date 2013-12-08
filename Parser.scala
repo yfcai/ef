@@ -75,6 +75,8 @@ trait Parsing extends SystemMF with Pretty with RegexParsers {
 
           case TypeDeclaration(name) =>
             decls += name
+
+          case Comment(_) => {}
         }}
         result.reverse
       }
@@ -82,13 +84,17 @@ trait Parsing extends SystemMF with Pretty with RegexParsers {
 
     lazy val paragraph: Parser[Paragraph] =
       phase ^^ { s =>
-        useParser( typeAlias
+        useParser( comment
+                 | typeAlias
                  | typeDeclaration
                  | postulate
                  | definition
                  | nakedTopLevelExpr
                  )(s).get
       }
+
+    lazy val comment: Parser[Paragraph] =
+      dot ~> "(.|[\n\r\t\f])*".r ^^ { s => Comment(s) }
 
     lazy val typeAlias: Parser[Paragraph] =
       talias ~ ident ~ equals ~ typeExpr ^^ {
@@ -236,6 +242,7 @@ trait Parsing extends SystemMF with Pretty with RegexParsers {
     case class NakedParagraph(smf: SMF) extends Paragraph
     case class TypeAlias(alpha: Name, τ : Type) extends Paragraph
     case class TypeDeclaration(alpha: Name) extends Paragraph
+    case class Comment(comment: String) extends Paragraph
 
 
 
@@ -358,6 +365,8 @@ trait ParsingF extends Parsing with PrettyF with RenamingF {
 
           case TypeDeclaration(name) =>
             decls += name
+
+          case Comment(_) => {}
         }}
         result.reverse
       }
