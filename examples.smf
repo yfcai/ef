@@ -92,4 +92,8 @@ revapp = λx : α. λf : α → β. f x
 
 revapp id
 
+postulate revappId : ∀α β. ((α → α) → β) → β
+
+revappId
+
 revapp id poly

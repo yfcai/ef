@@ -56,7 +56,7 @@ trait Parsing extends SystemMF with Pretty with RegexParsers {
             if (Γ contains name) sys error (
               s"postulate duplicates existing name: $name : $τ"
             )
-            Γ = Γ.updated(name, τ substitute (aliases: _*))
+            Γ = Γ.updated(name, (τ substitute (aliases: _*)).quantifyMinimally)
 
           case Definition(name, smf) =>
             if (Γ contains name) sys error (
