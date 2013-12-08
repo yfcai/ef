@@ -1,0 +1,59 @@
+data Pair
+
+postulate pair : ∀α β. α → β → Pair α β
+
+data List
+
+postulate cons : ∀α. α → List α → List α
+
+postulate nil : ∀α. List α
+
+postulate foldr : ∀α β. (α → β → β) → β → List α → β
+
+$ = λf : α → β. λx : α. f x
+
+data Bool
+
+postulate true : Bool
+
+postulate false : Bool
+
+postulate if : ∀α. Bool → α → α → α
+
+id = λx : α. x
+
+apply = $
+
+const = λx : α. λy : β. x
+
+choose = if true
+
+flip = λf : α → β → γ. λy : β. λx : α. f x y
+
+revapp = flip apply
+
+postulate undefined : ∀α. α
+
+data ℤ
+
+postulate + : ℤ → ℤ → ℤ
+
+plus = +
+
+postulate le : ℤ → ℤ → Bool
+
+postulate ge : ℤ → ℤ → Bool
+
+inc = + 1
+
+ids = cons id (cons id (cons id (cons id nil)))
+
+auto = λx : ∀α. α → α. x x
+
+xauto = auto
+
+takeAuto = λf : (∀α. α → α) → (∀α. α → α). f id
+
+single = flip cons nil
+
+head = foldr
