@@ -16,20 +16,27 @@ trait FreshNames {
 
   implicit def stringToStringLiteral(s: String): Name = StringLiteral(s)
 
-  def getFreshName(default: Name, toAvoid: Set[Name]): Name = {
-    val name = default match {
-      case StringLiteral(s) => s
-      case _                => "x"
-    }
-    val cons: Int => Name = i => name + i
+  def getFreshName(default: Name, toAvoid: Set[Name]): Name =
+    getFreshNames(default :: Nil, toAvoid).head
+
+  def getFreshNames(defaults: List[Name], toAvoid0: Set[Name]): List[Name] = {
     val startingID: Int = -1
     var i = startingID
-    var result = default
-    while (toAvoid contains result) {
-      i += 1 ; if (i == startingID) sys error "We ran out of names"
-      result = cons(i)
+    var toAvoid = toAvoid0
+    defaults map { default =>
+      val name = default match {
+        case StringLiteral(s) => s
+        case _                => "x"
+      }
+      val cons: Int => Name = i => name + i
+      var result = default
+      while (toAvoid contains result) {
+        i += 1 ; if (i == startingID) sys error "We ran out of names"
+        result = cons(i)
+      }
+      toAvoid = toAvoid + result
+      result
     }
-    result
   }
 
   class GenerativeNameGenerator(
