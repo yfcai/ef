@@ -97,3 +97,6 @@ postulate revappId : ∀α β. ((α → α) → β) → β
 revappId
 
 revapp id poly
+
+. revapp id poly is typeable in SMF, but we haven't coded the
+corresponding translation to F yet.
