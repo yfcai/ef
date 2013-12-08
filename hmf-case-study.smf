@@ -1,24 +1,71 @@
+... tuples
+
 data Pair
 
 postulate pair : ∀α β. α → β → Pair α β
 
-data List
+pair
 
-postulate cons : ∀α. α → List α → List α
+postulate uncurry : ∀α β γ. (α → β → γ) → Pair α β → γ
 
-postulate nil : ∀α. List α
-
-postulate foldr : ∀α β. (α → β → β) → β → List α → β
+uncurry
 
 $ = λf : α → β. λx : α. f x
+
+... booleans
 
 data Bool
 
 postulate true : Bool
 
+true
+
 postulate false : Bool
 
+false
+
 postulate if : ∀α. Bool → α → α → α
+
+if
+
+... lists
+
+data List
+
+postulate cons : ∀α. α → List α → List α
+
+cons
+
+postulate nil : ∀α. List α
+
+nil
+
+... It's impossible to write `tail` in terms of `foldr`.
+Thus, we postulate `head` and `tail` and define `foldr`
+in terms of them.
+
+postulate head : ∀α. List α → α
+
+head
+
+postulate tail : ∀α. List α → List α
+
+tail
+
+postulate nil? : ∀α. List α → Bool
+
+nil?
+
+postulate fix : ∀α. (α → α) → α
+
+fix
+
+foldr =
+  λf : α → β → β. λzero : β.
+    fix (λfold : List α → β. λxs : List α.
+          if (nil? xs) zero (f (head xs) (fold (tail xs))))
+
+... standard functions
 
 id = λx : α. x
 
@@ -34,6 +81,8 @@ revapp = flip apply
 
 postulate undefined : ∀α. α
 
+... integers
+
 data ℤ
 
 postulate + : ℤ → ℤ → ℤ
@@ -42,9 +91,15 @@ plus = +
 
 postulate le : ℤ → ℤ → Bool
 
+le
+
 postulate ge : ℤ → ℤ → Bool
 
+ge
+
 inc = + 1
+
+... polymorphic functions
 
 ids = cons id (cons id (cons id (cons id nil)))
 
@@ -56,4 +111,180 @@ takeAuto = λf : (∀α. α → α) → (∀α. α → α). f id
 
 single = flip cons nil
 
-head = foldr
+compose = λf : β → γ. λg : α → β. λx : α. f (g x)
+
+map = λf : α → β. foldr (compose cons f) nil
+
+length = foldr (const (+ 1)) 0
+
+... tuples
+
+fst = uncurry (if true)
+
+snd = uncurry (if false)
+
+... ST monad
+
+data ST
+
+data Ref
+
+postulate runST : ∀α. (∀s. ST s α) → α
+
+runST
+
+postulate newRef : ∀α s. α → ST s (Ref s α)
+
+newRef
+
+postulate returnST : ∀α s. α → ST s α
+
+returnST
+
+... standard Hindley-Milner tests (HM-only parts omitted)
+
+. WRONG
+. inc true
+
+single id
+
+choose (if true) (if false)
+
+choose id
+
+... impredicative application and higher-rank arguments
+
+xauto
+
+auto
+
+λi : ∀α. α → α. i i
+
+auto id
+
+apply auto id
+
+... no type ascription in System MF (omit single id)
+
+runST (returnST 1)
+
+. WRONG
+. runST (newRef 1)
+
+apply runST (returnST 1)
+
+... `map xauto ids` et co. are ill-typed
+
+map xauto
+
+head ids
+
+tail ids
+
+apply tail ids
+
+map head (single ids)
+
+apply (map head) (single ids)
+
+... instead of checking infinite poly types, showcase a curiosity
+
+undefined undefined
+
+... (In HMF's words) these fail horribly in ghc:
+... (choose auto id) is rejected while ((choose auto) id) is accepted --
+... so much for parenthesis :-)
+
+choose auto id
+
+(choose auto) id
+
+choose id auto
+
+choose xauto xauto
+
+choose id xauto
+
+choose xauto id
+
+... (In HMF's words)
+... these fail too in ghc: (choose ids []) is accepted while
+... (choose [] ids) is rejected
+
+choose nil ids
+
+choose ids nil
+
+... SMF can't check escaping skolems, because it confines no skolem
+
+... unify different skolems
+... co/contra variance
+
+. these are unsatisfactory; see unsatisfactory-g etc.
+
+... simulating existential types: SMF can't.
+
+... test 'rigid' annotations
+... (except SMF has no 'rigid' annotations; omit to revapp)
+
+choose inc id
+
+choose id inc
+
+... test n-ary applications (or the lack of the need thereof)
+
+revapp id auto
+
+head ids 1
+
+auto id 1
+
+... omitted: rigid keyword, type propagation (testsProp)
+
+... test type propagation through applications (omit duplicates)
+
+returnST 1
+
+... test type propagation to arguments
+... SMF hasn't it yet, and probably won't for the first paper
+
+... unsatisfactory functions to improve
+
+unsatisfactory-const = λx : α. λy : α. const x y
+
+unsatisfactory-head = foldr unsatisfactory-const undefined
+
+unsatisfactory-fst = uncurry unsatisfactory-const
+
+unsatisfactory-choose = choose unsatisfactory-const (flip unsatisfactory-const)
+
+
+unsatisfactory-g = λx : (∀α. α → α) → ℤ. x id
+
+unsatisfactory-f = λx : ℤ → ℤ. x 1
+
+unsatisfactory-gf = unsatisfactory-g (λx : ∀α. α → α. unsatisfactory-f x)
+
+
+... untypeable things to make typeable
+... by identifying co/contravariance of functors perhaps?
+
+. typeable in HMF
+. map xauto ids
+
+. untypeable in HMF
+. map xauto (map xauto ids)
+
+. but these are typeable:
+
+data Contra
+
+postulate contra : ∀α. (α → ℤ) → Contra α
+
+postulate decontra : ∀α. Contra α → (α → ℤ)
+
+contraId = contra (λx : ∀α. α → α. x 5)
+
+mapContra = λf : β → α. λc : Contra α. contra (compose (decontra c) f)
+
+mapContra auto contraId
