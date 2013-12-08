@@ -1,9 +1,41 @@
+import scala.language.implicitConversions
+
 trait MinimalQuantification
 extends Types
    with Pretty
    with FreeNames
    with PeeledNormalForm
 {
+  def minimallyQuantifiedPNF(π : PNF): PNF = π match {
+    case FunPNF(_A, σ, τ) =>
+      tryToQuantify(_A, FunPNF(Nil,
+        minimallyQuantifiedPNF(σ), minimallyQuantifiedPNF(τ)))
+
+    case AppPNF(_A, f, τ) =>
+      tryToQuantify(_A, AppPNF(Nil,
+        minimallyQuantifiedPNF(f), minimallyQuantifiedPNF(τ)))
+
+    case VarPNF(_A, x) =>
+      tryToQuantify(_A, VarPNF(Nil, x))
+  }
+
+  def tryToQuantify(q: Name, π : PNF): PNF =
+    if (π doesNotBind q) π else π match {
+      case FunPNF(_A, FunPNF(_B, ρ, σ), τ)
+          if (τ doesNotBind q) && (σ doesNotBind q) =>
+        FunPNF(_A, FunPNF(_B, tryToQuantify(q, ρ), σ), τ)
+
+      case FunPNF(_A, σ, τ)
+          if (σ doesNotBind q) =>
+        FunPNF(_A, σ, tryToQuantify(q, τ))
+
+      case _ =>
+        π adjustQuantifiers (q :: _)
+    }
+
+  def tryToQuantify(qs: List[Name], π : PNF): PNF =
+    qs.foldRight(π)(tryToQuantify)
+
   /** Test that leaves of a type application tree (★) are legal.
     *
     * ∀ is forbidden to be a left leaf.
@@ -29,41 +61,19 @@ extends Types
     }
   }
 
-  class IsMinimallyQuantified extends TypeVisitor[Boolean] {
-    private[this] type T = Boolean
-
-    def ∀(name: Name, body: T): T = sys error "we're not supposed to be here"
-
-    def →(domain: T, range: T): T = domain && range
-
-    def ★(typeFun: T, typeArg: T) = typeFun && typeArg
-
-    def α(name: Name): T = true
-
-    override def apply(τ : Type): T = τ match {
-      case forallType @ ∀(_, _) =>
-        val (quantifiers, body) = peelAwayQuantifiers(forallType)
-        body match {
-          case σ → τ =>
-            (quantifiers -- getFreeNames(σ)   ).isEmpty && apply(body)
-
-          case _ =>
-            (quantifiers -- getFreeNames(body)).isEmpty && apply(body)
-        }
-
-      case _ => super.apply(τ)
-    }
-  }
-
   implicit class MinimallyQuantifiedTypeOps(τ : Type) {
     def isMinimallyQuantified: Boolean =
-      (new TypeAppsAreWellFormed)(τ) && (new IsMinimallyQuantified)(τ)
+      τ.hasWellFormedTypeApps && τ == τ.quantifyMinimally
+
+    def hasWellFormedTypeApps: Boolean = (new TypeAppsAreWellFormed)(τ)
 
     def ensureMinimalQuantification: Type =
       if (! isMinimallyQuantified)
         sys error s"Not minimally quantified: ${pretty(τ)}"
       else
         τ
+
+    def quantifyMinimally: Type = minimallyQuantifiedPNF(τ.toPNF).toType
   }
 
   implicit class MinimallyQuantifyingNameOps(quantified: Set[Name]) {
@@ -94,16 +104,40 @@ extends Types
 }
 
 trait PeeledNormalForm extends PeelAwayQuantifiers {
-  trait PNF
+  private[this] type QList = List[Name]
 
-  case class FunPNF(quantifiers: List[Name], domain: PNF, range: PNF)
-  extends PNF
+  trait PNF {
+    def quantifiers: QList
 
-  case class AppPNF(quantifiers: List[Name], typeFun: PNF, typeArg: PNF)
-  extends PNF
+    def doesNotBind(q: Name): Boolean = ! (freeNames contains q)
 
-  case class VarPNF(quantifiers: List[Name], name: Name)
-  extends PNF
+    def adjustQuantifiers(f: QList => QList): PNF = this match {
+      case FunPNF(qs, domain, range)    => FunPNF(f(qs), domain, range)
+      case AppPNF(qs, typeFun, typeArg) => AppPNF(f(qs), typeFun, typeArg)
+      case VarPNF(qs, name)             => VarPNF(f(qs), name)
+    }
+
+    def toType: Type = this match {
+      case FunPNF(qs, dom, rng) => ∀(qs)(dom.toType →: rng.toType)
+      case AppPNF(qs, fun, arg) => ∀(qs)(fun.toType ₌  arg.toType)
+      case VarPNF(qs, x)        => ∀(qs)(α(x))
+    }
+
+    lazy val freeNames: Set[Name] = this match {
+      case FunPNF(qs, domain, range) =>
+        domain.freeNames ++ range.freeNames -- qs
+
+      case AppPNF(qs, typeFun, typeArg) =>
+        typeFun.freeNames ++ typeArg.freeNames -- qs
+
+      case VarPNF(qs, name) =>
+        Set(name) -- qs
+    }
+  }
+
+  case class FunPNF(quantifiers: QList, domain: PNF, range: PNF) extends PNF
+  case class AppPNF(quantifiers: QList, typeFun: PNF, typeArg: PNF) extends PNF
+  case class VarPNF(quantifiers: QList, name: Name) extends PNF
 
   implicit class peeledNormalForm(τ : Type) {
     def toPNF: PNF = τ match {
@@ -122,7 +156,7 @@ trait PeeledNormalForm extends PeelAwayQuantifiers {
   }
 }
 
-object TestMinimalQuantification extends MinimalQuantification {
+object TestMinimalQuantification extends MinimalQuantification with Pretty {
   def main(args: Array[String]) {
     val types = List(
       true  -> ∀("α")("α" →: "α"),
@@ -136,14 +170,20 @@ object TestMinimalQuantification extends MinimalQuantification {
       true  -> ∀("α")("α") →: "β",
       false -> ∀("β")("α" →: "β"),
       false -> ("α" →: "β") ₌ "γ",
-      false -> ∀("α")("α" →: "α") ₌ "β"
+      false -> ∀("α")("α" →: "α") ₌ "β",
+      false -> ∀("α", "β")((("α" →: "α") →: "β") →: "β")
     )
     types foreach { case (mqHood, τ) =>
       val yeah = if (mqHood) "Yeah!" else "Nope!"
       if (mqHood != τ.isMinimallyQuantified) {
         sys error s"Misjudgement! expect $yeah of ${pretty(τ)}"
       }
-      println("%s %s".format(yeah, pretty(τ)))
+      if (mqHood)
+        println(s"${pretty(τ)}   is minimally quantified.")
+      else if (τ.hasWellFormedTypeApps)
+        println(s"${pretty(τ)}   becomes   ${pretty(τ.quantifyMinimally)}")
+      else
+        println(s"${pretty(τ)}   has ill-formed type apps.")
     }
   }
 }
