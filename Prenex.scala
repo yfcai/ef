@@ -19,7 +19,7 @@ trait PrenexForm extends MinimalQuantification with PeeledNormalForm {
       val PrenexPNF(forall_τ, exists_τ, τ) = prenexPNF(τ0)
       val (qs_σ, qs_τ) = (forall_σ ++ exists_σ, forall_τ ++ exists_τ)
       val freeNames = σ0.freeNames ++ τ0.freeNames
-      val freshNames = getFreshNames(qs_σ ++ qs_τ, freeNames)
+      val freshNames = getFreshNames(qs_σ ++ qs_τ, freeNames ++ _A)
       val (fresh_σ, fresh_τ) = freshNames splitAt qs_σ.length
       val subst_σ = (Map.empty[Name, Name] ++ (qs_σ, fresh_σ).zipped).
         withDefault(identity)
