@@ -177,7 +177,7 @@ trait Parsing extends SystemMF with Pretty with RegexParsers {
           val id = name.next
           SMF(
             λ(id, body.t rename (pName -> id)),
-            body.Γ.updated(id, pType),
+            body.Γ.updated(id, pType.quantifyMinimally),
             body.n.updated(id, pName)
           )
       }
