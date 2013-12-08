@@ -81,25 +81,8 @@ extends Types
       quantifyMinimally(quantified, τ)
 
     private[this]
-    def quantifyMinimally(quantified: Set[Name], τ : Type): Type = τ match {
-      case ∀(name, body) =>
-        ∀(name, quantifyMinimally(quantified - name, body))
-
-      case ★(f, α) =>
-        val freeNames = getFreeNames(f) ++ getFreeNames(α)
-        ∀(freeNames & quantified)(★(f, α))
-
-      case σ → τ =>
-        val freeNames = getFreeNames(σ)
-        ∀(freeNames & quantified)(σ →:
-            quantifyMinimally(quantified -- freeNames, τ))
-
-      case α(name) =>
-        if (quantified contains name)
-          ∀(name, α(name))
-        else
-          α(name)
-    }
+    def quantifyMinimally(quantified: Set[Name], τ : Type): Type =
+      tryToQuantify(quantified.toList, τ.toPNF).toType
   }
 }
 

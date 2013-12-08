@@ -64,9 +64,11 @@ extends TypedTerms with MinimalQuantification with MostGeneralSubstitution
                     val newNameC = getFreshName(nameC, toAvoid)
                     (acc.updated(idC, newNameC), toAvoid + newNameC)
                 }
-                (survivors map invBC).quantifyMinimallyOver(
+                val resultType = (survivors map invBC).quantifyMinimallyOver(
                   τ substitute invBC.map({ case (id, name) => (id, α(name)) })
                 )
+                resultType.ensureMinimalQuantification
+                resultType
             }
         }
       }
