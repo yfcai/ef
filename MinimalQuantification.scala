@@ -116,6 +116,16 @@ trait PeeledNormalForm extends PeelAwayQuantifiers {
       case VarPNF(qs, name) =>
         Set(name) -- qs
     }
+
+    def renameAll(f0: Map[Name, Name]): PNF = {
+      val f = f0 withDefault identity
+      def loop(π : PNF): PNF = π match {
+        case FunPNF(qs, dom, rng) => FunPNF(qs map f, loop(dom), loop(rng))
+        case AppPNF(qs, fun, arg) => AppPNF(qs map f, loop(fun), loop(arg))
+        case VarPNF(qs, name)     => VarPNF(qs map f, f(name))
+      }
+      loop(this)
+    }
   }
 
   case class FunPNF(quantifiers: QList, domain: PNF, range: PNF) extends PNF
@@ -139,7 +149,52 @@ trait PeeledNormalForm extends PeelAwayQuantifiers {
   }
 }
 
-object TestMinimalQuantification extends MinimalQuantification with Pretty {
+trait PrenexForm extends PeeledNormalForm {
+  case class PrenexType(forall: List[Name], exists: List[Name], π : PNF) {
+    def toType: Type =
+      if (exists.isEmpty)
+        ∀(forall)(π.toType)
+      else π match {
+        case FunPNF(Nil, dom, rng) =>
+          ∀(forall)(∀(exists)(dom.toType) →: rng.toType)
+      }
+  }
+
+  def prenexPNF(π : PNF): PrenexType = π match {
+    case FunPNF(_A, σ0, τ0) =>
+      val PrenexType(forall_σ, exists_σ, σ) = prenexPNF(σ0)
+      val PrenexType(forall_τ, exists_τ, τ) = prenexPNF(τ0)
+      val (qs_σ, qs_τ) = (forall_σ ++ exists_σ, forall_τ ++ exists_τ)
+      val freeNames = σ0.freeNames ++ τ0.freeNames
+      val freshNames = getFreshNames(qs_σ ++ qs_τ, freeNames)
+      val (fresh_σ, fresh_τ) = freshNames splitAt qs_σ.length
+      val subst_σ = (Map.empty[Name, Name] ++ (qs_σ, fresh_σ).zipped).
+        withDefault(identity)
+      val subst_τ = (Map.empty[Name, Name] ++ (qs_τ, fresh_τ).zipped).
+        withDefault(identity)
+      PrenexType(
+        _A ++ (exists_σ map subst_σ) ++ (forall_τ map subst_τ),
+              (forall_σ map subst_σ) ++ (exists_τ map subst_τ),
+        FunPNF(Nil, (σ renameAll subst_σ), (τ renameAll subst_τ))
+      )
+
+    case AppPNF(qs, fun, arg) =>
+      PrenexType(qs, Nil, AppPNF(Nil, fun, arg))
+
+    case VarPNF(qs, x) =>
+      PrenexType(qs, Nil, VarPNF(Nil, x))
+  }
+
+  implicit class PrenexNormalFormOps(τ : Type) {
+    def toPrenex: Type = prenexPNF(τ.toPNF).toType
+  }
+}
+
+object TestMinimalQuantification
+extends MinimalQuantification
+   with PrenexForm
+   with Pretty
+{
   def main(args: Array[String]) {
     val types = List(
       true  -> ∀("α")("α" →: "α"),
@@ -154,19 +209,18 @@ object TestMinimalQuantification extends MinimalQuantification with Pretty {
       false -> ∀("β")("α" →: "β"),
       false -> ("α" →: "β") ₌ "γ",
       false -> ∀("α")("α" →: "α") ₌ "β",
-      false -> ∀("α", "β")((("α" →: "α") →: "β") →: "β")
+      false -> ∀("α", "β")((("α" →: "α") →: "β") →: "β"),
+      false -> (∀("α", "β")((("α" →: "α") →: "β") →: "β") →: "η") →: "ζ"
     )
     types foreach { case (mqHood, τ) =>
       val yeah = if (mqHood) "Yeah!" else "Nope!"
       if (mqHood != τ.isMinimallyQuantified) {
         sys error s"Misjudgement! expect $yeah of ${pretty(τ)}"
       }
-      if (mqHood)
-        println(s"${pretty(τ)}   is minimally quantified.")
-      else if (τ.hasWellFormedTypeApps)
-        println(s"${pretty(τ)}   becomes   ${pretty(τ.quantifyMinimally)}")
-      else
-        println(s"${pretty(τ)}   has ill-formed type apps.")
+      val (prenex, mq) = (τ.toPrenex, τ.quantifyMinimally)
+      println(pretty(prenex))
+      if (prenex != mq) println(pretty(mq))
+      println()
     }
   }
 }
