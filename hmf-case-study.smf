@@ -298,3 +298,24 @@ mapContra = λf : β → α. λc : Contra α.
 
 . this suffers from quantifier-inside-functor problem
 . mapContra auto contraId
+
+... horrible errors
+
+.. this should be ill-typed!
+
+postulate bad-f : ∀α. ((α → α) → ℤ) → α
+
+postulate bad-x : (∀β. β → β) → ℤ
+
+should-be-ill-typed = bad-f bad-x
+
+.. the issue is: the two bound occurrences of β in bad-x
+have different parities. It's impossible to unify the
+same name to different parities. The parity of a quantified
+name is even if it wants a universal quantifier immediately
+above it, or 2 levels above it, or 4 levels above it, etc.
+The parity is odd if the quantified name wants a universal
+quantifier 1 level above it, 3 levels above it, etc.
+..
+In ∀β. β₁ → β₂, the parity of β₁ is odd while the parity
+of β₂ is even.

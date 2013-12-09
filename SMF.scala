@@ -61,6 +61,10 @@ extends TypedTerms
                 // maybe it will break if you unify to nested inner
                 // existentials that should have been turned into
                 // universals?
+                //
+                // ... yes, it will break, as soon as we unify
+                // a universal name to two existential names of
+                // different parities.
                 val (outerE, innerE) = if (τ.isInstanceOf[→]) {
                   val (τ0 → τ1) = τ
                   val free = getFreeNames(τ1)
