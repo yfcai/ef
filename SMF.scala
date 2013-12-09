@@ -44,33 +44,50 @@ extends TypedTerms
                 // are covered below.
 
               case _ =>
-                val (sigma → tau0) = innerOperatorType
-                val (setA, sigma0) = peelAwayQuantifiers(sigma)
-                val (setC, sigma1) = peelAwayQuantifiers(operandType)
-                val (namesA, substA) = getReplacement(setA, nameGenerator)
-                val (namesB, substB) = getReplacement(setB, nameGenerator)
-                val (namesC, substC) = getReplacement(setC, nameGenerator)
-                if (! (setA & setB).isEmpty)
-                  sys error s"nonminimally quantified type: $operatorType"
-                val substAB = substA ++ substB
-                val σ0 = sigma0 rename substAB
-                val σ1 = sigma1 rename substC
-                val MGS4App(typeAppsBC, survivors, _) =
-                  getMGS4App(namesA, namesB ++ namesC, σ0, σ1)
-                val τ  = tau0 rename substAB substitute typeAppsBC
+                val Prenex(f_∀, f_∃, sigma0 → tau0) = operatorType.toPrenex
+                val Prenex(x_∀, x_∃, sigma1       ) = operandType.toPrenex
+                val List((fA, fAsub), (fE, fEsub), (xA, xAsub), (xE, xEsub)) =
+                  List(f_∀, f_∃, x_∀, x_∃) map {
+                    set => getReplacement(set, nameGenerator)
+                  }
+                val σ0 = sigma0 rename (fAsub ++ fEsub)
+                val σ1 = sigma1 rename (xAsub ++ xEsub)
+                val MGS4App(mgs, survivors, existentialMap) =
+                  getMGS4App(fE ++ xE, fA ++ xA, σ0, σ1,
+                    fEsub.inverse ++ xEsub.inverse)
+                val τ  = tau0 rename (fAsub ++ fEsub) substitute mgs
+                val existentials = existentialMap.keySet.toList
+                // just test outer level & partition surviving existentials
+                // maybe it will break if you unify to nested inner
+                // existentials that should have been turned into
+                // universals?
+                val (outerE, innerE) = if (τ.isInstanceOf[→]) {
+                  val (τ0 → τ1) = τ
+                  val free = getFreeNames(τ1)
+                  existentials partition (free contains _)
+                } else (existentials, Nil)
+                val freeNames_τ = getFreeNames(τ)
                 // Get back original names
                 val (invBC, _) =
-                  substC.foldRight(
-                    substB.inverse,
-                    substB.keySet ++ getFreeNames(τ)) {
-                  case ((nameC, idC), (acc, toAvoid)) =>
+                  (xAsub.inverse ++ fAsub.inverse ++
+                    xEsub.inverse ++ fEsub.inverse).foldRight(
+                    Map.empty[Name, Name],
+                    freeNames_τ) {
+                  case ((idC, nameC), (acc, toAvoid)) =>
                     val newNameC = getFreshName(nameC, toAvoid)
                     (acc.updated(idC, newNameC), toAvoid + newNameC)
                 }
-                val resultType = (survivors map invBC).quantifyMinimallyOver(
-                  τ substitute invBC.map({ case (id, name) => (id, α(name)) })
-                )
-                resultType.ensureMinimalQuantification
+                val invSub: Map[Name, Type] = invBC map {
+                  case (id, name) => (id, α(name))
+                }
+                val new_τ = if (innerE.isEmpty) τ else {
+                  val (τ0 → τ1) = τ
+                  (∀(innerE map invBC)(τ0 substitute invSub).
+                    quantifyMinimally) →: τ1
+                }
+                val resultType =
+                  ((survivors ++ outerE) map invBC).
+                    quantifyMinimallyOver(new_τ substitute invSub)
                 resultType
             }
         }
@@ -89,10 +106,7 @@ extends TypedTerms
     (names, renaming)
   }
 
-  /** @param forbidden   Map quantified names in formal argument type
-    *                    to the quantified names in actual arguement
-    *                    types to which they are unified.
-    */
+  /** @param forbidden   vestigal, to remove */
   case class MGS4App(typeAppsB: Map[Name, Type],
                      survivors: Set[Name],
                      forbidden: Map[Name, Name])
@@ -100,43 +114,48 @@ extends TypedTerms
   /** Unify σ0 and σ1 such that A is unified to a subset of B
     * that is used nowhere else. */
   def getMGS4App(A: Set[Name], B: Set[Name],
-                σ0: Type, σ1: Type): MGS4App =
+                σ0: Type, σ1: Type,
+                oldA: Name => Name = {x => x}):
+      MGS4App =
   {
     val Eq  = EqConstraint
-    val all = A ++ B
-    val mgs = mostGeneralSubstitution(List(Eq(σ0, σ1)), all)
-    // It remains to verify that `mgs` is appropriate in
-    // the following sense.
-    //
-    // 1. All variables of A are injectively unified to variables
-    //    of C.
-    val A2C: Map[Name, Name] = mgs flatMap {
-      case (x, α(y)) if (A contains x) && (B contains y) =>
-        Some(x -> y)
-      case (y, α(x)) if (A contains x) && (B contains y) =>
-        Some(x -> y)
-      case (x, τ)    if (A contains x) =>
-        sys error s"A-variable $x unified to non-C $τ"
-      case (y, α(x)) if (A contains x) =>
-        sys error s"A-variable $x unified to non-C $y"
-      case _ =>
-        None
+    val mgs = mostGeneralSubstitution(List(Eq(σ0, σ1)), B)
+    val newMgs: Iterable[(Name, Type)] = for {
+      (a, τ) <- mgs
+      freeNames = getFreeNames(τ)
+      s = freeNames & A
+      if s.isEmpty || (! τ.isInstanceOf[α])
+    } yield {
+      if (s.isEmpty)
+        (a, τ)
+      else {
+        var toAvoid = freeNames
+        val newNames: Map[Name, Name] = s.map(b => {
+          val fresh = getFreshName(oldA(b), toAvoid)
+          toAvoid = toAvoid + fresh
+          (b, fresh)
+        })(collection.breakOut)
+        // If τ is a function and s isn't free in the result type,
+        // then quantify s existentially. Otherwise quantify s
+        // universally.
+        //
+        // I've no idea why this actually works.
+        val default = (a, ∀(s map newNames)(τ rename newNames))
+        if (τ.isInstanceOf[→]) {
+          val (τ0 → τ1) = τ
+          if ((getFreeNames(τ1) & s).isEmpty)
+            (a, ∀(s map newNames)(τ0 rename newNames) →: τ1)
+          else
+            default
+        }
+        else
+          default
+      }
     }
-    val CnA = A2C.inverse.keySet
-    assert(A2C.keySet == A)    // A is completely covered
-    assert(CnA.size == A.size) // Unification is injective on A
-    // 2. A-variables and those C-variables unified to A-variables
-    //    are used nowhere else.
-    val forbiddens = A ++ CnA
-    val outerMGS = mgs -- forbiddens
-    outerMGS foreach { case (name, τ) =>
-      val badNames = getFreeNames(τ) & forbiddens
-      if (! badNames.isEmpty)
-        sys error s"use of forbidden names $badNames\n in $name = $τ"
-    }
-    MGS4App(outerMGS restrict B,
-            B -- outerMGS.keySet,
-            A2C)
+    MGS4App(Map.empty[Name, Type] ++ newMgs,
+            B -- mgs.keySet,
+            Map.empty[Name, Name] ++ (A, A).zipped
+           /* vestigal param reappropriated to save existentials */)
   }
 }
 
