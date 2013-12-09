@@ -299,23 +299,32 @@ mapContra = λf : β → α. λc : Contra α.
 . this suffers from quantifier-inside-functor problem
 . mapContra auto contraId
 
-... horrible errors
+... pressing questions
 
-.. this should be ill-typed!
+postulate bad-f0 : ∀α. ((α → α) → ℤ) → α
 
-postulate bad-f : ∀α. ((α → α) → ℤ) → α
+postulate bad-f1 : ((∀α. α → α) → ℤ) → (∀β. β)
 
 postulate bad-x : (∀β. β → β) → ℤ
 
-should-be-ill-typed = bad-f bad-x
+what-is-this-thing = bad-f0 bad-x
 
-.. the issue is: the two bound occurrences of β in bad-x
-have different parities. It's impossible to unify the
-same name to different parities. The parity of a quantified
-name is even if it wants a universal quantifier immediately
-above it, or 2 levels above it, or 4 levels above it, etc.
-The parity is odd if the quantified name wants a universal
-quantifier 1 level above it, 3 levels above it, etc.
+.. this thing should elaborate to:
+.
+. Λα. bad-f0 [α] (λx : α → α. bad-x (Λα. x))  :  ∀α. α
+
+should-be-well-typed0 = bad-f1 bad-x
+
 ..
 In ∀β. β₁ → β₂, the parity of β₁ is odd while the parity
 of β₂ is even.
+
+... but this should remain well-typed. In other words,
+different universal names should be able to instantiate
+the same existential names, as well as
+
+postulate good-f : ∀α β. ((α → β) → ℤ) → ℤ
+
+postulate good-x : (∀γ. γ → γ) → ℤ
+
+should-remain-well-typed1 = good-f good-x

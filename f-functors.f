@@ -141,6 +141,8 @@ invariant-inside-out =
   λi : Invariant (∀α. α → α).
     Λα. box [α → α] (λx : α → α. unbox [∀α. α → α] i (Λα. x) [α])
 
+.. The use (Λα. x) is ill-formed!!! OMG
+
 ...
 Can one extract foralls? Yes, one can.
 ...
@@ -153,3 +155,18 @@ pullOut =
       f [β] (λx : ∀α. α → α. g (x [α]))
 
 pullOut revappId
+
+...putting in seems impossible...
+
+putIn =
+  λf : ∀α β. ((α → α) → β) → β.
+    λx : ((∀α. α → α) → β).
+      5
+
+...
+We can prove absurdity too >_<
+...
+
+absurd = Λα. λx : α. Λα. x
+
+absurd [ℤ] 5
