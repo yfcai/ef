@@ -21,15 +21,26 @@ trait FreshNames {
 
   def getFreshNames(defaults: List[Name], toAvoid0: Set[Name]): List[Name] = {
     val startingID: Int = -1
-    var i = startingID
     var toAvoid = toAvoid0
-    defaults map { default =>
+
+    def restart(default: Name): (Int => Name, Name, Int) = {
+      val x = "x"
       val name = default match {
         case StringLiteral(s) => s
-        case _                => "x"
+        case _                => x
       }
-      val cons: Int => Name = i => name + i
-      var result = default
+      val n = name.lastIndexWhere(! _.isDigit)
+      val stem = if (n < 0) x else name.substring(0, n + 1)
+      val i = if (n + 1 == name.length)
+                startingID
+              else
+                name.substring(n + 1, name.length).toInt
+      val cons: Int => Name = j => stem + j
+      (cons, default, i)
+    }
+
+    defaults map { default =>
+      var (cons, result, i) = restart(default)
       while (toAvoid contains result) {
         i += 1 ; if (i == startingID) sys error "We ran out of names"
         result = cons(i)
