@@ -105,7 +105,7 @@ ids = cons id (cons id (cons id (cons id nil)))
 
 auto = λx : ∀α. α → α. x x
 
-xauto = auto
+postulate xauto : ∀α. (∀β. β → β) → α → α
 
 takeAuto = λf : (∀α. α → α) → (∀α. α → α). f id
 
@@ -119,9 +119,9 @@ length = foldr (const (+ 1)) 0
 
 ... tuples
 
-fst = uncurry (if true)
+fst = uncurry const
 
-snd = uncurry (if false)
+snd = uncurry (flip const)
 
 ... ST monad
 
@@ -143,12 +143,12 @@ returnST
 
 ... standard Hindley-Milner tests (HM-only parts omitted)
 
-. WRONG
-. inc true
+.. WRONG
+.. inc true
 
 single id
 
-choose (if true) (if false)
+choose const (flip const)
 
 choose id
 
@@ -201,6 +201,12 @@ choose auto id
 
 choose id auto
 
+choose auto
+
+choose xauto
+
+choose auto auto
+
 choose xauto xauto
 
 choose id xauto
@@ -248,9 +254,9 @@ returnST 1
 ... test type propagation to arguments
 ... SMF hasn't it yet, and probably won't for the first paper
 
-... unsatisfactory functions to improve
+... previously unsatisfactory functions, hence improved
 
-unsatisfactory-const = λx : α. λy : α. const x y
+unsatisfactory-const = const
 
 unsatisfactory-head = foldr unsatisfactory-const undefined
 
@@ -263,11 +269,11 @@ unsatisfactory-g = λx : (∀α. α → α) → ℤ. x id
 
 unsatisfactory-f = λx : ℤ → ℤ. x 1
 
-unsatisfactory-gf = unsatisfactory-g (λx : ∀α. α → α. unsatisfactory-f x)
+unsatisfactory-gf = unsatisfactory-g unsatisfactory-f
 
 
 ... untypeable things to make typeable
-... by identifying co/contravariance of functors perhaps?
+... by moving quantifiers out of functors perhaps?
 
 . typeable in HMF
 . map xauto ids
@@ -285,6 +291,10 @@ postulate decontra : ∀α. Contra α → (α → ℤ)
 
 contraId = contra (λx : ∀α. α → α. x 5)
 
-mapContra = λf : β → α. λc : Contra α. contra (compose (decontra c) f)
 
-mapContra auto contraId
+
+mapContra = λf : β → α. λc : Contra α.
+  contra (compose (decontra c) f)
+
+. this suffers from quantifier-inside-functor problem
+. mapContra auto contraId
