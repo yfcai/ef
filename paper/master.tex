@@ -1,0 +1,349 @@
+% latex
+\documentclass{amsart}
+\usepackage{bcprules}
+\title{
+The Classical Call/CC Calculus
+\penalty-20000
+and Impredicative Type Inference
+}
+
+\begin{document}
+\newcommand{\nc}{\newcommand}
+\newcommand{\DotExpr}[2]{#1 #2.\ }
+\nc\Abs   {\DotExpr\lambda}
+\nc\All   {\DotExpr\forall}
+\nc\CallCC{\operatorname{call/cc}}
+\nc\Cps   {\operatorname{cps}}
+\nc\Dn [1]{(#1 \R \bot) \R \bot}
+\nc\Ex    {\DotExpr\exists}
+\nc\FV    {\operatorname{FV}}
+\nc\Mgs   {\operatorname{mgs}}
+\nc\Or    {\ | \ }
+\nc\Prune {\operatorname{prune}}
+\nc\Recall{\DotExpr\Xi} % looks like ∃
+\nc\Tabs  {\DotExpr\Lambda}
+\nc\R     {\rightarrow}
+\nc\Unify {\operatorname{unify}}
+
+\maketitle
+\tableofcontents
+
+\section{Classical F}
+
+\subsection{Grammar of classical F}
+
+\nc\Ftype{
+\tau & ::= & \alpha & \mbox{type variable} \\
+&\Or& \tau \rightarrow \tau & \mbox{function type} \\
+&\Or& \All\alpha\tau & \mbox{universal type} \\
+}
+
+\nc\CFtype{
+\Ftype
+&\Or& \Ex\alpha\tau & \mbox{existential type} \\
+}
+
+\nc\CFterm{
+t & ::= & x & \mbox{variables} \\
+&\Or& \Abs{x:\tau}t  & \mbox{lambda abstraction} \\
+&\Or& \ t~t & \mbox{function application} \\
+}
+
+\nc\SelectiveTypeAmnesia{
+&\Or& t~\{\Ex\alpha\tau\} & \mbox{selective type amnesia} \\
+}
+
+\nc\TypingContexts{
+\Gamma & ::= & \Gamma, x : \tau & \mbox{term variable binding}\\
+&\Or& \Gamma, \alpha& \mbox{type variable binding} \\
+&\Or& \epsilon & \mbox{empty context}\\ \\
+}
+
+\[
+\begin{array}{lclr}
+% types
+\CFtype
+\\
+% terms
+\CFterm
+&\Or& \Tabs\alpha t & \mbox{cosmetic type abstraction} \\
+\SelectiveTypeAmnesia
+\\
+% contexts
+\TypingContexts
+\end{array}
+\]
+
+\subsection{Typing of classical F}
+~
+
+\nc\Tautology{
+\infrule[Taut]
+{x : \tau \in \Gamma}
+{\Gamma \vdash x : \tau}
+}
+
+\nc\UniversalIntroduction{
+\infrule[$\forall$I]
+{\Gamma,\alpha \vdash t:\tau
+  \andalso \alpha \notin \Gamma
+  \andalso \alpha \in \FV(\tau)}
+{\Gamma \vdash (\Tabs\alpha t) : \All\alpha\tau}
+}
+
+\nc\ExistentialIntroduction{
+\infrule[$\exists$I]
+{\Gamma \vdash t : \tau[\alpha\mapsto\sigma]}
+{\Gamma \vdash t~\{\Ex\alpha\tau\} : \Ex\alpha\tau}
+}
+
+\nc\UniversalNegation{
+\infrule[$\neg\forall$]
+{\Gamma \vdash t : (\All\alpha\sigma) \R \tau
+  \andalso \alpha \notin \FV(\tau)}
+{\Gamma \vdash t : \Ex\alpha \sigma \R \tau}
+}
+
+\nc\ExistentialNegation{
+\infrule[$\neg\exists$]
+{\Gamma \vdash t : (\Ex\alpha\sigma) \R \tau
+  \andalso \alpha \notin \FV(\tau)}
+{\Gamma \vdash t : \All\alpha \sigma \R \tau}
+}
+
+\nc\SuperIntroduction{
+\infrule[$\R\forall$I]
+{\Gamma, A, x:\sigma \vdash t : \tau
+  \andalso A = \FV(\sigma) - \Gamma}
+{\Gamma \vdash (\Abs{x:\sigma}t) : \All A{\sigma\R\tau}}
+}
+
+\nc\SuperElimination{
+\infrule[$\R\forall\exists$E]
+{\Gamma \vdash s : \All{A_s} \Ex{E_s} \sigma_s \R \tau
+  \andalso \Gamma \vdash t : \All{A_t} \Ex{E_t} \sigma_t \\
+  A = A_s \uplus A_t \andalso E = E_s \uplus E_t \\
+  \Unify(A, E, \sigma_s, \sigma_t) \downarrow \Mgs}
+{\Gamma \vdash s~t : \Prune(\All A \Ex E \Mgs(\tau))}
+}
+
+\Tautology
+
+\UniversalNegation
+
+\ExistentialNegation
+
+\SuperIntroduction
+
+\SuperElimination
+
+Pruning removes redundant quantifiers, i.~e., those who bind
+names that never occur free in their scopes. Unification is
+discussed in section~\ref{sec:unify}.
+
+\UniversalIntroduction
+
+\ExistentialIntroduction
+
+\section{Classical call/cc calculus}
+
+\subsection{Grammar of classical call/cc calculus}
+
+\nc\Fterm{
+\CFterm
+&\Or& \Tabs\alpha t & \mbox{type abstraction} \\
+&\Or& t~[\tau] & \mbox{type application} \\
+}
+
+\[
+\begin{array}{lclr}
+% types
+\Ftype
+&\Or& \Ex\alpha\tau & \mbox{existential type} \\
+&\Or& \bot & \mbox{result type of continuations} \\
+\\
+% terms
+\Fterm
+\SelectiveTypeAmnesia
+&\Or& \Recall\alpha t & \mbox{deferred type remembrance} \\
+&\Or& \CallCC~t & \mbox{call with current continuation} \\
+\\
+\TypingContexts
+\end{array}
+\]
+
+\subsection{Typing of classical call/cc calculus}
+~
+
+\nc\FRules{
+\Tautology
+%
+\infrule[$\R$I]
+{\Gamma,x:\sigma \vdash t : \tau}
+{\Gamma \vdash (\Abs{x:\sigma}t) : \sigma\R\tau}
+%
+\infrule[$\R$E]
+{\Gamma\vdash s:\sigma\R\tau   \andalso   \Gamma\vdash t:\sigma}
+{\Gamma\vdash s~t:\tau}
+%
+\UniversalIntroduction
+%
+\infrule[$\forall$E]
+{\Gamma \vdash t : \All\alpha\tau}
+{\Gamma \vdash t~[\sigma] : \tau[\alpha\mapsto\sigma]}
+}
+
+\nc\ExistentialElimination{
+\infrule[$\exists$E]
+{\Gamma,\alpha \vdash t:\sigma\R\tau
+  \andalso \alpha \notin \Gamma
+  \andalso \alpha \in \FV(\sigma)
+  \andalso \alpha \notin \FV(\tau)}
+{\Gamma \vdash (\Recall\alpha t):(\Ex\alpha\sigma)\R\tau}
+}
+
+\nc\DoubleNegationElimination{
+\infrule[$\neg\neg$E]
+{\Gamma \vdash t : ((\tau\R\bot)\R\bot)\R\bot}
+{\Gamma \vdash \CallCC~t : \tau}
+}
+
+\FRules
+
+\ExistentialIntroduction
+
+\ExistentialElimination
+
+\DoubleNegationElimination
+
+\section{System F}
+
+\subsection{Grammar of system F}
+
+\[
+\begin{array}{lclr}
+\Ftype
+&\Or& \bot & \mbox{bottom type} \\
+\\
+\Fterm
+\\
+\TypingContexts
+\end{array}
+\]
+
+\subsection{Typing of system F}
+~
+
+\FRules
+
+\subsection{Embedding classical call/cc calculus in system F}
+
+Due to Curry-Howard correspondence, the embedding of classical
+call/cc calculus in system F can be viewed from either a
+logical or a programming perspective.
+\begin{itemize}
+\item From the logical point of view, the embedding is an
+instance of Kolmogorov's negative translation from classical
+logic to intuitionistic logic.
+\item From the programming point of view, the embedding is a
+continuation-passing-style transformation that gets rid of
+$\CallCC$ and existential types.
+\end{itemize}
+If $\tau$ is a type in classical call/cc calculus, then $\tau^K$
+shall be the corresponding type in system F. It is a similar
+correspondence between contexts $\Gamma$ and $\Gamma^K$, or
+between terms $t$ and $t^K$. The embedding transforms typing
+judgements in the classical calculus to typing judgements in F.
+We shall call it ``$\Cps$''.
+
+\begin{align*}
+\alpha^K & =
+  \Dn\alpha
+  \\
+(\sigma \R \tau)^K & =
+  \Dn{\sigma^K \R \tau^K}
+  \\
+(\All\alpha\tau)^K & =
+  \Dn{\All\alpha\tau^K}
+  \\
+(\Ex\alpha\tau)^K & =
+  (\All\alpha \tau^K \R \bot) \R \bot
+  \\
+\bot^K & =
+  \Dn\bot
+\end{align*}
+
+\begin{align*}
+(\Gamma, x:\tau)^K & =
+  \Gamma^K, x:\tau^K
+  \\
+(\Gamma, \alpha)^K & =
+  \Gamma^K, \alpha
+  \\
+\epsilon^K & =
+  \epsilon
+\end{align*}
+
+% cps: tautology
+\begin{align*}
+\Cps(\Gamma \vdash x : \tau) & =
+  \Gamma^K \vdash x : \tau^K
+\end{align*}
+
+% cps: implication introduction
+\def\ONE{\hspace{3em}}
+\def\TWO{\hspace{7em}}
+\begin{align*}
+\Cps(\Gamma \vdash (\Abs{x:\sigma}t) : \sigma \R \tau) & =
+  \Gamma^K \vdash (\Abs{x:\sigma}t)^K : \Dn{(\sigma^K \R \tau^K)} &
+  \mbox{where}
+  \\
+\Gamma^K,x:\sigma^K \vdash t^K : \tau^K & =
+  \Cps(\Gamma,x:\sigma \vdash t : \tau)
+  \\
+(\Abs{x:\sigma}t)^K & =
+  \Abs{c : (\sigma^K \R \tau^K) \R \bot} \\
+  &\ONE c~(\Abs{x : \sigma^K} t^K)
+\end{align*}
+
+% cps: implication elimination
+\begin{align*}
+\Cps(\Gamma \vdash s~t : \tau) & =
+  \Gamma^K \vdash (s~t)^K : \tau^K
+  \TWO \mbox{where}
+  \\
+\Gamma^K \vdash s^K : \Dn{(\sigma^K \R \tau^K)} & =
+  \Cps(\Gamma \vdash s : \sigma \R \tau)
+  \\
+\Gamma^K \vdash t^K : \sigma^K & =
+  \Cps(\Gamma \vdash t : \sigma)
+\end{align*}
+% cps: implication elimination: \tau is not an existential
+\begin{align*}
+\mbox{Case 1: $\tau$ is not an existential type.} & \\
+\Dn{\tau'} & = \tau^K
+  \\
+(s~t)^K & =
+  \Abs{c : \tau' \R \bot} \\
+  &\ONE s^K~(\Abs{f : \sigma^K \R \Dn{\tau'}} \\
+  &\TWO t^K~(\Abs{x : \sigma^K} f~x~c))
+\end{align*}
+% cps: implication elimination: \tau is an existential
+\begin{align*}
+\mbox{Case 2: $\tau$ is an existential type.} & \\
+\Ex\alpha \tau_0 & = \tau
+  \\
+(\All\alpha \tau_0 \R \bot) \R \bot & = \tau^K
+  \\
+(s~t)^K & =
+  \Abs{c : \All\alpha \tau_0 \R \bot} \\
+  &\ONE s^K~(\Abs{f : \sigma^K \R
+                      (\All\alpha. \tau_0 \R \bot) \R \bot} \\
+  &\TWO t^K~(\Abs{x : \sigma^K} f~x~c))
+\end{align*}
+
+
+\section{Unification of quantified names}
+\label{sec:unify}
+
+\end{document}
