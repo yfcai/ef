@@ -291,8 +291,6 @@ We shall call it ``$\Cps$''.
 \end{align*}
 
 % cps: implication introduction
-\def\ONE{\hspace{3em}}
-\def\TWO{\hspace{7em}}
 \begin{align*}
 \Cps(\Gamma \vdash (\Abs{x:\sigma}t) : \sigma \R \tau) & =
   \Gamma^K \vdash (\Abs{x:\sigma}t)^K : \Dn{(\sigma^K \R \tau^K)} &
@@ -303,43 +301,26 @@ We shall call it ``$\Cps$''.
   \\
 (\Abs{x:\sigma}t)^K & =
   \Abs{c : (\sigma^K \R \tau^K) \R \bot} \\
-  &\ONE c~(\Abs{x : \sigma^K} t^K)
+  &\hspace{3em} c~(\Abs{x : \sigma^K} t^K)
 \end{align*}
 
 % cps: implication elimination
 \begin{align*}
 \Cps(\Gamma \vdash s~t : \tau) & =
   \Gamma^K \vdash (s~t)^K : \tau^K
-  \TWO \mbox{where}
+  \hspace{8em} \mbox{where}
   \\
 \Gamma^K \vdash s^K : \Dn{(\sigma^K \R \tau^K)} & =
   \Cps(\Gamma \vdash s : \sigma \R \tau)
   \\
 \Gamma^K \vdash t^K : \sigma^K & =
   \Cps(\Gamma \vdash t : \sigma)
-\end{align*}
-% cps: implication elimination: \tau is not an existential
-\begin{align*}
-\mbox{Case 1: $\tau$ is not an existential type.} & \\
-\Dn{\tau'} & = \tau^K
+  \\
+\tau' \R \bot & = \tau^K
   \\
 (s~t)^K & =
-  \Abs{c : \tau' \R \bot} \\
-  &\ONE s^K~(\Abs{f : \sigma^K \R \Dn{\tau'}} \\
-  &\TWO t^K~(\Abs{x : \sigma^K} f~x~c))
-\end{align*}
-% cps: implication elimination: \tau is an existential
-\begin{align*}
-\mbox{Case 2: $\tau$ is an existential type.} & \\
-\Ex\alpha \tau_0 & = \tau
-  \\
-(\All\alpha \tau_0 \R \bot) \R \bot & = \tau^K
-  \\
-(s~t)^K & =
-  \Abs{c : \All\alpha \tau_0 \R \bot} \\
-  &\ONE s^K~(\Abs{f : \sigma^K \R
-                      (\All\alpha. \tau_0 \R \bot) \R \bot} \\
-  &\TWO t^K~(\Abs{x : \sigma^K} f~x~c))
+  \Abs{c : \tau'} s^K~(\Abs{f : \sigma^K \R \tau' \R \bot} \\
+  &\hspace{8em} t^K~(\Abs{x : \sigma^K} f~x~c))
 \end{align*}
 
 
