@@ -391,11 +391,21 @@ we have
 \begin{proof}
 [Proof by induction on $\tau$]
 We shall omit the subscripts $\alpha$, $\sigma$ and write simply
-$\Undo$, $\Redo$ from now on.
+$\Undo$, $\Redo$ from now on. For every type $\rho$, write
+\begin{align*}
+\rho_1 & = \rho^K[(\Dn\alpha)\mapsto(\sigma\R\bot)],\\
+\rho_2 & = \rho^K[\alpha\mapsto(\sigma\R\bot)].
+\end{align*}
 
-Case $\tau = \alpha$ or $\tau = \bot$: Set aside the
-ridiculosity. Brouwer's double negation elimination is $\Undo$
-and double negation introduction is $\Redo$.
+Case $\tau = \alpha$: Brouwer's double negation elimination is
+$\Undo$ and double negation introduction is $\Redo$.
+
+Case $\tau = \bot$: The type variable $\alpha$ is not free in
+$\tau$. Thus we can set
+\begin{align*}
+\Undo(t,\bot) & = t, \\
+\Redo(t,\bot) & = t.
+\end{align*}
 \end{proof}
 
 \begin{lemma}
