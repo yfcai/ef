@@ -312,7 +312,7 @@ judgements in F. We shall call it ``$\Cps$''.
 \begin{align*}
 \Cps(\Gamma \vdash s~t : \tau) & =
   \Gamma^K \vdash (s~t)^K : \tau^K
-  \hspace{9em minus 1em} \mbox{where}
+  & \mbox{where}
   \\
 \Gamma^K \vdash s^K : \Dn{(\sigma^K \R \tau^K)} & =
   \Cps(\Gamma \vdash s : \sigma \R \tau)
@@ -324,7 +324,7 @@ judgements in F. We shall call it ``$\Cps$''.
   \\
 (s~t)^K & =
   \Abs{c : \rho} s^K~(\Abs{f : \sigma^K \R \rho \R \bot} \\
-  &\hspace{8em} t^K~(\Abs{x : \sigma^K} f~x~c))
+  &\INDENT t^K~(\Abs{x : \sigma^K} f~x~c))
 \end{align*}
 
 % cps: universal introduction
