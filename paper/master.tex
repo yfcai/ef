@@ -7,6 +7,9 @@ The Classical Call/CC Calculus
 and Impredicative Type Inference
 }
 
+\swapnumbers
+\newtheorem{lemma}[subsection]{Lemma}
+
 \begin{document}
 \newcommand{\nc}{\newcommand}
 \newcommand{\DotExpr}[2]{#1 #2.\ }
@@ -21,8 +24,10 @@ and Impredicative Type Inference
 \nc\Or    {\ | \ }
 \nc\Prune {\operatorname{prune}}
 \nc\Recall{\DotExpr\Xi} % looks like ∃
+\nc\Redo  {\operatorname{redo}}
 \nc\Tabs  {\DotExpr\Lambda}
 \nc\R     {\rightarrow}
+\nc\Undo  {\operatorname{undo}}
 \nc\Unify {\operatorname{unify}}
 
 \maketitle
@@ -86,8 +91,7 @@ t & ::= & x & \mbox{variables} \\
 \nc\UniversalIntroduction{
 \infrule[$\forall$I]
 {\Gamma,\alpha \vdash t:\tau
-  \andalso \alpha \notin \Gamma
-  \andalso \alpha \in \FV(\tau)}
+  \andalso \alpha \notin \Gamma}
 {\Gamma \vdash (\Tabs\alpha t) : \All\alpha\tau}
 }
 
@@ -197,7 +201,6 @@ discussed in section~\ref{sec:unify}.
 \infrule[$\exists$E]
 {\Gamma,\alpha \vdash t:\sigma\R\tau
   \andalso \alpha \notin \Gamma
-  \andalso \alpha \in \FV(\sigma)
   \andalso \alpha \notin \FV(\tau)}
 {\Gamma \vdash (\Recall\alpha t):(\Ex\alpha\sigma)\R\tau}
 }
@@ -252,19 +255,21 @@ $\CallCC$ and existential types.
 If $\tau$ is a type in classical call/cc calculus, then $\tau^K$
 shall be the corresponding type in system F. It is a similar
 correspondence between contexts $\Gamma$ and $\Gamma^K$, or
-between terms $t$ and $t^K$. The embedding transforms typing
-judgements in the classical calculus to typing judgements in F.
-We shall call it ``$\Cps$''.
+between terms $t$ and $t^K$. The aforementioned embedding
+transforms typing judgements in the classical calculus to typing
+judgements in F. We shall call it ``$\Cps$''.
+
+\def\INDENT{\hspace{3em}}
 
 \begin{align*}
 \alpha^K & =
   \Dn\alpha
   \\
 (\sigma \R \tau)^K & =
-  \Dn{\sigma^K \R \tau^K}
+  \Dn{(\sigma^K \R \tau^K)}
   \\
 (\All\alpha\tau)^K & =
-  \Dn{\All\alpha\tau^K}
+  \Dn{(\All\alpha\tau^K)}
   \\
 (\Ex\alpha\tau)^K & =
   (\All\alpha \tau^K \R \bot) \R \bot
@@ -300,15 +305,14 @@ We shall call it ``$\Cps$''.
   \Cps(\Gamma,x:\sigma \vdash t : \tau)
   \\
 (\Abs{x:\sigma}t)^K & =
-  \Abs{c : (\sigma^K \R \tau^K) \R \bot} \\
-  &\hspace{3em} c~(\Abs{x : \sigma^K} t^K)
+  \Abs{c : ((\sigma^K \R \tau^K) \R \bot)}c~(\Abs{x : \sigma^K} t^K)
 \end{align*}
 
 % cps: implication elimination
 \begin{align*}
 \Cps(\Gamma \vdash s~t : \tau) & =
   \Gamma^K \vdash (s~t)^K : \tau^K
-  \hspace{8em} \mbox{where}
+  \hspace{9em minus 1em} \mbox{where}
   \\
 \Gamma^K \vdash s^K : \Dn{(\sigma^K \R \tau^K)} & =
   \Cps(\Gamma \vdash s : \sigma \R \tau)
@@ -316,13 +320,96 @@ We shall call it ``$\Cps$''.
 \Gamma^K \vdash t^K : \sigma^K & =
   \Cps(\Gamma \vdash t : \sigma)
   \\
-\tau' \R \bot & = \tau^K
+\rho \R \bot & = \tau^K
   \\
 (s~t)^K & =
-  \Abs{c : \tau'} s^K~(\Abs{f : \sigma^K \R \tau' \R \bot} \\
+  \Abs{c : \rho} s^K~(\Abs{f : \sigma^K \R \rho \R \bot} \\
   &\hspace{8em} t^K~(\Abs{x : \sigma^K} f~x~c))
 \end{align*}
 
+% cps: universal introduction
+\begin{align*}
+\Cps(\Gamma \vdash (\Tabs\alpha t) : \All\alpha \tau) & =
+  \Gamma^K \vdash (\Tabs\alpha t)^K : \Dn{(\All\alpha \tau^K)}
+  & \mbox{where}
+  \\
+\Gamma^K,\alpha \vdash t^K : \tau^K & =
+  \Cps(\Gamma,\alpha \vdash t : \tau)
+  \\
+(\Tabs\alpha t)^K & =
+  \Abs{c : ((\All\alpha \tau^K) \R \bot)}c~(\Tabs\alpha \tau^K)
+\end{align*}
+
+% cps: universal elimination
+\begin{align*}
+\Cps(\Gamma \vdash t~[\sigma] : \tau[\alpha\mapsto\sigma]) & =
+  \Gamma^K \vdash (t~[\sigma])^K :
+  \Dn{\tau_1}
+  & \mbox{where}
+  \\
+\Gamma^K \vdash t^K : \Dn{(\All\alpha \tau)} & =
+  \Cps(\Gamma \vdash t : \All\alpha \tau)
+  \\
+\rho \R \bot & = \sigma^K
+  \\
+\tau_1 & = \tau^K[(\Dn\alpha) \mapsto \sigma^K]
+  \\
+\tau_2 & = \tau^K[\alpha \mapsto \sigma^K]
+  \\
+(t~[\sigma])^K & =
+  \Abs{c : (\tau_1 \R \bot)} t^K~(\Abs{x : (\All\alpha\tau)} \\
+  &\INDENT
+  c~\Undo_{\alpha,\rho}(x~[\sigma^K], \tau))
+\end{align*}
+
+\begin{lemma}
+[$\Undo$ and $\Redo$]
+\label{lem:undo-redo}
+For every type variable $\alpha$ and every type $\sigma$, there
+exists a pair of computable functions $\Undo_{\alpha,\sigma}$ and
+$\Redo_{\alpha,\sigma}$ such that
+\begin{itemize}
+\item
+whenever
+$\Gamma \vdash t : \tau^K[\alpha \mapsto (\sigma\R\bot)]$
+we have
+\[
+\Gamma \vdash \Undo_{\alpha,\sigma}(t,\tau) :
+  \tau^K[(\Dn\alpha) \mapsto (\sigma\R\bot)],
+\]
+\item
+whenever
+$\Gamma \vdash t' : \tau^K[(\Dn\alpha) \mapsto (\sigma\R\bot)]$
+we have
+\[
+\Gamma \vdash \Redo_{\alpha,\sigma}(t',\tau) :
+  \tau^K[\alpha \mapsto (\sigma\R\bot)].
+\]
+\end{itemize}
+\end{lemma}
+
+\begin{proof}
+[Proof by induction on $\tau$]
+We shall omit the subscripts $\alpha$, $\sigma$ and write simply
+$\Undo$, $\Redo$ from now on.
+
+Case $\tau = \alpha$ or $\tau = \bot$: Set aside the
+ridiculosity. Brouwer's double negation elimination is $\Undo$
+and double negation introduction is $\Redo$.
+\end{proof}
+
+\begin{lemma}
+[substitution lemma for Kolmogorov's negative translation]
+\label{lem:subst-kolmogorov}
+\[
+(\tau[\alpha\mapsto\sigma])^K =
+\tau^K[(\Dn\alpha) \mapsto \sigma^K].
+\]
+\end{lemma}
+
+\begin{proof}
+[Proof by induction on $\tau$]
+\end{proof}
 
 \section{Unification of quantified names}
 \label{sec:unify}
