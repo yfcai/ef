@@ -8,7 +8,7 @@ Impredicative type inference
 \break
 or
 \break
-automatic theorem proving \break
+partial proof reconstruction \break
 for a fragment of \break
 second-order classical logic
 }
@@ -31,6 +31,7 @@ second-order classical logic
 \nc\Dni   {\mathrm{\neg\neg I}}
 \nc\Ex    {\DotExpr\exists}
 \nc\FV    {\operatorname{FV}}
+\nc\Id    {\mathit{id}}
 \nc\Indent{\hspace{3em}}
 \nc\Mgs   {\operatorname{mgs}}
 \nc\Or    {\ | \ }
@@ -225,7 +226,7 @@ discussed in section~\ref{sec:unify}.
 
 \nc\DoubleNegationElimination{
 \infrule[$\neg\neg$E]
-{\Gamma \vdash t : ((\tau\R\bot)\R\bot)\R\bot}
+{\Gamma \vdash t : \Dn{\tau}}
 {\Gamma \vdash \CallCC~t : \tau}
 }
 
@@ -439,6 +440,34 @@ judgements in F. We shall call it ``$\Cps$''.
     t^K~(\Abs{f : \sigma^K \R \tau^K}
       f~z~y
   )))
+\end{align*}
+
+% cps: call/cc
+\begin{align*}
+\Cps(\Gamma \vdash \CallCC~t : \tau) & =
+  \Gamma^K \vdash (\CallCC~t)^K : \tau^K
+  &\mbox{where}
+  \\
+\Gamma^K \vdash t^K : \rho & =
+  \Cps(\Gamma \vdash t : \Dn\tau)
+  \\
+\rho & =
+  (((((\tau^K \R \bot^K) \R\bot)\R\bot)
+    \R \bot^K) \R\bot)\R\bot
+  \\
+\bot^K & = \Dn\bot
+  \\
+(\CallCC~t)^K & =
+  \Abs{c : \tau^K \R \bot}
+  \\ &\Indent
+  t^K~(\Abs{f : (\Dn{(\tau^K\R\bot^K)}) \R \bot^K}
+  \\ &\Indent\Indent
+  f~(
+  \Abs{g : (\tau^K \R \bot^K) \R \bot}
+  \\ &\Indent\Indent\hspace{2.5em}
+  g~(\Abs{x:\tau^K} \Abs{\Id : (\bot \R \bot)} c~x)
+  \\ &\Indent\Indent
+  )~(\Abs{z:\bot} z)
 \end{align*}
 
 \begin{lemma}
