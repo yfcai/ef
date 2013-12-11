@@ -13,6 +13,8 @@ for a fragment of \break
 second-order classical logic
 }
 
+\let\phi=\varphi % default phi looks like empty set
+\allowdisplaybreaks
 \swapnumbers
 \newtheorem{lemma}[subsection]{Lemma}
 
@@ -21,11 +23,15 @@ second-order classical logic
 \newcommand{\DotExpr}[2]{#1 #2.\ }
 \nc\Abs   {\DotExpr\lambda}
 \nc\All   {\DotExpr\forall}
+\nc\Bro   {\operatorname{Brouwer}}
 \nc\CallCC{\operatorname{call/cc}}
+\nc\Case  {}
 \nc\Cps   {\operatorname{cps}}
 \nc\Dn [1]{(#1 \R \bot) \R \bot}
+\nc\Dni   {\mathrm{\neg\neg I}}
 \nc\Ex    {\DotExpr\exists}
 \nc\FV    {\operatorname{FV}}
+\nc\Indent{\hspace{3em}}
 \nc\Mgs   {\operatorname{mgs}}
 \nc\Or    {\ | \ }
 \nc\Prune {\operatorname{prune}}
@@ -35,7 +41,6 @@ second-order classical logic
 \nc\R     {\rightarrow}
 \nc\Undo  {\operatorname{undo}}
 \nc\Unify {\operatorname{unify}}
-
 \maketitle
 \tableofcontents
 
@@ -245,6 +250,20 @@ discussed in section~\ref{sec:unify}.
 
 \FRules
 
+\subsection{Useful terms of system F}
+
+\begin{align*}
+\Dni & : \All\alpha \alpha \R (\Dn\alpha) \\
+\Dni & = \Tabs\alpha \Abs{x:\alpha}
+           \Abs{c : (\alpha \R \bot)} c~x
+\end{align*}
+
+\begin{align*}
+\Bro & : \All\alpha (\Dn{(\alpha\R\bot)}) \R (\alpha \R \bot) \\
+\Bro & = \Tabs\alpha \Abs{f:(\Dn{(\alpha\R\bot)})}
+           \Abs{x:\alpha} f~(\Dni~[\alpha]~x)
+\end{align*}
+
 \subsection{Embedding classical call/cc calculus in system F}
 
 Due to Curry-Howard correspondence, the embedding of classical
@@ -264,8 +283,6 @@ correspondence between contexts $\Gamma$ and $\Gamma^K$, or
 between terms $t$ and $t^K$. The aforementioned embedding
 transforms typing judgements in the classical calculus to typing
 judgements in F. We shall call it ``$\Cps$''.
-
-\def\INDENT{\hspace{3em}}
 
 \begin{align*}
 \alpha^K & =
@@ -330,7 +347,7 @@ judgements in F. We shall call it ``$\Cps$''.
   \\
 (s~t)^K & =
   \Abs{c : \rho} s^K~(\Abs{f : \sigma^K \R \rho \R \bot} \\
-  &\INDENT t^K~(\Abs{x : \sigma^K} f~x~c))
+  &\Indent t^K~(\Abs{x : \sigma^K} f~x~c))
 \end{align*}
 
 % cps: universal introduction
@@ -364,7 +381,7 @@ judgements in F. We shall call it ``$\Cps$''.
   \\
 (t~[\sigma])^K & =
   \Abs{c : (\tau_1 \R \bot)} t^K~(\Abs{x : (\All\alpha\tau)} \\
-  &\INDENT
+  &\Indent
   c~\Undo_{\alpha,\rho}(x~[\sigma^K], \tau))
 \end{align*}
 
@@ -372,8 +389,8 @@ judgements in F. We shall call it ``$\Cps$''.
 [$\Undo$ and $\Redo$]
 \label{lem:undo-redo}
 For every type variable $\alpha$ and every type $\sigma$, there
-exists a pair of computable functions $\Undo_{\alpha,\sigma}$ and
-$\Redo_{\alpha,\sigma}$ such that
+exists a pair of computable metafunctions $\Undo_{\alpha,\sigma}$
+and $\Redo_{\alpha,\sigma}$ such that
 \begin{itemize}
 \item
 whenever
@@ -395,22 +412,51 @@ we have
 \end{lemma}
 
 \begin{proof}
-[Proof by induction on $\tau$]
-We shall omit the subscripts $\alpha$, $\sigma$ and write simply
-$\Undo$, $\Redo$ from now on. For every type $\rho$, write
+The proof consists essentially of threading double negation
+introduction and Brouwer's double negation elimination
+judiciously through a term of arbitrarily complex type. We shall
+omit the subscripts $\alpha$, $\sigma$ and write simply $\Undo$,
+$\Redo$ from now on. For every type $\rho$, write
 \begin{align*}
 \rho_1 & = \rho^K[(\Dn\alpha)\mapsto(\sigma\R\bot)],\\
 \rho_2 & = \rho^K[\alpha\mapsto(\sigma\R\bot)].
 \end{align*}
-
-Case $\tau = \alpha$: Brouwer's double negation elimination is
-$\Undo$ and double negation introduction is $\Redo$.
-
-Case $\tau = \bot$: The type variable $\alpha$ is not free in
-$\tau$. Thus we can set
+We will define $\Undo$ and $\Redo$ by induction on $\tau$.
 \begin{align*}
-\Undo(t,\bot) & = t, \\
-\Redo(t,\bot) & = t.
+\Undo(t,\alpha) & = \Bro~[\sigma]~t\\
+\Redo(t',\alpha) & = \Dni~[\sigma]~t'\\
+\\
+\Undo(t,\rho\R\phi) & =
+  \Abs{c : ((\rho_1 \R \phi_1) \R \bot)}
+  t~(\Abs{f : \rho_2 \R \phi_2}\\
+  &\Indent c~(\Abs{x : \rho_1}
+  \Undo((f~\Redo(x, \rho)), \phi) ))\\
+\Redo(t',\rho\R\phi) & =
+  \Abs{c : ((\rho_2 \R \phi_2) \R \bot)}
+  t'~(\Abs{f : \rho_1 \R \phi_1}\\
+  &\Indent c~(\Abs{x : \rho_2}
+  \Redo((f~\Undo(x, \rho)), \phi) ))\\
+\\
+\Undo(t, \All\beta \rho) & =
+  \Abs{c : ((\All\beta \rho_1) \R \bot)}
+  t~(\Abs{x : (\All\beta \rho_2)} \\
+  &\Indent c~(\Tabs\beta \Undo(x~[\beta], \rho)) )\\
+\Redo(t', \All\beta \rho) & =
+  \Abs{c : ((\All\beta \rho_2) \R \bot)}
+  t'~(\Abs{x : (\All\beta \rho_1)} \\
+  &\Indent c~(\Tabs\beta \Redo(x~[\beta], \rho)) )\\
+\\
+\Undo(t, \Ex\beta \rho) & =
+  \Abs{c : (\All\beta \rho_1 \R \bot)}
+  t~(\Tabs\beta \Abs{x : \rho_2}
+  c~[\beta]~\Undo(x,\rho) )\\
+\Redo(t', \Ex\beta \rho) & =
+  \Abs{c : (\All\beta \rho_2 \R \bot)}
+  t'~(\Tabs\beta \Abs{x : \rho_1}
+  c~[\beta]~\Redo(x,\rho) )\\
+\\
+\Undo(t,\bot) & = t \\
+\Redo(t',\bot) & = t' \qedhere
 \end{align*}
 \end{proof}
 
