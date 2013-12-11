@@ -24,8 +24,9 @@ for second-order classical logic
 \nc\All    {\DotExpr\forall}
 \nc\Allin  {\forall\mathrm{in}}
 \nc\Allex  {\forall\mathrm{ex}}
+\nc\AppCC  {\mathrm{app/cc}}
 \nc\Brouwer{\operatorname{Brouwer}}
-\nc\CallCC {\operatorname{call/cc}}
+\nc\CallCC {\mathrm{call/cc}}
 \nc\Case   {}
 \nc\Cps    {\operatorname{cps}}
 \nc\Dn[1]  {(#1 \R \bot) \R \bot}
@@ -178,14 +179,12 @@ discussed in section~\ref{sec:unify}.
 \begin{array}{lclr}
 % types
 \Ftype
-&\Or& \Ex\alpha\tau & \mbox{existential type} \\
 &\Or& \bot & \mbox{result type of continuations} \\
 \\
 % terms
 \Fterm
-\SelectiveTypeAmnesia
-&\Or& \Recall\alpha t & \mbox{deferred type remembrance} \\
 &\Or& \CallCC~t & \mbox{call with current continuation} \\
+&\Or& \AppCC~t~t & \mbox{apply with current continuation} \\
 \\
 \TypingContexts
 \end{array}
@@ -221,10 +220,10 @@ discussed in section~\ref{sec:unify}.
 
 \nc\ExistentialElimination{
 \infrule[$\exists$E]
-{\Gamma,\alpha \vdash t:\sigma\R\tau
-  \andalso \alpha \notin \Gamma
+{\Gamma \vdash s : \All\alpha \sigma\R\tau
+  \andalso \Gamma \vdash t : (\All\alpha \sigma\R\bot) \R \bot
   \andalso \alpha \notin \FV(\tau)}
-{\Gamma \vdash (\Recall\alpha t):(\Ex\alpha\sigma)\R\tau}
+{\Gamma \vdash \AppCC~s~t:\tau}
 }
 
 \nc\DoubleNegationElimination{
@@ -235,11 +234,9 @@ discussed in section~\ref{sec:unify}.
 
 \FRules
 
-\ExistentialIntroduction
+\DoubleNegationElimination
 
 \ExistentialElimination
-
-\DoubleNegationElimination
 
 \subsection{Useful term families of classical  call/cc calculus}
 
@@ -251,6 +248,8 @@ with pushing quantifiers into and pulling them out of the
 argument position of a function. They are type-indexed term
 families, but members of every family differ from each other only
 in type annotations.
+
+TODO: Revise!!!
 
 \begin{align*}
 \Allin_\sigma & : \All\beta
@@ -352,7 +351,7 @@ instance of Kolmogorov's negative translation from classical
 logic to intuitionistic logic.
 \item From the programming point of view, the embedding is a
 continuation-passing-style transformation that gets rid of
-$\CallCC$ and existential types.
+$\CallCC$ and $\AppCC$.
 \end{itemize}
 If $\tau$ is a type in classical call/cc calculus, then $\tau^K$
 shall be the corresponding type in system F. It is a similar
@@ -370,9 +369,6 @@ judgements in F. We shall call it ``$\Cps$''.
   \\
 (\All\alpha\tau)^K & =
   \Dn{(\All\alpha\tau^K)}
-  \\
-(\Ex\alpha\tau)^K & =
-  (\All\alpha \tau^K \R \bot) \R \bot
   \\
 \bot^K & =
   \Dn\bot
@@ -462,55 +458,6 @@ judgements in F. We shall call it ``$\Cps$''.
   c~\Undo_{\alpha,\rho}(x~[\sigma^K], \tau))
 \end{align*}
 
-% cps: existential introduction
-\begin{align*}
-\Cps(\Gamma \vdash t~\{\Ex\alpha\tau\} : \Ex\alpha\tau) & =
-  \Gamma^K \vdash (t~\{\Ex\alpha\tau\})^K :
-  (\All\alpha \tau^K \R \bot) \R \bot
-  & \mbox{where}
-  \\
-\Gamma^K \vdash t^K : \tau_1 & =
-  \Cps(\Gamma \vdash t : \tau[\alpha \mapsto \sigma])
-  \\
-\tau_1 & = \tau^K[(\Dn\alpha)\mapsto\sigma^K]
-  \\
-\tau_2 & = \tau^K[\alpha\mapsto\sigma^K]
-  \\
-\rho \R \bot & = \sigma^K
-  \\
- (t~\{\Ex\alpha\tau\})^K & =
-  \Abs{c : (\All\alpha \tau^K \R \bot)}
-  c~[\sigma^K]~\Redo_{\alpha,\rho}(t^K,\tau)
-\end{align*}
-
-% cps: existential elimination
-\begin{align*}
-\Cps(\Gamma \vdash (\Recall\alpha t) :
-    (\Ex\alpha\sigma) \R \tau) & =
-  \Gamma^K \vdash (\Recall\alpha t)^K :
-      ((\Ex\alpha\sigma) \R \tau)^K
-  \qquad \mbox{where}
-  \\
-\Gamma^K,\alpha \vdash t^K : \Dn{(\sigma^K\R\tau^K)} & =
-  \Cps(\Gamma,\alpha \vdash t : \sigma \R \tau)
-  \\
-((\Ex\alpha\sigma) \R \tau)^K & =
-  \Dn{( ((\All\alpha \sigma^K \R \bot)\R\bot) \R \tau^K)}
-  \\
-\rho \R \bot & = \tau^K
-  \\
-(\Recall\alpha t)^K & =
-  \Abs{c:(((\All\alpha \sigma^K\R\bot)\R\bot)\R\tau^K)\R\bot} \\
-  &\Indent c~(\Abs{x : ((\All\alpha \sigma^K\R\bot)\R\bot)}
-    \Abs{y : \rho} \\
-  &\Indent\hspace{1em}
-    x~(\Tabs\alpha \Abs{z : \sigma^K} \\
-  &\Indent\hspace{2em}
-    t^K~(\Abs{f : \sigma^K \R \tau^K}
-      f~z~y
-  )))
-\end{align*}
-
 % cps: call/cc
 \begin{align*}
 \Cps(\Gamma \vdash \CallCC~t : \tau) & =
@@ -524,19 +471,50 @@ judgements in F. We shall call it ``$\Cps$''.
   (((((\tau^K \R \bot^K) \R\bot)\R\bot)
     \R \bot^K) \R\bot)\R\bot
   \\
-\bot^K & = \Dn\bot
+\phi \R \bot & = \tau^K
   \\
 (\CallCC~t)^K & =
-  \Abs{c : \tau^K \R \bot}
-  \\ &\Indent
+  \Abs{c : \phi}
   t^K~(\Abs{f : (\Dn{(\tau^K\R\bot^K)}) \R \bot^K}
-  \\ &\Indent\Indent
+  \\ &\Indent
   f~(
   \Abs{g : (\tau^K \R \bot^K) \R \bot}
-  \\ &\Indent\Indent\hspace{2.5em}
-  g~(\Abs{x:\tau^K} \Abs{\Id : (\bot \R \bot)} c~x)
-  \\ &\Indent\Indent
+  \\ &\Indent\hspace{1em}
+  g~(\Abs{x:\tau^K} \Abs{\Id : (\bot \R \bot)} x~c)
+  \\ &\Indent
   )~(\Abs{z:\bot} z)
+\end{align*}
+
+% cps: app/cc
+\begin{align*}
+\Cps(\Gamma \vdash \AppCC~s~t : \tau) & =
+  \Gamma^K \vdash (\AppCC~s~t)^K : \tau^K
+  \hspace{10em}\mbox{where}
+  \\
+\Gamma^K \vdash s^K : \Dn{\rho_s} & =
+  \Cps(\Gamma \vdash s : \All\alpha \sigma \R \tau)
+  \\
+\Gamma^K \vdash t^K : \Dn{\rho_t} & =
+  \Cps(\Gamma \vdash t : (\All\alpha \sigma \R \bot) \R \bot)
+  \\
+\rho_s & = \All\alpha \Dn{(\sigma^K \R \tau^K)}
+  \\
+\rho_t & = (\Dn{(\All\alpha \Dn{(\sigma^K\R\bot^K)})}) \R \bot^K
+  \\
+\phi \R \bot & = \tau^K
+  \\
+(\AppCC~s~t)^K & =
+  \Abs{c:\phi} s^K~(\Abs{k : \rho_s} t^K~(\Abs{f:\rho_t}
+  \\ &\Indent
+  f~(\Abs{g : (\All\alpha ((\sigma^K \R \tau^K) \R\bot) \R\bot) \R\bot}
+  \\ &\Indent\hspace{1em}
+  g~(\Tabs\alpha \Abs{h : ((\sigma^K \R \bot^K) \R \bot)}
+  \\ &\Indent\hspace{2em}
+  h~(\Abs{x : \sigma^K}\Abs{\Id : (\bot\R\bot)}
+  \\ &\Indent\hspace{3em}
+  k~[\alpha]~(\Abs{m : (\sigma^K \R \tau^K)} m~x~c
+  \\ &\Indent
+  ))))~(\Abs{z : \bot}z)))
 \end{align*}
 
 \begin{lemma}
