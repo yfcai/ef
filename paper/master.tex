@@ -190,22 +190,29 @@ discussed in section~\ref{sec:unify}.
 \subsection{Typing of classical call/cc calculus}
 ~
 
+\nc\UniversalElimination{
+\infrule[$\forall$E]
+{\Gamma \vdash t : \All\alpha\tau
+   \andalso \FV(\sigma)\subseteq \Gamma}
+{\Gamma \vdash t~[\sigma] : \tau[\alpha\mapsto\sigma]}
+}
+
 \nc\FRules{
 \Tautology
 %
 \infrule[$\R$I]
-{\Gamma,x:\sigma \vdash t : \tau}
+{\Gamma,x:\sigma \vdash t : \tau
+  \andalso \FV(\sigma) \subseteq \Gamma}
 {\Gamma \vdash (\Abs{x:\sigma}t) : \sigma\R\tau}
 %
 \infrule[$\R$E]
-{\Gamma\vdash s:\sigma\R\tau   \andalso   \Gamma\vdash t:\sigma}
+{\Gamma\vdash s:\sigma\R\tau
+  \andalso \Gamma\vdash t:\sigma}
 {\Gamma\vdash s~t:\tau}
 %
 \UniversalIntroduction
 %
-\infrule[$\forall$E]
-{\Gamma \vdash t : \All\alpha\tau}
-{\Gamma \vdash t~[\sigma] : \tau[\alpha\mapsto\sigma]}
+\UniversalElimination
 }
 
 \nc\ExistentialElimination{
@@ -370,19 +377,68 @@ judgements in F. We shall call it ``$\Cps$''.
   \Dn{\tau_1}
   & \mbox{where}
   \\
-\Gamma^K \vdash t^K : \Dn{(\All\alpha \tau)} & =
+\Gamma^K \vdash t^K : \Dn{(\All\alpha \tau^K)} & =
   \Cps(\Gamma \vdash t : \All\alpha \tau)
-  \\
-\rho \R \bot & = \sigma^K
   \\
 \tau_1 & = \tau^K[(\Dn\alpha) \mapsto \sigma^K]
   \\
 \tau_2 & = \tau^K[\alpha \mapsto \sigma^K]
   \\
-(t~[\sigma])^K & =
+\rho \R \bot & = \sigma^K
+  \\
+ (t~[\sigma])^K & =
   \Abs{c : (\tau_1 \R \bot)} t^K~(\Abs{x : (\All\alpha\tau)} \\
   &\Indent
   c~\Undo_{\alpha,\rho}(x~[\sigma^K], \tau))
+\end{align*}
+
+% cps: existential introduction
+\begin{align*}
+\Cps(\Gamma \vdash t~\{\Ex\alpha\tau\} : \Ex\alpha\tau) & =
+  \Gamma^K \vdash (t~\{\Ex\alpha\tau\})^K :
+  (\All\alpha \tau^K \R \bot) \R \bot
+  & \mbox{where}
+  \\
+\Gamma^K \vdash t^K : \tau_1 & =
+  \Cps(\Gamma \vdash t : \tau[\alpha \mapsto \sigma])
+  \\
+\tau_1 & = \tau^K[(\Dn\alpha)\mapsto\sigma^K]
+  \\
+\tau_2 & = \tau^K[\alpha\mapsto\sigma^K]
+  \\
+\rho \R \bot & = \sigma^K
+  \\
+ (t~\{\Ex\alpha\tau\})^K & =
+  \Abs{c : (\All\alpha \tau^K \R \bot)}
+  c~[\sigma^K]~\Redo_{\alpha,\rho}(t^K,\tau)
+\end{align*}
+
+% cps: existential elimination
+\begin{align*}
+\Cps(\Gamma \vdash (\Recall\alpha t) :
+    (\Ex\alpha\sigma) \R \tau) & =
+  \Gamma^K \vdash (\Recall\alpha t)^K :
+      ((\Ex\alpha\sigma) \R \tau)^K
+  \qquad \mbox{where}
+  \\
+\Gamma^K,\alpha \vdash t^K : \Dn{(\sigma^K\R\tau^K)} & =
+  \Cps(\Gamma,\alpha \vdash t : \sigma \R \tau)
+  \\
+((\Ex\alpha\sigma) \R \tau)^K & =
+  \Dn{( ((\All\alpha \sigma^K \R \bot)\R\bot) \R \tau^K)}
+  \\
+\rho \R \bot & = \tau^K
+  \\
+(\Recall\alpha t)^K & =
+  \Abs{c:(((\All\alpha \sigma^K\R\bot)\R\bot)\R\tau^K)\R\bot} \\
+  &\Indent c~(\Abs{x : ((\All\alpha \sigma^K\R\bot)\R\bot)}
+    \Abs{y : \rho} \\
+  &\Indent\hspace{1em}
+    x~(\Tabs\alpha \Abs{z : \sigma^K} \\
+  &\Indent\hspace{2em}
+    t^K~(\Abs{f : \sigma^K \R \tau^K}
+      f~z~y
+  )))
 \end{align*}
 
 \begin{lemma}
