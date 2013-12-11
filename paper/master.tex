@@ -1,6 +1,6 @@
 % latex
 \documentclass{amsart}
-\usepackage{bcprules}
+\usepackage{url,bcprules}
 \title
 [Impredicative type inference]
 {
@@ -25,7 +25,7 @@ for second-order classical logic
 \nc\Allin  {\forall\mathrm{in}}
 \nc\Allex  {\forall\mathrm{ex}}
 \nc\Brouwer{\operatorname{Brouwer}}
-\nc\CallCC {\operatorname{call/cc}}
+\nc\CallCC {\mathrm{call/cc}}
 \nc\Case   {}
 \nc\Cps    {\operatorname{cps}}
 \nc\Dn[1]  {(#1 \R \bot) \R \bot}
@@ -37,6 +37,7 @@ for second-order classical logic
 \nc\Id     {\mathit{id}}
 \nc\Indent {\hspace{3em}}
 \nc\Mgs    {\operatorname{mgs}}
+\nc\Nuke   {\mathrm{nuke}}
 \nc\Or     {\ | \ }
 \nc\Prune  {\operatorname{prune}}
 \nc\Recall {\DotExpr\Xi} % looks like ∃
@@ -186,10 +187,18 @@ discussed in section~\ref{sec:unify}.
 \SelectiveTypeAmnesia
 &\Or& \Recall\alpha t & \mbox{deferred type remembrance} \\
 &\Or& \CallCC~t & \mbox{call with current continuation} \\
+&\Or& \Nuke~t & \mbox{negating a unversal quantifier}\\
 \\
 \TypingContexts
 \end{array}
 \]
+
+The axiom ``$\Nuke$'' is included because I can't derive it from
+introduction and elimination rules, and these slides%
+\footnote{~
+\url{http://www.cs.cmu.edu/~fp/courses/15317-f00/handouts/fol.pdf}
+}
+suggest that it may not be derivable at all.
 
 \subsection{Typing of classical call/cc calculus}
 ~
@@ -233,6 +242,14 @@ discussed in section~\ref{sec:unify}.
 {\Gamma \vdash \CallCC~t : \tau}
 }
 
+\nc\NukeRule{
+\infrule[$\neg\forall^*$]
+{\Gamma \vdash t : (\All\alpha\sigma)\R \tau
+  \andalso \alpha\notin\FV(\tau)}
+{\Gamma \vdash \Nuke~t :
+  \Ex\alpha \sigma \R \tau}
+}
+
 \FRules
 
 \ExistentialIntroduction
@@ -240,6 +257,8 @@ discussed in section~\ref{sec:unify}.
 \ExistentialElimination
 
 \DoubleNegationElimination
+
+\NukeRule
 
 \subsection{Useful term families of classical  call/cc calculus}
 
@@ -275,6 +294,7 @@ in type annotations.
   \\ &\Indent
   \Dni~[(\All\alpha\sigma) \R \beta]~f~(
     \Exin~c
+\mbox{???? this is bullshit}
   ))
 \end{align*}
 
@@ -537,6 +557,31 @@ judgements in F. We shall call it ``$\Cps$''.
   g~(\Abs{x:\tau^K} \Abs{\Id : (\bot \R \bot)} c~x)
   \\ &\Indent\Indent
   )~(\Abs{z:\bot} z)
+\end{align*}
+
+% cps: nuke
+\begin{align*}
+\Cps(\Gamma \vdash \Nuke~t : \Ex\alpha \sigma \R \tau)
+  & =
+  \Gamma^K \vdash (\Nuke~t)^K : \rho_\exists
+  &\mbox{where}
+  \\
+\Gamma^K \vdash t^K : \rho_\forall
+   & =
+  \Cps(\Gamma \vdash t : (\All\alpha\sigma) \R \tau)
+  \\
+\rho_\exists & =
+  (\All\alpha (\Dn{(\sigma^K \R \tau^K)}) \R \bot) \R \bot
+  \\
+\rho_\forall & =
+  \Dn{((\Dn{(\All\alpha\sigma^K)}) \R \tau^K)}
+  \\
+(\Nuke~t)^K & =
+  \Abs{c : \All\alpha (\Dn{(\sigma^K \R \tau^K)}) \R \bot}
+  \\ &\Indent
+  t^K~(\Abs{f : (\Dn{(\All\alpha\sigma^K)}) \R \tau^K}
+  \\ &\Indent
+  f~(
 \end{align*}
 
 \begin{lemma}
