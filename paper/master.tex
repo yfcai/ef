@@ -9,8 +9,7 @@ Impredicative type inference
 or
 \break
 partial proof reconstruction \break
-for a fragment of \break
-second-order classical logic
+for second-order classical logic
 }
 
 \let\phi=\varphi % default phi looks like empty set
@@ -21,27 +20,31 @@ second-order classical logic
 \begin{document}
 \newcommand{\nc}{\newcommand}
 \newcommand{\DotExpr}[2]{#1 #2.\ }
-\nc\Abs   {\DotExpr\lambda}
-\nc\All   {\DotExpr\forall}
-\nc\Bro   {\operatorname{Brouwer}}
-\nc\CallCC{\operatorname{call/cc}}
-\nc\Case  {}
-\nc\Cps   {\operatorname{cps}}
-\nc\Dn [1]{(#1 \R \bot) \R \bot}
-\nc\Dni   {\mathrm{\neg\neg I}}
-\nc\Ex    {\DotExpr\exists}
-\nc\FV    {\operatorname{FV}}
-\nc\Id    {\mathit{id}}
-\nc\Indent{\hspace{3em}}
-\nc\Mgs   {\operatorname{mgs}}
-\nc\Or    {\ | \ }
-\nc\Prune {\operatorname{prune}}
-\nc\Recall{\DotExpr\Xi} % looks like ∃
-\nc\Redo  {\operatorname{redo}}
-\nc\Tabs  {\DotExpr\Lambda}
-\nc\R     {\rightarrow}
-\nc\Undo  {\operatorname{undo}}
-\nc\Unify {\operatorname{unify}}
+\nc\Abs    {\DotExpr\lambda}
+\nc\All    {\DotExpr\forall}
+\nc\Allin  {\forall\mathrm{in}}
+\nc\Allex  {\forall\mathrm{ex}}
+\nc\Brouwer{\operatorname{Brouwer}}
+\nc\CallCC {\operatorname{call/cc}}
+\nc\Case   {}
+\nc\Cps    {\operatorname{cps}}
+\nc\Dn[1]  {(#1 \R \bot) \R \bot}
+\nc\Dni    {\mathrm{\neg\neg I}}
+\nc\Ex     {\DotExpr\exists}
+\nc\Exin   {\exists\mathrm{in}}
+\nc\Exex   {\exists\mathrm{ex}}
+\nc\FV     {\operatorname{FV}}
+\nc\Id     {\mathit{id}}
+\nc\Indent {\hspace{3em}}
+\nc\Mgs    {\operatorname{mgs}}
+\nc\Or     {\ | \ }
+\nc\Prune  {\operatorname{prune}}
+\nc\Recall {\DotExpr\Xi} % looks like ∃
+\nc\Redo   {\operatorname{redo}}
+\nc\Tabs   {\DotExpr\Lambda}
+\nc\R      {\rightarrow}
+\nc\Undo   {\operatorname{undo}}
+\nc\Unify  {\operatorname{unify}}
 \maketitle
 \tableofcontents
 
@@ -238,6 +241,71 @@ discussed in section~\ref{sec:unify}.
 
 \DoubleNegationElimination
 
+\subsection{Useful term families of classical  call/cc calculus}
+
+Since system F is a subset of classical call/cc calculus, the
+useful terms $\Brouwer$ and $\Dni$ of system F
+(section~\ref{sec:f-terms}, page~\pageref{sec:f-terms}) are also
+useful terms of classical call/cc calculus. The terms here deal
+with pushing quantifiers into and pulling them out of the
+argument position of a function. They are type-indexed term
+families, but members of every family differ from each other only
+in type annotations.
+
+\begin{align*}
+\Allin_\sigma & : \All\beta
+  (\All\alpha \sigma\R\beta) \R
+  (\Ex\alpha \sigma) \R \tau
+  \\
+\Allin_\sigma & = \Tabs\beta
+  \Abs{f : (\All\alpha \sigma \R \tau)}
+  \Abs{x : (\Ex\alpha \sigma)}
+  (\Recall\alpha f~[\alpha])~x
+\end{align*}
+
+\begin{align*}
+\Allex_\sigma & : \All\beta
+  ((\All\alpha\sigma) \R \beta) \R
+  (\Ex\alpha \sigma \R \beta)
+  \\
+\Allex_\sigma & = \Tabs\beta
+  \Abs{f : ((\All\alpha\sigma) \R \beta)}
+  \\ &\Indent
+  \CallCC~(\Abs{c : ((\Ex\alpha \sigma \R \beta) \R \bot)}
+  \\ &\Indent
+  \Dni~[(\All\alpha\sigma) \R \beta]~f~(
+    \Exin~c
+  ))
+\end{align*}
+
+\begin{align*}
+\Exex_\sigma & : \All\beta
+  ((\Ex\alpha \sigma) \R \beta) \R
+  (\All\alpha \sigma \R \beta)
+  \\
+\Exex_\sigma & = \Tabs\beta
+  \Abs{f:((\Ex\alpha\sigma) \R \beta)}
+  \\ &\Indent
+  \CallCC~(\Abs{c : ((\All\alpha \sigma \R \beta) \R \bot)}
+  \\ &\Indent\Indent\hspace{2em}
+  c~(\Tabs\alpha \Abs{x : \sigma}
+  f~(x~\{\Ex\alpha \sigma\})))
+\end{align*}
+
+\begin{align*}
+\Exin_\sigma & : \All\beta
+  (\Ex\alpha \sigma \R \beta) \R
+  (\All\alpha\sigma) \R \beta
+  \\
+\Exin_\sigma & = \Tabs\beta
+  \Abs{f : (\Ex\alpha \sigma \R \beta)}
+  \Abs{x : (\All\alpha \sigma)}
+  \\ &\hspace{5.3em}
+  (\Recall\alpha
+  \Abs{g : (\sigma \R \beta)}
+  g~(x~[\alpha]))~f
+\end{align*}
+
 \section{System F}
 
 \subsection{Grammar of system F}
@@ -259,6 +327,7 @@ discussed in section~\ref{sec:unify}.
 \FRules
 
 \subsection{Useful terms of system F}
+\label{sec:f-terms}
 
 \begin{align*}
 \Dni & : \All\alpha \alpha \R (\Dn\alpha) \\
@@ -267,8 +336,8 @@ discussed in section~\ref{sec:unify}.
 \end{align*}
 
 \begin{align*}
-\Bro & : \All\alpha (\Dn{(\alpha\R\bot)}) \R (\alpha \R \bot) \\
-\Bro & = \Tabs\alpha \Abs{f:(\Dn{(\alpha\R\bot)})}
+\Brouwer & : \All\alpha (\Dn{(\alpha\R\bot)}) \R (\alpha \R \bot) \\
+\Brouwer & = \Tabs\alpha \Abs{f:(\Dn{(\alpha\R\bot)})}
            \Abs{x:\alpha} f~(\Dni~[\alpha]~x)
 \end{align*}
 
@@ -508,7 +577,7 @@ $\Redo$ from now on. For every type $\rho$, write
 \end{align*}
 We will define $\Undo$ and $\Redo$ by induction on $\tau$.
 \begin{align*}
-\Undo(t,\alpha) & = \Bro~[\sigma]~t\\
+\Undo(t,\alpha) & = \Brouwer~[\sigma]~t\\
 \Redo(t',\alpha) & = \Dni~[\sigma]~t'\\
 \\
 \Undo(t,\rho\R\phi) & =
