@@ -65,7 +65,7 @@ for second-order classical logic
 }
 
 \nc\CFterm{
-t & ::= & x & \mbox{variables} \\
+t & ::= & x & \mbox{variable} \\
 &\Or& \Abs{x:\tau}t  & \mbox{lambda abstraction} \\
 &\Or& \ t~t & \mbox{function application} \\
 }
@@ -244,10 +244,10 @@ Since system F is a subset of classical call/cc calculus, the
 useful terms $\Brouwer$ and $\Dni$ of system F
 (section~\ref{sec:f-terms}, page~\pageref{sec:f-terms}) are also
 useful terms of classical call/cc calculus. The terms here deal
-with pushing quantifiers into and pulling them out of the
-argument position of a function. They are type-indexed term
-families, but members of every family differ from each other only
-in type annotations.
+with pushing quantifiers into the argument positions of
+functions, and with pulling them out of there. They are
+type-indexed term families, but members of one family differ
+from each other in annotated types only.
 
 TODO: Revise!!!
 
@@ -304,6 +304,8 @@ TODO: Revise!!!
   \Abs{g : (\sigma \R \beta)}
   g~(x~[\alpha]))~f
 \end{align*}
+
+\subsection{Embedding classical F in classical call/cc calculus}
 
 \section{System F}
 
