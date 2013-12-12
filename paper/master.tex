@@ -1,6 +1,6 @@
 % latex
 \documentclass{amsart}
-\usepackage{bcprules}
+\usepackage{bcprules,url}
 \title
 [Impredicative type inference]
 {
@@ -25,6 +25,7 @@ for second-order classical logic
 \nc\Allin  {\forall\mathrm{in}}
 \nc\Allex  {\forall\mathrm{ex}}
 \nc\AppCC  {\mathrm{app/cc}}
+\def\Box   {\mathrm{box}}
 \nc\Brouwer{\operatorname{Brouwer}}
 \nc\CallCC {\mathrm{call/cc}}
 \nc\Case   {}
@@ -44,14 +45,39 @@ for second-order classical logic
 \nc\Redo   {\operatorname{redo}}
 \nc\Tabs   {\DotExpr\Lambda}
 \nc\R      {\rightarrow}
+\nc\Unbox  {\mathrm{unbox}}
 \nc\Undo   {\operatorname{undo}}
 \nc\Unify  {\operatorname{unify}}
 \maketitle
 \tableofcontents
 
-\section{Classical F}
+\section{Executive summary}
 
-\subsection{Grammar of classical F}
+Existential F is a language with
+\begin{itemize}
+\item first-class existential types,
+\item impredicative polymorphism, and
+\item decidable typing of Church-style terms.
+\end{itemize}
+It bears emphasis that Existential F has more permissive
+existential types than the traditional encoding of existentials
+in System F. If we think harder, maybe we could come up with an
+example of greater practical benefit than moving quantifiers
+around.
+
+To show type soundness of Existential F, we embed it in System F.
+First we get rid of first-class existential quantifiers by
+translating it into Continuation Calculus, a formalization of
+second-order classical logic, then we get rid of the trappings of
+classical logic, e.~g.\ double negation elimination, via a
+continatuation-passing-style transformation into System F. The
+said continuation-passing-style transformation is a formalization
+of the world's first embedding of classical logic in
+intuitionistic logic by Kolmogorov.
+
+\section{Existential F}
+
+\subsection{Grammar of Existential F}
 
 \nc\Ftype{
 \tau & ::= & \alpha & \mbox{type variable} \\
@@ -95,7 +121,7 @@ t & ::= & x & \mbox{variable} \\
 \end{array}
 \]
 
-\subsection{Typing of classical F}
+\subsection{Typing of Existential F}
 ~
 
 \nc\Tautology{
@@ -165,9 +191,9 @@ discussed in section~\ref{sec:unify}.
 
 \ExistentialIntroduction
 
-\section{Classical call/cc calculus}
+\section{Continuation Calculus}
 
-\subsection{Grammar of classical call/cc calculus}
+\subsection{Grammar of Continuation Calculus}
 
 \nc\Fterm{
 \CFterm
@@ -190,7 +216,7 @@ discussed in section~\ref{sec:unify}.
 \end{array}
 \]
 
-\subsection{Typing of classical call/cc calculus}
+\subsection{Typing of Continuation Calculus}
 ~
 
 \nc\UniversalElimination{
@@ -238,28 +264,58 @@ discussed in section~\ref{sec:unify}.
 
 \ExistentialElimination
 
-\subsection{Useful term families of classical  call/cc calculus}
+\subsection{Useful term families of Continuation Calculus}
 
-Since system F is a subset of classical call/cc calculus, the
-useful terms $\Brouwer$ and $\Dni$ of system F
+Since System F is a subset of Continuation Calculus, the
+useful terms $\Brouwer$ and $\Dni$ of System F
 (section~\ref{sec:f-terms}, page~\pageref{sec:f-terms}) are also
-useful terms of classical call/cc calculus. The terms here deal
+useful terms of Continuation Calculus. The terms here deal
 with pushing quantifiers into the argument positions of
 functions, and with pulling them out of there. They are
 type-indexed term families, but members of one family differ
 from each other in annotated types only.
 
-TODO: Revise!!!
+Unlike Existential F, there is no primitive existential
+quantifier in Continuation Calculus. Instead, we define it as a
+syntactic sugar.
+\[
+\Ex\alpha \tau = (\All\alpha \tau \R \bot) \R \bot
+\]
 
+Traditional introduction and elimination forms are easy to
+encode.
+\begin{align*}
+\Box_{\sigma,\tau} & :
+  \tau[\alpha\mapsto\sigma] \R \Ex\alpha\tau
+  \\
+\Box_{\sigma,\tau} & =
+  \Abs{x : \tau[\alpha\mapsto\sigma]}
+  \Abs{f : (\All\alpha \tau \R \bot)}
+  f~[\sigma]~x
+\end{align*}
+%
+\begin{align*}
+\Unbox_{\sigma} & :
+  (\Ex\alpha\sigma) \R
+  (\All\beta (\All\alpha \sigma \R \beta) \R \beta)
+  \\
+\Unbox_{\sigma} & =
+  \Abs{x : (\Ex\alpha\sigma)}
+  \Tabs\beta
+  \Abs{f : (\All\alpha \sigma \R \beta)}
+  \AppCC~f~x
+\end{align*}
+
+The following are theorems in classical predicate calculus.
+Consult Metamath.\footnote{
+~\url{http://de.metamath.org/mpegif/19.35.html}
+}
 \begin{align*}
 \Allin_\sigma & : \All\beta
   (\All\alpha \sigma\R\beta) \R
   (\Ex\alpha \sigma) \R \tau
   \\
-\Allin_\sigma & = \Tabs\beta
-  \Abs{f : (\All\alpha \sigma \R \tau)}
-  \Abs{x : (\Ex\alpha \sigma)}
-  (\Recall\alpha f~[\alpha])~x
+\Allin_\sigma & = ~?
 \end{align*}
 
 \begin{align*}
@@ -267,14 +323,7 @@ TODO: Revise!!!
   ((\All\alpha\sigma) \R \beta) \R
   (\Ex\alpha \sigma \R \beta)
   \\
-\Allex_\sigma & = \Tabs\beta
-  \Abs{f : ((\All\alpha\sigma) \R \beta)}
-  \\ &\Indent
-  \CallCC~(\Abs{c : ((\Ex\alpha \sigma \R \beta) \R \bot)}
-  \\ &\Indent
-  \Dni~[(\All\alpha\sigma) \R \beta]~f~(
-    \Exin~c
-  ))
+\Allex_\sigma & = ~?
 \end{align*}
 
 \begin{align*}
@@ -282,13 +331,7 @@ TODO: Revise!!!
   ((\Ex\alpha \sigma) \R \beta) \R
   (\All\alpha \sigma \R \beta)
   \\
-\Exex_\sigma & = \Tabs\beta
-  \Abs{f:((\Ex\alpha\sigma) \R \beta)}
-  \\ &\Indent
-  \CallCC~(\Abs{c : ((\All\alpha \sigma \R \beta) \R \bot)}
-  \\ &\Indent\Indent\hspace{2em}
-  c~(\Tabs\alpha \Abs{x : \sigma}
-  f~(x~\{\Ex\alpha \sigma\})))
+\Exex_\sigma & = ~?
 \end{align*}
 
 \begin{align*}
@@ -296,20 +339,14 @@ TODO: Revise!!!
   (\Ex\alpha \sigma \R \beta) \R
   (\All\alpha\sigma) \R \beta
   \\
-\Exin_\sigma & = \Tabs\beta
-  \Abs{f : (\Ex\alpha \sigma \R \beta)}
-  \Abs{x : (\All\alpha \sigma)}
-  \\ &\hspace{5.3em}
-  (\Recall\alpha
-  \Abs{g : (\sigma \R \beta)}
-  g~(x~[\alpha]))~f
+\Exin_\sigma & = ~?
 \end{align*}
 
-\subsection{Embedding classical F in classical call/cc calculus}
+\subsection{Embedding Existential F in Continuation Calculus}
 
 \section{System F}
 
-\subsection{Grammar of system F}
+\subsection{Grammar of System F}
 
 \[
 \begin{array}{lclr}
@@ -322,12 +359,12 @@ TODO: Revise!!!
 \end{array}
 \]
 
-\subsection{Typing of system F}
+\subsection{Typing of System F}
 ~
 
 \FRules
 
-\subsection{Useful terms of system F}
+\subsection{Useful terms of System F}
 \label{sec:f-terms}
 
 \begin{align*}
@@ -342,10 +379,10 @@ TODO: Revise!!!
            \Abs{x:\alpha} f~(\Dni~[\alpha]~x)
 \end{align*}
 
-\subsection{Embedding classical call/cc calculus in system F}
+\subsection{Embedding Continuation Calculus in System F}
 
-Due to Curry-Howard correspondence, the embedding of classical
-call/cc calculus in system F can be viewed from either a
+Due to Curry-Howard correspondence, the embedding of
+Continuation Calculus in System F can be viewed from either a
 logical or a programming perspective.
 \begin{itemize}
 \item From the logical point of view, the embedding is an
@@ -355,11 +392,11 @@ logic to intuitionistic logic.
 continuation-passing-style transformation that gets rid of
 $\CallCC$ and $\AppCC$.
 \end{itemize}
-If $\tau$ is a type in classical call/cc calculus, then $\tau^K$
-shall be the corresponding type in system F. It is a similar
+If $\tau$ is a type in Continuation Calculus, then $\tau^K$
+shall be the corresponding type in System F. It is a similar
 correspondence between contexts $\Gamma$ and $\Gamma^K$, or
 between terms $t$ and $t^K$. The aforementioned embedding
-transforms typing judgements in the classical calculus to typing
+transforms typing judgements in Continuation Calculus to typing
 judgements in F. We shall call it ``$\Cps$''.
 
 \begin{align*}
@@ -609,5 +646,18 @@ We will define $\Undo$ and $\Redo$ by induction on $\tau$.
 
 \section{Unification of quantified names}
 \label{sec:unify}
+
+\section{Future work}
+
+Support algebraic data types. We can pull out quantifiers from
+the argument of a covariant type constructor (lists, tuples,
+sums) just so, and we can pull out quantifiers from the argument
+of a contravariant type constructor changing universals to
+existentials and vice versa. I don't know what to do about
+invariant type constructors. Maybe we just leave the quantifiers
+inside their arguments and never try to unify them.
+
+Let user define new typing rules for Existential F in
+Continuation Calculus.
 
 \end{document}
