@@ -38,7 +38,7 @@ for second-order classical logic
 \nc\FV     {\operatorname{FV}}
 \nc\Id     {\mathit{id}}
 \nc\Indent {\hspace{3em}}
-\nc\Mgs    {\operatorname{mgs}}
+\nc\Mgsr   {\operatorname{mgsr}}
 \nc\Or     {\ | \ }
 \nc\Prune  {\operatorname{prune}}
 \nc\Recall {\DotExpr\Xi} % looks like ∃
@@ -166,27 +166,21 @@ t & ::= & x & \mbox{variable} \\
 
 \nc\SuperElimination{
 \infrule[$\R\forall\exists$E]
-{\Gamma \vdash s : \All{A_s} \Ex{E_s} \sigma_s \R \tau
-  \andalso \Gamma \vdash t : \All{A_t} \Ex{E_t} \sigma_t \\
-  A = A_s \uplus A_t \andalso E = E_s \uplus E_t \\
-  \Unify(A, E, \sigma_s, \sigma_t) \downarrow \Mgs}
-{\Gamma \vdash s~t : \Prune(\All A \Ex E \Mgs(\tau))}
+{\Gamma \vdash s : \All{A} \Ex{E} \sigma_s \R \tau
+  \andalso \Gamma \vdash t : \sigma_t \\
+  \Unify(\All E \Ex A \sigma_s, \sigma_t) \downarrow \Mgsr}
+{\Gamma \vdash s~t : \Mgsr(\tau)}
 }
 
 \Tautology
-
-% We don't actually need universal/existential negation rules.
-%
-%\UniversalNegation
-%\ExistentialNegation
 
 \SuperIntroduction
 
 \SuperElimination
 
-Pruning removes redundant quantifiers, i.~e., those who bind
-names that never occur free in their scopes. Unification is
-discussed in section~\ref{sec:unify}.
+Unification is discussed in section~\ref{sec:unify}. The
+type-level metafunction $\Mgsr$ stands for ``most general
+substitution and requantification''.
 
 \UniversalIntroduction
 
