@@ -24,10 +24,10 @@ for second-order classical logic
 \nc\All    {\DotExpr\forall}
 \nc\Allin  {\forall\mathrm{in}}
 \nc\Allex  {\forall\mathrm{ex}}
-\nc\AppCC  {\mathrm{app/cc}}
+\nc\AbortCC{\mathrm{abort/cc}}
+\nc\ApplyCC{\mathrm{apply/cc}}
 \def\Box   {\mathrm{box}}
 \nc\Brouwer{\operatorname{Brouwer}}
-\nc\CallCC {\mathrm{call/cc}}
 \nc\Case   {}
 \nc\Cps    {\operatorname{cps}}
 \nc\Dn[1]  {(#1 \R \bot) \R \bot}
@@ -204,8 +204,8 @@ substitution and requantification''.
 \\
 % terms
 \Fterm
-&\Or& \CallCC~t & \mbox{call with current continuation} \\
-&\Or& \AppCC~t~t & \mbox{apply with current continuation} \\
+&\Or& \AbortCC~t & \mbox{abort with current continuation} \\
+&\Or& \ApplyCC~t~t & \mbox{apply with current continuation} \\
 \\
 \TypingContexts
 \end{array}
@@ -244,13 +244,13 @@ substitution and requantification''.
 {\Gamma \vdash s : \All\alpha \sigma\R\tau
   \andalso \Gamma \vdash t : (\All\alpha \sigma\R\bot) \R \bot
   \andalso \alpha \notin \FV(\tau)}
-{\Gamma \vdash \AppCC~s~t:\tau}
+{\Gamma \vdash \ApplyCC~s~t:\tau}
 }
 
 \nc\DoubleNegationElimination{
 \infrule[$\neg\neg$E]
 {\Gamma \vdash t : \Dn{\tau}}
-{\Gamma \vdash \CallCC~t : \tau}
+{\Gamma \vdash \AbortCC~t : \tau}
 }
 
 \FRules
@@ -274,7 +274,7 @@ Unlike Existential F, there is no primitive existential
 quantifier in Continuation Calculus. Instead, we define it as a
 syntactic sugar.
 \[
-\Ex\alpha \tau = (\All\alpha \tau \R \bot) \R \bot
+\Ex\alpha \tau ::= (\All\alpha \tau \R \bot) \R \bot
 \]
 
 Traditional introduction and elimination forms are easy to
@@ -298,7 +298,7 @@ encode.
   \Abs{x : (\Ex\alpha\sigma)}
   \Tabs\beta
   \Abs{f : (\All\alpha \sigma \R \beta)}
-  \AppCC~f~x
+  \ApplyCC~f~x
 \end{align*}
 
 The following are theorems in classical predicate calculus.
@@ -376,268 +376,128 @@ Consult Metamath.\footnote{
 
 \subsection{Embedding Continuation Calculus in System F}
 
-Due to Curry-Howard correspondence, the embedding of
-Continuation Calculus in System F can be viewed from either a
-logical or a programming perspective.
-\begin{itemize}
-\item From the logical point of view, the embedding is an
-instance of Kolmogorov's negative translation from classical
-logic to intuitionistic logic.
-\item From the programming point of view, the embedding is a
-continuation-passing-style transformation that gets rid of
-$\CallCC$ and $\AppCC$.
-\end{itemize}
-If $\tau$ is a type in Continuation Calculus, then $\tau^K$
-shall be the corresponding type in System F. It is a similar
-correspondence between contexts $\Gamma$ and $\Gamma^K$, or
-between terms $t$ and $t^K$. The aforementioned embedding
-transforms typing judgements in Continuation Calculus to typing
-judgements in F. We shall call it ``$\Cps$''.
+Fischer's CPS transformation extended by Felleisen, typed and
+described by Timothy G. Griffin in ``A formula-as-types notion of
+control''.
 
 \begin{align*}
-\alpha^K & =
-  \Dn\alpha
+\alpha^* & =
+  \alpha
   \\
-(\sigma \R \tau)^K & =
-  \Dn{(\sigma^K \R \tau^K)}
+(\sigma \R \tau)^* & =
+  \sigma^* \R \Dn{\tau^*}
   \\
-(\All\alpha\tau)^K & =
-  \Dn{(\All\alpha\tau^K)}
+(\All\alpha\tau)^* & =
+  \All\alpha (\Dn{\tau^*})
   \\
-\bot^K & =
-  \Dn\bot
+\bot^* & =
+  \bot
 \end{align*}
 
 \begin{align*}
-(\Gamma, x:\tau)^K & =
-  \Gamma^K, x:\tau^K
+(\Gamma, x:\tau)^* & =
+  \Gamma^*, x:\tau^*
   \\
-(\Gamma, \alpha)^K & =
-  \Gamma^K, \alpha
+(\Gamma, \alpha)^* & =
+  \Gamma^*, \alpha
   \\
-\epsilon^K & =
+\epsilon^* & =
   \epsilon
 \end{align*}
 
+% cps: general scheme
+In general, if $\Gamma \vdash t : \tau$, then
+$\Gamma^* \vdash \Cps(t) : \Dn{\tau^*}$.
+We define $\Cps$ by induction on the term component of the
+judgement. Type annotations in the result of cps-transformation
+are taken from the last rule in the typing derivation of the
+input of cps-transformation.
+
 % cps: tautology
 \begin{align*}
-\Cps(\Gamma \vdash x : \tau) & =
-  \Gamma^K \vdash x : \tau^K
+\Cps(x)
+& =
+\Abs{k: (\tau^* \R \bot)} k~x
 \end{align*}
 
 % cps: implication introduction
 \begin{align*}
-\Cps(\Gamma \vdash (\Abs{x:\sigma}t) : \sigma \R \tau) & =
-  \Gamma^K \vdash (\Abs{x:\sigma}t)^K : \Dn{(\sigma^K \R \tau^K)} &
-  \mbox{where}
-  \\
-\Gamma^K,x:\sigma^K \vdash t^K : \tau^K & =
-  \Cps(\Gamma,x:\sigma \vdash t : \tau)
-  \\
-(\Abs{x:\sigma}t)^K & =
-  \Abs{c : ((\sigma^K \R \tau^K) \R \bot)}c~(\Abs{x : \sigma^K} t^K)
+\Cps(\Abs{x:\sigma}t)
+& =
+\Abs{k:\sigma^* \R \Dn{\tau^*}}
+\\&\Indent
+k~(\Abs{x:\sigma^*}\Cps(t))
 \end{align*}
 
 % cps: implication elimination
 \begin{align*}
-\Cps(\Gamma \vdash s~t : \tau) & =
-  \Gamma^K \vdash (s~t)^K : \tau^K
-  & \mbox{where}
-  \\
-\Gamma^K \vdash s^K : \Dn{(\sigma^K \R \tau^K)} & =
-  \Cps(\Gamma \vdash s : \sigma \R \tau)
-  \\
-\Gamma^K \vdash t^K : \sigma^K & =
-  \Cps(\Gamma \vdash t : \sigma)
-  \\
-\rho \R \bot & = \tau^K
-  \\
-(s~t)^K & =
-  \Abs{c : \rho} s^K~(\Abs{f : \sigma^K \R \rho \R \bot} \\
-  &\Indent t^K~(\Abs{x : \sigma^K} f~x~c))
+\Cps(s~t)
+& =
+\Abs{k:\tau^*\R\bot}
+\\&\Indent
+\Cps(s)~(\Abs{f:\sigma^* \R \Dn{\tau^*}}
+\\&\Indent\hspace{5em}
+\Cps(t)~(\Abs{x:\sigma^*}
+f~x~k
+))
 \end{align*}
 
 % cps: universal introduction
 \begin{align*}
-\Cps(\Gamma \vdash (\Tabs\alpha t) : \All\alpha \tau) & =
-  \Gamma^K \vdash (\Tabs\alpha t)^K : \Dn{(\All\alpha \tau^K)}
-  & \mbox{where}
-  \\
-\Gamma^K,\alpha \vdash t^K : \tau^K & =
-  \Cps(\Gamma,\alpha \vdash t : \tau)
-  \\
-(\Tabs\alpha t)^K & =
-  \Abs{c : ((\All\alpha \tau^K) \R \bot)}c~(\Tabs\alpha \tau^K)
+\Cps(\Tabs\alpha t)
+& =
+\Abs{k:((\All\alpha \Dn{\tau^*}) \R \bot)}
+\\&\Indent
+k~(\Tabs\alpha \Cps(t))
 \end{align*}
 
 % cps: universal elimination
 \begin{align*}
-\Cps(\Gamma \vdash t~[\sigma] : \tau[\alpha\mapsto\sigma]) & =
-  \Gamma^K \vdash (t~[\sigma])^K :
-  \Dn{\tau_1}
-  & \mbox{where}
-  \\
-\Gamma^K \vdash t^K : \Dn{(\All\alpha \tau^K)} & =
-  \Cps(\Gamma \vdash t : \All\alpha \tau)
-  \\
-\tau_1 & = \tau^K[(\Dn\alpha) \mapsto \sigma^K]
-  \\
-\tau_2 & = \tau^K[\alpha \mapsto \sigma^K]
-  \\
-\rho \R \bot & = \sigma^K
-  \\
- (t~[\sigma])^K & =
-  \Abs{c : (\tau_1 \R \bot)} t^K~(\Abs{x : (\All\alpha\tau)} \\
-  &\Indent
-  c~\Undo_{\alpha,\rho}(x~[\sigma^K], \tau))
+\Cps(t~[\sigma])
+& =
+\Abs{k : \tau^*[\alpha\mapsto\sigma^*] \R \bot}
+\\&\Indent
+\Cps(t)~[\sigma^*]~(\Abs{x : \tau^*[\alpha\mapsto\sigma]} k~x)
 \end{align*}
 
-% cps: call/cc
+% cps: abort/cc
 \begin{align*}
-\Cps(\Gamma \vdash \CallCC~t : \tau) & =
-  \Gamma^K \vdash (\CallCC~t)^K : \tau^K
-  &\mbox{where}
-  \\
-\Gamma^K \vdash t^K : \rho & =
-  \Cps(\Gamma \vdash t : \Dn\tau)
-  \\
-\rho & =
-  (((((\tau^K \R \bot^K) \R\bot)\R\bot)
-    \R \bot^K) \R\bot)\R\bot
-  \\
-\phi \R \bot & = \tau^K
-  \\
-(\CallCC~t)^K & =
-  \Abs{c : \phi}
-  t^K~(\Abs{f : (\Dn{(\tau^K\R\bot^K)}) \R \bot^K}
-  \\ &\Indent
-  f~(
-  \Abs{g : (\tau^K \R \bot^K) \R \bot}
-  \\ &\Indent\hspace{1em}
-  g~(\Abs{x:\tau^K} \Abs{\Id : (\bot \R \bot)} x~c)
-  \\ &\Indent
-  )~(\Abs{z:\bot} z)
+\Cps(\AbortCC~t)
+& =
+\Abs{k : \tau^*\R\bot}
+\\&\Indent
+\Cps(t)~(\Abs{x : (\tau^*\R\Dn\bot)\R\Dn\bot}
+\\&\Indent\hspace{5em}
+x~(\Abs{y : \tau^*} \Abs{\Id : (\bot\R\bot)}
+\\&\Indent\hspace{8em}
+k~y)~(\Abs{z : \bot}z))
 \end{align*}
 
-% cps: app/cc
+% cps: apply/cc
 \begin{align*}
-\Cps(\Gamma \vdash \AppCC~s~t : \tau) & =
-  \Gamma^K \vdash (\AppCC~s~t)^K : \tau^K
-  \hspace{10em}\mbox{where}
-  \\
-\Gamma^K \vdash s^K : \Dn{\rho_s} & =
-  \Cps(\Gamma \vdash s : \All\alpha \sigma \R \tau)
-  \\
-\Gamma^K \vdash t^K : \Dn{\rho_t} & =
-  \Cps(\Gamma \vdash t : (\All\alpha \sigma \R \bot) \R \bot)
-  \\
-\rho_s & = \All\alpha \Dn{(\sigma^K \R \tau^K)}
-  \\
-\rho_t & = (\Dn{(\All\alpha \Dn{(\sigma^K\R\bot^K)})}) \R \bot^K
-  \\
-\phi \R \bot & = \tau^K
-  \\
-(\AppCC~s~t)^K & =
-  \Abs{c:\phi} s^K~(\Abs{k : \rho_s} t^K~(\Abs{f:\rho_t}
-  \\ &\Indent
-  f~(\Abs{g : (\All\alpha ((\sigma^K \R \tau^K) \R\bot) \R\bot) \R\bot}
-  \\ &\Indent\hspace{1em}
-  g~(\Tabs\alpha \Abs{h : ((\sigma^K \R \bot^K) \R \bot)}
-  \\ &\Indent\hspace{2em}
-  h~(\Abs{x : \sigma^K}\Abs{\Id : (\bot\R\bot)}
-  \\ &\Indent\hspace{3em}
-  k~[\alpha]~(\Abs{m : (\sigma^K \R \tau^K)} m~x~c
-  \\ &\Indent
-  ))))~(\Abs{z : \bot}z)))
+\Cps(\ApplyCC~s~t)
+& =
+\Abs{k : \tau^* \R \bot}
+\\&\hspace{2em}
+\Cps(s)~(\Abs{f : \All\alpha
+  ((\sigma^*\R(\tau^*\R\bot)\R\bot)\R\bot)\R\bot}
+\\&\Indent
+\Cps(t)~(\Abs{w :
+  (\All\alpha((\sigma^*\R \Dn\bot)\R\bot)\R\bot) \R
+  \\&\Indent\hspace{5.5em}
+  (\bot\R\bot) \R \bot}
+\\&\Indent\hspace{1em}
+w~(\Tabs\alpha \Abs{y :
+  (\sigma^* \R \Dn\bot) \R \bot}
+\\&\Indent\hspace{2em}
+x~(\Abs{y : \sigma^*} \Abs{\Id : \bot \R \bot}
+\\&\Indent\hspace{3em}
+f~[\alpha]~(\Abs{g : \sigma^* \R \Dn{\tau^*}}
+\\&\Indent\hspace{4em}
+g~y~k))
+\\&\Indent\hspace{1em}
+)~(\Abs{z:\bot}z)
 \end{align*}
-
-\begin{lemma}
-[$\Undo$ and $\Redo$]
-\label{lem:undo-redo}
-For every type variable $\alpha$ and every type $\sigma$, there
-exists a pair of computable metafunctions $\Undo_{\alpha,\sigma}$
-and $\Redo_{\alpha,\sigma}$ such that
-\begin{itemize}
-\item
-whenever
-$\Gamma \vdash t : \tau^K[\alpha \mapsto (\sigma\R\bot)]$
-we have
-\[
-\Gamma \vdash \Undo_{\alpha,\sigma}(t,\tau) :
-  \tau^K[(\Dn\alpha) \mapsto (\sigma\R\bot)],
-\]
-\item
-whenever
-$\Gamma \vdash t' : \tau^K[(\Dn\alpha) \mapsto (\sigma\R\bot)]$
-we have
-\[
-\Gamma \vdash \Redo_{\alpha,\sigma}(t',\tau) :
-  \tau^K[\alpha \mapsto (\sigma\R\bot)].
-\]
-\end{itemize}
-\end{lemma}
-
-\begin{proof}
-The proof consists essentially of threading double negation
-introduction and Brouwer's double negation elimination
-judiciously through a term of arbitrarily complex type. We shall
-omit the subscripts $\alpha$, $\sigma$ and write simply $\Undo$,
-$\Redo$ from now on. For every type $\rho$, write
-\begin{align*}
-\rho_1 & = \rho^K[(\Dn\alpha)\mapsto(\sigma\R\bot)],\\
-\rho_2 & = \rho^K[\alpha\mapsto(\sigma\R\bot)].
-\end{align*}
-We will define $\Undo$ and $\Redo$ by induction on $\tau$.
-\begin{align*}
-\Undo(t,\alpha) & = \Brouwer~[\sigma]~t\\
-\Redo(t',\alpha) & = \Dni~[\sigma]~t'\\
-\\
-\Undo(t,\rho\R\phi) & =
-  \Abs{c : ((\rho_1 \R \phi_1) \R \bot)}
-  t~(\Abs{f : \rho_2 \R \phi_2}\\
-  &\Indent c~(\Abs{x : \rho_1}
-  \Undo((f~\Redo(x, \rho)), \phi) ))\\
-\Redo(t',\rho\R\phi) & =
-  \Abs{c : ((\rho_2 \R \phi_2) \R \bot)}
-  t'~(\Abs{f : \rho_1 \R \phi_1}\\
-  &\Indent c~(\Abs{x : \rho_2}
-  \Redo((f~\Undo(x, \rho)), \phi) ))\\
-\\
-\Undo(t, \All\beta \rho) & =
-  \Abs{c : ((\All\beta \rho_1) \R \bot)}
-  t~(\Abs{x : (\All\beta \rho_2)} \\
-  &\Indent c~(\Tabs\beta \Undo(x~[\beta], \rho)) )\\
-\Redo(t', \All\beta \rho) & =
-  \Abs{c : ((\All\beta \rho_2) \R \bot)}
-  t'~(\Abs{x : (\All\beta \rho_1)} \\
-  &\Indent c~(\Tabs\beta \Redo(x~[\beta], \rho)) )\\
-\\
-\Undo(t, \Ex\beta \rho) & =
-  \Abs{c : (\All\beta \rho_1 \R \bot)}
-  t~(\Tabs\beta \Abs{x : \rho_2}
-  c~[\beta]~\Undo(x,\rho) )\\
-\Redo(t', \Ex\beta \rho) & =
-  \Abs{c : (\All\beta \rho_2 \R \bot)}
-  t'~(\Tabs\beta \Abs{x : \rho_1}
-  c~[\beta]~\Redo(x,\rho) )\\
-\\
-\Undo(t,\bot) & = t \\
-\Redo(t',\bot) & = t' \qedhere
-\end{align*}
-\end{proof}
-
-\begin{lemma}
-[substitution lemma for Kolmogorov's negative translation]
-\label{lem:subst-kolmogorov}
-\[
-(\tau[\alpha\mapsto\sigma])^K =
-\tau^K[(\Dn\alpha) \mapsto \sigma^K].
-\]
-\end{lemma}
-
-\begin{proof}
-[Proof by induction on $\tau$]
-\end{proof}
 
 \section{Unification of quantified names}
 \label{sec:unify}
