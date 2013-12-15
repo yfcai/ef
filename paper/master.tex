@@ -15,6 +15,7 @@ for second-order classical logic
 \let\phi=\varphi % default phi looks like empty set
 \allowdisplaybreaks
 \swapnumbers
+\newtheorem{theorem}[subsection]{Theorem}
 \newtheorem{lemma}[subsection]{Lemma}
 
 \begin{document}
@@ -24,6 +25,7 @@ for second-order classical logic
 \nc\All    {\DotExpr\forall}
 \nc\Allin  {\forall\mathrm{in}}
 \nc\Allex  {\forall\mathrm{ex}}
+\nc\Abort  {\mathrm{abort}}
 \nc\AbortCC{\mathrm{abort/cc}}
 \nc\ApplyCC{\mathrm{apply/cc}}
 \def\Box   {\mathrm{box}}
@@ -32,6 +34,7 @@ for second-order classical logic
 \nc\Cps    {\operatorname{cps}}
 \nc\Dn[1]  {(#1 \R \bot) \R \bot}
 \nc\Dni    {\mathrm{\neg\neg I}}
+\nc\Erase  {\mathrm{erase}}
 \nc\Ex     {\DotExpr\exists}
 \nc\Exin   {\exists\mathrm{in}}
 \nc\Exex   {\exists\mathrm{ex}}
@@ -51,7 +54,7 @@ for second-order classical logic
 \maketitle
 \tableofcontents
 
-\section{Executive summary}
+\section{Introduction}
 
 Existential F is a language with
 \begin{itemize}
@@ -65,15 +68,43 @@ in System F. If we think harder, maybe we could come up with an
 example of greater practical benefit than moving quantifiers
 around.
 
-To show type soundness of Existential F, we embed it in System F.
-First we get rid of first-class existential quantifiers by
-translating it into Continuation Calculus, a formalization of
-second-order classical logic, then we get rid of the trappings of
-classical logic, e.~g.\ double negation elimination, via a
-continatuation-passing-style transformation into System F. The
-said continuation-passing-style transformation is a formalization
-of the world's first embedding of classical logic in
-intuitionistic logic by Andrey Nikolaevich Kolmogorov.
+\section{Executive summary of simplicity of implementation}
+\label{sec:exe}
+
+Existential~F is very easy to implement. We can simply erase all
+types from terms in Existential~F and feed the result to some
+implementation of untyped lambda calculus. The following theorem
+explains why it works.
+
+\begin{theorem}
+[faithfulness of $\Cps$]
+\label{thm:faith}
+Suppose $\Gamma\vdash t : \tau$ in Existential~F. Choose any
+variable ``\/$\Abort$'' not free in $t$. Then $(\Cps(t)~\Abort)$
+reduces to $(\Abort~t')$ in System~F, such that $t'$ erases to an
+untyped lambda term $\beta$-equivalent to the erased version of $t$.
+\end{theorem}
+
+In theorem~\ref{thm:faith}, we have taken the liberty to
+call the translation from Existential~F to System~F ``$\Cps$''.
+In truth, the translation consists of desugaring into
+Continuation Calculus (\S\ref{sec:desugar}) followed by
+the continuation-passing-style transformation (\S\ref{sec:cps}).
+
+The HMF paper\footnote {Daan Leijen. HMF: simple type inference
+for first-class polymorphism. } demonstrates type soundness of
+HMF by translating HMF terms into System~F. It declares that type
+soundness follows from the following conditions.
+\begin{enumerate}
+\item The translation is sound: Well-typed HMF terms are
+translated to System~F terms of the same type.
+\item The translation is faithful: If $t$ translates to $t'$,
+then erasing $t$ and $t'$ yields $\beta$-equivalent terms in
+untyped lambda calculus.
+\end{enumerate}
+It remains to investigate what kind of type soundness follows
+from these conditions, why it does, and what its analogy is for
+Existential~F.
 
 \section{Existential F}
 
@@ -93,7 +124,7 @@ intuitionistic logic by Andrey Nikolaevich Kolmogorov.
 \nc\CFterm{
 t & ::= & x & \mbox{variable} \\
 &\Or& \Abs{x:\tau}t  & \mbox{lambda abstraction} \\
-&\Or& \ t~t & \mbox{function application} \\
+&\Or& t~t & \mbox{function application} \\
 }
 
 \nc\SelectiveTypeAmnesia{
@@ -113,7 +144,6 @@ t & ::= & x & \mbox{variable} \\
 \\
 % terms
 \CFterm
-&\Or& \Tabs\alpha t & \mbox{cosmetic type abstraction} \\
 \SelectiveTypeAmnesia
 \\
 % contexts
@@ -178,11 +208,9 @@ t & ::= & x & \mbox{variable} \\
 
 \SuperElimination
 
-Unification is discussed in section~\ref{sec:unify}. The
-type-level metafunction $\Mgsr$ stands for ``most general
-substitution and requantification''.
-
-\UniversalIntroduction
+Unification is discussed in \S\ref{sec:unify}. The type-level
+metafunction $\Mgsr$ stands for ``most general substitution and
+requantification''.
 
 \ExistentialIntroduction
 
@@ -261,14 +289,13 @@ substitution and requantification''.
 
 \subsection{Useful term families of Continuation Calculus}
 
-Since System F is a subset of Continuation Calculus, the
-useful terms $\Brouwer$ and $\Dni$ of System F
-(section~\ref{sec:f-terms}, page~\pageref{sec:f-terms}) are also
-useful terms of Continuation Calculus. The terms here deal
-with pushing quantifiers into the argument positions of
-functions, and with pulling them out of there. They are
-type-indexed term families, but members of one family differ
-from each other in annotated types only.
+Since System F is a subset of Continuation Calculus, the useful
+terms $\Brouwer$ and $\Dni$ of System F (\S\ref{sec:f-terms},
+page~\pageref{sec:f-terms}) are also useful terms of Continuation
+Calculus. The terms here deal with pushing quantifiers into the
+argument positions of functions, and with pulling them out of
+there. They are type-indexed term families, but members of one
+family differ from each other in annotated types only.
 
 Unlike Existential F, there is no primitive existential
 quantifier in Continuation Calculus. Instead, we define it as a
@@ -338,6 +365,7 @@ Consult Metamath.\footnote{
 \end{align*}
 
 \subsection{Embedding Existential F in Continuation Calculus}
+\label{sec:desugar}
 
 \section{System F}
 
@@ -375,6 +403,7 @@ Consult Metamath.\footnote{
 \end{align*}
 
 \subsection{Embedding Continuation Calculus in System F}
+\label{sec:cps}
 
 Fischer's CPS transformation extended by Felleisen, typed and
 described by Timothy G. Griffin in ``A formula-as-types notion of
@@ -498,6 +527,13 @@ g~y~k))
 \\&\Indent\hspace{1em}
 )~(\Abs{z:\bot}z)
 \end{align*}
+
+\section{Faithfulness of the translation from Existential~F to
+System~F}
+\label{sec:faith}
+
+This section proves theorem~\ref{thm:faith}.
+
 
 \section{Unification of quantified names}
 \label{sec:unify}
