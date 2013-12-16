@@ -17,6 +17,7 @@ for second-order classical logic
 \swapnumbers
 \newtheorem{theorem}[subsection]{Theorem}
 \newtheorem{lemma}[subsection]{Lemma}
+\newtheorem{corollary}[subsection]{Corollary}
 
 \begin{document}
 \newcommand{\nc}{\newcommand}
@@ -68,22 +69,27 @@ in System F. If we think harder, maybe we could come up with an
 example of greater practical benefit than moving quantifiers
 around.
 
-\section{Executive summary of simplicity of implementation}
+\section{Executive summary of type soundness proof}
 \label{sec:exe}
 
 Existential~F is very easy to implement. We can simply erase all
 types from terms in Existential~F and feed the result to some
 implementation of untyped lambda calculus. The following theorem
-explains why it works.
+sheds some light on why it works.
 
 \begin{theorem}
-[faithfulness of $\Cps$]
+[faithfulness of translation]
 \label{thm:faith}
-Suppose $\Gamma\vdash t : \tau$ in Existential~F. Choose any
-variable ``\/$\Abort$'' not free in $t$. Then $(\Cps(t)~\Abort)$
-reduces to $(\Abort~t')$ in System~F, such that $t'$ erases to an
-untyped lambda term $\beta$-equivalent to the erased version of $t$.
+Let ``$\Cps$'' be our translation from Existential~F to System~F.
+Let $s$ and $t$ be well-typed terms in Existential~F and choose a
+variable ``$\Abort$'' free in neither $s$ nor $t$. There exists
+an untyped term $t'$ such that the erased versions of both
+$(\Cps(s)~\Abort)$ and $(\Cps(t)~\Abort)$ reduce to $t'$.
 \end{theorem}
+
+Consequently, we do not have to cps-transform Existential~F
+programs to execute them---it suffices to perform
+$\beta$-reductions as if they were untyped.
 
 In theorem~\ref{thm:faith}, we have taken the liberty to
 call the translation from Existential~F to System~F ``$\Cps$''.
@@ -91,20 +97,28 @@ In truth, the translation consists of desugaring into
 Continuation Calculus (\S\ref{sec:desugar}) followed by
 the continuation-passing-style transformation (\S\ref{sec:cps}).
 
-The HMF paper\footnote {Daan Leijen. HMF: simple type inference
-for first-class polymorphism. } demonstrates type soundness of
-HMF by translating HMF terms into System~F. It declares that type
-soundness follows from the following conditions.
+\begin{theorem}
+[soundness of translation]
+\label{thm:sound}
+Let ``$\Cps$'' be our translation from Existential~F to System~F.
+Suppose $s$ reduces to $t$ in Existential~F. If
 \begin{enumerate}
-\item The translation is sound: Well-typed HMF terms are
-translated to System~F terms of the same type.
-\item The translation is faithful: If $t$ translates to $t'$,
-then erasing $t$ and $t'$ yields $\beta$-equivalent terms in
-untyped lambda calculus.
+\item $\Gamma\vdash\Cps(s):\Dn\sigma$ and\/
+\item $\Gamma\vdash\Cps(t):\Dn\tau$,
 \end{enumerate}
-It remains to investigate what kind of type soundness follows
-from these conditions, why it does, and what its analogy is for
-Existential~F.
+then $\tau$ is a more general type than $\sigma$ in System~F.
+\end{theorem}
+
+Together with strong normalization and type soundness of
+System~F, theorems \ref{thm:faith} and~\ref{thm:sound} imply
+strong normalization and type soundness of Existential~F.
+
+\begin{corollary}
+\label{cor:sound}
+If\/ $\Gamma\vdash t:\tau$ in Existential~F, then every reduction
+sequence of $t$ terminates at a unique value $v$ in the
+domain of $\tau$.
+\end{corollary}
 
 \section{Existential F}
 
