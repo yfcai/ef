@@ -57,17 +57,100 @@ for second-order classical logic
 
 \section{Introduction}
 
-Existential F is a language with
+Existential F is a type theory with impredicative polymorphism
+and decidable typing of Church-style terms. It is well-suited as
+the type system of practical programming languages, for the
+following reasons.
+\begin{enumerate}
+\item All Church-style terms typeable in System~F are well-typed
+in Existential~F. Some terms untypeable in F are well-typed in
+Existential~F as well. Strictly fewer useful programs are ruled
+out. (It's possible to give an example here.)
+
+\item Despite (1), Existential~F retains strong type soundness.
+Well-typed programs never produce runtime type errors.
+
+\item Despite (1) and (2), it is decidable whether a Church-style
+term is well-typed in Existential~F or not.
+
+\item Existential~F enjoys first-class polymorphism. One can
+enforce, at the type level, invariants such as ``ST monad must
+discard all references before returning'', or ``lambda
+abstractions in HOAS may not use catamorphisms to examine their
+arguments''. (Examples require an encoding of ADTs.)
+
+\item The conveniences of Existential~F come at a lower cost,
+both for programmers and for language implementers, than the cost
+of existing systems with first-class polymorphism. The programmer
+does not have to think beyond System~F types. The implementer has
+only to learn a bottom-up unification algorithm for type
+checking, and can reuse any existing implementation of untyped
+lambda calculus for program execution.
+\end{enumerate}
+
+Existential~F draws on humanity's vast and purely theoretic
+knowledge about predicate logic and ``formulae-as-types notion of
+control'' (tentative noun), to produce a solution of the
+practical language engineering problem of decidable type
+inference for first-class polymorphism. A side-product of the
+type soundness proof of Existential~F is Continuation Calculus, a
+formalization and automatic proof verifier of second-order
+classical logic.
+
+
+\section{Related systems}
+
+\nc\MLF{ML$^\textrm{F}$}
+
+Considerable effort has been put into type inference for programs
+using first-class polymorphism, and produced the following
+systems (among others, perhaps). Most are based on Hindley-Milner
+type system and take advantage of adaptations of algorithm~W to
+infer annotations on monotype arguments, but none can infer the
+type of a polymorphic function argument. In other words, they can
+reconstruct the type of a fully polymorphic term only when it is
+given in Church style. In contrary, we chose to design
+Existential~F from a clean slate, gaining considerable simplicity
+in theory at the cost of more argument type annotations for the
+present. We expect to leverage existing research in bidirectional
+or local type inference to reduce notation overhead in the
+future.
 \begin{itemize}
-\item first-class existential types,
-\item impredicative polymorphism, and
-\item decidable typing of Church-style terms.
+\item \MLF\ is a type theory where quantified type variables can
+be subjected to two classes of constraints, flexible or rigid. It
+can type all Church-style terms typeable in System~F, provided
+that quantifier constraints are introduced at suitable places.
+
+\item HML is a simplification of \MLF, where programmers need
+only provide flexible constraints. It can type all terms typeable
+in \MLF, but inherits from \MLF\ the need to constrain
+quantifiers.
+
+\item HMF is System~F where type abstractions and certain
+polymorphic type instantiations can be inferred. It cannot type
+all Church-style terms typeable in System~F and is sensitive to
+partial application. If $(s~t)$ is well-typed in HMF, it could
+happen that $(\mathrm{let}~x=s~\mathrm{in}~x~t)$ is ill-typed.
+
+
+\item FPH is another variant of System~F where type abstractions
+and other classes of type instantiations can be inferred. It
+cannot infer type instantiations involving ADTs. (We need an
+encoding of ADT to demonstrate strict superiority.)
+
+\item System~IF is System~F where type applications can be
+omitted in a function call if they can be inferred from the
+argument type. It targets compilers using System~F as an
+intermediate language and is not meant for human consumption.
+
+\item Haskell's rank-$n$-types support Church-style terms
+typeable in System~F if no type variable need be instantiated to
+a polymorphic type. It types strictly fewer terms than HMF.
 \end{itemize}
-It bears emphasis that Existential F has more permissive
-existential types than the traditional encoding of existentials
-in System F. If we think harder, maybe we could come up with an
-example of greater practical benefit than moving quantifiers
-around.
+
+TODO: lambda calculi corresponding to versions of classical
+logic.
+
 
 \section{Executive summary of type soundness proof}
 \label{sec:exe}
@@ -554,13 +637,17 @@ This section proves theorem~\ref{thm:faith}.
 
 \section{Future work}
 
-Support algebraic data types. We can pull out quantifiers from
-the argument of a covariant type constructor (lists, tuples,
-sums) just so, and we can pull out quantifiers from the argument
-of a contravariant type constructor changing universals to
-existentials and vice versa. I don't know what to do about
-invariant type constructors. Maybe we just leave the quantifiers
-inside their arguments and never try to unify them.
+Support algebraic data types.
+%
+For starters, try Boehm-Berarducci encoding.
+%
+We can pull out quantifiers from the argument of a covariant type
+constructor (lists, tuples, sums) just so, and we can pull out
+quantifiers from the argument of a contravariant type constructor
+changing universals to existentials and vice versa. I don't know
+what to do about invariant type constructors. Maybe we just leave
+the quantifiers inside their arguments and never try to unify
+them.
 
 Let user define new typing rules for Existential F in
 Continuation Calculus.
