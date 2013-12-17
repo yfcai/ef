@@ -29,7 +29,6 @@ for second-order classical logic
 \nc\Abort  {\mathrm{abort}}
 \nc\AbortCC{\mathrm{abort/cc}}
 \nc\ApplyCC{\mathrm{apply/cc}}
-\def\Box   {\mathrm{box}}
 \nc\Brouwer{\operatorname{Brouwer}}
 \nc\Case   {}
 \nc\Cps    {\operatorname{cps}}
@@ -39,17 +38,20 @@ for second-order classical logic
 \nc\Ex     {\DotExpr\exists}
 \nc\Exin   {\exists\mathrm{in}}
 \nc\Exex   {\exists\mathrm{ex}}
+\nc\Exmid  {\text{excluded-middle}}
 \nc\FV     {\operatorname{FV}}
 \nc\Id     {\mathit{id}}
 \nc\Indent {\hspace{3em}}
 \nc\Mgsr   {\operatorname{mgsr}}
 \nc\Or     {\ | \ }
+\nc\Pack   {\mathrm{pack}}
 \nc\Prune  {\operatorname{prune}}
 \nc\Recall {\DotExpr\Xi} % looks like ∃
 \nc\Redo   {\operatorname{redo}}
 \nc\Tabs   {\DotExpr\Lambda}
+\nc\Tech   {\text{technical}}
 \nc\R      {\rightarrow}
-\nc\Unbox  {\mathrm{unbox}}
+\nc\Unpack {\mathrm{unpack}}
 \nc\Undo   {\operatorname{undo}}
 \nc\Unify  {\operatorname{unify}}
 \maketitle
@@ -404,25 +406,71 @@ syntactic sugar.
 Traditional introduction and elimination forms are easy to
 encode.
 \begin{align*}
-\Box_{\sigma,\tau} & :
+\Pack_{\sigma,\tau} & :
   \tau[\alpha\mapsto\sigma] \R \Ex\alpha\tau
   \\
-\Box_{\sigma,\tau} & =
+\Pack_{\sigma,\tau} & =
   \Abs{x : \tau[\alpha\mapsto\sigma]}
   \Abs{f : (\All\alpha \tau \R \bot)}
   f~[\sigma]~x
 \end{align*}
 %
 \begin{align*}
-\Unbox_{\sigma} & :
+\Unpack_{\sigma} & :
   (\Ex\alpha\sigma) \R
   (\All\beta (\All\alpha \sigma \R \beta) \R \beta)
   \\
-\Unbox_{\sigma} & =
+\Unpack_{\sigma} & =
   \Abs{x : (\Ex\alpha\sigma)}
   \Tabs\beta
   \Abs{f : (\All\alpha \sigma \R \beta)}
   \ApplyCC~f~x
+\end{align*}
+
+This is the law of excluded middle. We can read it as saying that
+a function of type $((\alpha\R\bot) \R \beta)$ either invokes its
+argument or not. If it invokes the argument, then it provides
+something of type $\alpha$. If it does not, then it provides
+something of type $\beta$.
+\begin{align*}
+\Exmid & : \All{\alpha\beta}
+  (\alpha \R \beta) \R
+  ((\alpha\R\bot)\R\beta) \R
+  \beta
+\\
+\Exmid & = \Tabs{\alpha\beta\gamma}
+\Abs{f:(\alpha \R \beta)}
+\Abs{g:((\alpha\R\bot)\R\gamma)}
+\\&\Indent
+\AbortCC~(\Abs{k:\beta\R\bot}
+\\&\Indent\hspace{1em}
+k~(g~(\Abs{x:\alpha}
+k~(f~x))))
+\end{align*}
+
+We need two technical lemmas in the proof of $\Allex$. Recall
+that
+\[
+\Ex\alpha\sigma\R\bot ::= (\All\alpha\Dn\sigma)\R\bot.
+\]
+\begin{align*}
+\Tech_1 & : ((\All\alpha\sigma)\R\bot) \R (\Ex\alpha\sigma\R\bot)
+\\
+\Tech_1 & =
+\Abs{x : ((\All\alpha\sigma) \R \bot)}
+\Abs{y : (\All\alpha \Dn\sigma)}
+\\&\Indent
+x~(\Tabs\alpha \AbortCC~(y~[\alpha]))
+\end{align*}
+
+\begin{align*}
+\Tech_2 & : \All\beta \All\alpha
+  (\sigma\R\bot) \R (\Ex\alpha \sigma\R\beta)
+\\
+\Tech_2 & = \Tabs\beta \Tabs\alpha \Abs{k : \sigma\R\bot}
+\\&\Indent
+\Pack_{\alpha,\sigma\R\beta}~(\Abs{x:\sigma}
+\AbortCC~(\Abs{k' : (\beta\R\bot)} k~x))
 \end{align*}
 
 The following are theorems in classical predicate calculus.
@@ -434,7 +482,10 @@ Consult Metamath.\footnote{
   (\All\alpha \sigma\R\beta) \R
   (\Ex\alpha \sigma) \R \tau
   \\
-\Allin_\sigma & = ~?
+\Allin_\sigma & = \Tabs\beta
+\Abs{f : \All\alpha \R \beta}
+\Abs{x : \Ex\alpha \sigma}
+\Unpack_\sigma~x~[\beta]~f
 \end{align*}
 
 \begin{align*}
@@ -442,7 +493,21 @@ Consult Metamath.\footnote{
   ((\All\alpha\sigma) \R \beta) \R
   (\Ex\alpha \sigma \R \beta)
   \\
-\Allex_\sigma & = ~?
+\Allex_\sigma & = \Tabs\beta
+\Abs{f:(\All\alpha\sigma)\R\beta}
+\\&\Indent
+\Exmid~[\All\alpha\sigma]~[\Ex\alpha\sigma\R\beta]
+\\&\Indent\hspace{1em}
+(\Abs{x:(\All\alpha\sigma)}
+\\&\Indent\Indent
+\Pack_{\bot,\sigma\R\beta}~(
+  \Abs{y:\sigma[\alpha\R\bot]} f~x))
+\\&\Indent\hspace{1em}
+(\Abs{k:(\All\alpha\sigma)\R\bot}
+\\&\Indent\Indent
+\Unpack_{\sigma\R\bot}~(\Tech_1~k)~[
+  \Ex\alpha\sigma\R\beta
+]~(\Tech_2~[\beta]))
 \end{align*}
 
 \begin{align*}
@@ -450,7 +515,13 @@ Consult Metamath.\footnote{
   ((\Ex\alpha \sigma) \R \beta) \R
   (\All\alpha \sigma \R \beta)
   \\
-\Exex_\sigma & = ~?
+\Exex_\sigma & = \Tabs\beta
+  \Abs{f:((\Ex\alpha\sigma) \R \beta)}
+  \\ &\Indent
+  \AbortCC~(\Abs{c : ((\All\alpha \sigma \R \beta) \R \bot)}
+  \\ &\Indent\Indent\hspace{2em}
+  c~(\Tabs\alpha \Abs{x : \sigma}
+  f~(\Pack_{\alpha,\sigma}~x)))
 \end{align*}
 
 \begin{align*}
@@ -458,7 +529,14 @@ Consult Metamath.\footnote{
   (\Ex\alpha \sigma \R \beta) \R
   (\All\alpha\sigma) \R \beta
   \\
-\Exin_\sigma & = ~?
+\Exin_\sigma & = \Tabs\beta
+  \Abs{f : (\Ex\alpha \sigma \R \beta)}
+  \Abs{x : (\All\alpha \sigma)}
+  \\ &\hspace{5.3em}
+\Unpack_{\sigma\R\beta}~f~[\beta]~(
+\Tabs\alpha
+\Abs{g : (\sigma \R \beta)}
+g~(x~[\alpha]))
 \end{align*}
 
 \subsection{Embedding Existential F in Continuation Calculus}
