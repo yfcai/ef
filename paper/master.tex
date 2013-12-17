@@ -26,7 +26,6 @@ for second-order classical logic
 \nc\All    {\DotExpr\forall}
 \nc\Allin  {\forall\mathrm{in}}
 \nc\Allex  {\forall\mathrm{ex}}
-\nc\Abort  {\mathrm{abort}}
 \nc\AbortCC{\mathrm{abort/cc}}
 \nc\ApplyCC{\mathrm{apply/cc}}
 \nc\Brouwer{\operatorname{Brouwer}}
@@ -40,6 +39,7 @@ for second-order classical logic
 \nc\Exex   {\exists\mathrm{ex}}
 \nc\Exmid  {\text{excluded-middle}}
 \nc\FV     {\operatorname{FV}}
+\nc\Halt   {\mathrm{halt}}
 \nc\Id     {\mathit{id}}
 \nc\Indent {\hspace{3em}}
 \nc\Mgsr   {\operatorname{mgsr}}
@@ -95,9 +95,8 @@ knowledge about predicate logic and ``formulae-as-types notion of
 control'' (tentative noun), to produce a solution of the
 practical language engineering problem of decidable type
 inference for first-class polymorphism. A side-product of the
-type soundness proof of Existential~F is Continuation Calculus, a
-formalization and automatic proof verifier of second-order
-classical logic.
+type soundness proof is Continuation Calculus, a formalization
+and automatic proof verifier of second-order classical logic.
 
 
 \section{Related systems}
@@ -111,7 +110,7 @@ type system and take advantage of adaptations of algorithm~W to
 infer annotations on monotype arguments, but none can infer the
 type of a polymorphic function argument. In other words, they can
 reconstruct the type of a fully polymorphic term only when it is
-given in Church style. In contrary, we chose to design
+given in Church style. In contrast, we chose to design
 Existential~F from a clean slate, gaining considerable simplicity
 in theory at the cost of more argument type annotations for the
 present. We expect to leverage existing research in bidirectional
@@ -166,10 +165,11 @@ sheds some light on why it works.
 [faithfulness of translation]
 \label{thm:faith}
 Let ``$\Cps$'' be our translation from Existential~F to System~F.
-Let $s$ and $t$ be well-typed terms in Existential~F and choose a
-variable ``$\Abort$'' free in neither $s$ nor $t$. There exists
-an untyped term $t'$ such that the erased versions of both
-$(\Cps(s)~\Abort)$ and $(\Cps(t)~\Abort)$ reduce to $t'$.
+Suppose $s$ and $t$ are well-typed in Existential~F such that $s$
+reduces to $t$. Choose a variable ``$\Halt$'' free in neither $s$
+nor $t$. There exists an untyped term $t'$ such that the erased
+versions of both $(\Cps(s)~\Halt)$ and $(\Cps(t)~\Halt)$ reduce
+to $t'$.
 \end{theorem}
 
 Consequently, we do not have to cps-transform Existential~F
@@ -201,8 +201,8 @@ strong normalization and type soundness of Existential~F.
 \begin{corollary}
 \label{cor:sound}
 If\/ $\Gamma\vdash t:\tau$ in Existential~F, then every reduction
-sequence of $t$ terminates at a unique value $v$ in the
-domain of $\tau$.
+sequence of $t$ terminates with a unique value $v$ in the domain
+of $\tau$.
 \end{corollary}
 
 \section{Existential F}
