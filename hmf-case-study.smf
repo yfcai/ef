@@ -40,13 +40,11 @@ postulate nil : ∀α. List α
 
 nil
 
-... It's impossible to write `tail` in terms of `foldr`.
-Thus, we postulate `head` and `tail` and define `foldr`
-in terms of them.
+postulate foldr : ∀α β. α → (α → β → β) → List α → β
 
-postulate head : ∀α. List α → α
+head = foldr undefined const
 
-head
+... TODO: experiment with Boehm-Berarducci encoding/tagless final?
 
 postulate tail : ∀α. List α → List α
 
