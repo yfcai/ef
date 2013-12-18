@@ -120,7 +120,7 @@ trait Fixities extends Lexer {
 
     case class IndividualIterator(tokens: Tokens)
     extends Iterator[Seq[Tokens]] {
-      var hasNext = true
+      var hasNext = ! tokens.isEmpty
       def next =
         if (! hasNext)
           sys error s"next of empty $this"
@@ -285,9 +285,12 @@ trait Grammar extends Fixities {
     def this(fixity: Fixity, tryNext: => Seq[Seq[Operator]]) =
         this(fixity, _ => tryNext)
 
+    def precondition(tokens: Tokens): Boolean = true
+
     def parse(string: String): Option[AST] = parse(tokenize(string))
 
     def parse(tokens: Tokens): Option[AST] = {
+      if (! precondition(tokens)) return None
       val splits = fixity splits tokens
       val tryNext = toTryNext(tokens)
       if (tryNext.isEmpty) {

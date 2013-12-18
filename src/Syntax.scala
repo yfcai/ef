@@ -47,7 +47,9 @@ trait Types {
       case body: ADT => ∀.replaceBody(binder, body)
     }
   }
-  class ∀ extends ∀:[ADT](null, null) with Binder
+  class ∀ extends ∀:[ADT](null, null) with Binder {
+    override def toString = s"∀($name, $body)"
+  }
   object ∀ extends BinderFactory[∀] {
     def newBinder: ∀ = new ∀
     def bound(binder: Binder): α = α(binder)
@@ -69,7 +71,9 @@ trait Types {
       case body: ADT => ∃.replaceBody(binder, body)
     }
   }
-  class ∃ extends ∃:[ADT](null, null) with Binder
+  class ∃ extends ∃:[ADT](null, null) with Binder {
+    override def toString = s"∃($name, $body)"
+  }
   object ∃ extends BinderFactory[∃] {
     def newBinder: ∃ = new ∃
     def bound(binder: Binder): α = α(binder)
@@ -175,7 +179,9 @@ trait Terms extends TypeAbstraction {
       case body: ADT => λ.replaceBody(binder, body)
     }
   }
-  class λ extends λ_[ADT](null, null) with Binder
+  class λ extends λ_[ADT](null, null) with Binder {
+    override def toString = s"λ($name, $body)"
+  }
   object λ extends BinderFactory[λ] {
     def newBinder: λ = new λ
     def bound(binder: Binder): χ = χ(binder)

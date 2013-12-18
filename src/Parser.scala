@@ -1,17 +1,15 @@
-trait ParagraphGrammar extends Grammar {
+trait ExpressionGrammar extends Grammar {
   type Domain = String
 
   // keywords (always a token by itself):
-  // ( ) [ ] { } ∀ ∃ Λ λ .
-  val keywords: Set[String] = ((x: String) => Set(x split " ": _*))(
-    "( ) [ ] { } ∀ ∃ Λ λ ."
-  )
+  val keywords = "( ) [ ] { } ∀ ∃ Λ λ .".words
 
   // things that can't be a name:
-  lazy val forbidden: Set[String] =
-    ((s: String) => Set(s split " ": _*))(
-      "( )"
-    )
+  lazy val forbidden = "( )".words
+
+  implicit class SplitStringIntoWords(s: String) {
+    def words: Set[String] = Set(s split " ": _*)
+  }
 
   case object Atomic extends Operator(LoneToken(forbidden), Nil)
 
@@ -142,7 +140,9 @@ trait Paragraphs extends Lexer {
     def next: Paragraph = {
       if (lines.isEmpty) sys error s"next of $this"
       var startOfNextParagraph =
-        lines indexWhere (x => !x.isLineComment && !x.head.isSpace, 1)
+        lines indexWhere (
+          x => x.isParagraphComment || !x.isLineComment && !x.head.isSpace,
+          1)
       if (startOfNextParagraph < 0) startOfNextParagraph = lines.length
       val (thisParagraph, theRest) = lines splitAt startOfNextParagraph
       val thisLineNumber = nextLineNumber
@@ -175,13 +175,18 @@ trait Paragraphs extends Lexer {
   }
 
   implicit class UsefulStringOperations(s: String) {
-    // a line comment is either empty, consists entirely of spaces,
-    // or has '.' as first nonspace
+    // a line comment is either empty, consists entirely of
+    // spaces, or has '.' as first nonspace, provided that it's
+    // not a paragraph comment. A paragraph comment consumes the
+    // whole paragraph along with all intervening line comments.
     //
     // line comments are far removed from paragraph comments
     // have no idea how to deal with line comments modularly
     def isLineComment: Boolean =
-      s.isEmpty || s.firstNonSpace == '.' || s.map(_.isSpace).min
+      ! s.isParagraphComment &&
+      (s.isEmpty || s.firstNonSpace == '.' || s.map(_.isSpace).min)
+
+    def isParagraphComment: Boolean = s matches """\.\s*rant(|\s.*)"""
 
     def firstNonSpace: Char = {
       val i = s indexWhere (! _.isSpace)
@@ -190,13 +195,8 @@ trait Paragraphs extends Lexer {
   }
 }
 
-trait FileGrammar extends ParagraphGrammar with Paragraphs {
-}
-
-trait Parser extends FileGrammar {
-  case object TypeExpr extends DummyOperator(typeOps)
-  case object TermExpr extends DummyOperator(termOps)
-
+// parse file, produce AST
+trait ParagraphGrammar extends ExpressionGrammar with Paragraphs {
   class DummyOperator(parsersToTry: Seq[Operator])
   extends Operator(AllTokensTogether, Seq(parsersToTry)) {
     override def parse(tokens: Tokens): Option[AST] =
@@ -204,6 +204,69 @@ trait Parser extends FileGrammar {
         case Branch(_, List(realAST)) => realAST
       }
   }
+
+  class DefinitionOperator(
+    definingSymbol: String, rhs: Operator
+  ) extends Operator (
+    Infixr(definingSymbol),
+    Seq(Seq(Atomic), Seq(rhs))
+  ) {
+    override def precondition(tokens: Tokens) =
+      (tokens isDefinedAt 1) && tokens(1) == definingSymbol
+  }
+
+  case object TypeExpr      extends DummyOperator(typeOps)
+  case object TermExpr      extends DummyOperator(termOps)
+  case object ParagraphExpr extends DummyOperator(paragraphOps)
+
+  case object ParagraphComment
+  extends Operator(AllTokensTogether, Nil) {
+    override def precondition(tokens: Tokens) =
+      tokens.startsWith(Seq(".", "rant"))
+  }
+
+  case object TypeSynonym extends Operator (
+    Prefix("type", "="),
+    Seq(Seq(TypeParameterList), Seq(TypeExpr))
+  )
+
+  case object TypeSignature
+  extends DefinitionOperator(":", TypeExpr)
+
+  case object TermDeclaration
+  extends DefinitionOperator("=", TermExpr)
+
+  // can't set TermParameterList = TypeParameterList
+  // because we want to make tag.toString distinct
+  // so as not to confuse humans
+  case object TermParameterList extends Operator(
+    IndividualTokens,
+    _ map (_ => Seq(Atomic))
+  )
+
+  // we'd want to try TypedFunctionDeclaration last
+  // because it fails more slowly than others
+  case object TypedFunctionDeclaration extends Operator (
+    Infixr("="),
+    Seq(Seq(TermParameterList), Seq(TermExpr))
+  ) {
+    // if "=" comes immediately after a name,
+    // then TermDeclaration should take care of it.
+    override def precondition(tokens: Tokens) =
+      (tokens indexOf "=") > 1
+  }
+
+  val paragraphOps: List[Operator] =
+    List(
+      ParagraphComment,
+      TypeSynonym,
+      TypeSignature,
+      TermDeclaration,
+      TypedFunctionDeclaration)
+}
+
+// parse file, produce terms and types
+trait Parser extends ParagraphGrammar with Terms {
 }
 
 object TestParser extends Parser {
@@ -222,7 +285,15 @@ object TestParser extends Parser {
        |lorem ipsum dolor sit amet
        |
        |  . wow
+       |  . rant
+       |     . this is a fake rant
        |
+       |. rant
+       |
+       |  All the whores and politicians will look
+       |  up to me and shout, "save us!"
+       |
+       |  I will look down and whisper, "no".
        |            	
        |
        |""".stripMargin
@@ -253,6 +324,5 @@ object TestParser extends Parser {
 
   def main(args: Array[String]) {
     testParagraphs(loremIpsum)
-    testParagraphsFromFile(thisFile)
   }
 }
