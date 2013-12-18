@@ -18,9 +18,17 @@ trait Types {
 
   import Type._
 
-  implicit class InfixTypeConstructors(τ : Type) {
+  implicit class InfixTypeConstructorsAndUsefulOps(τ : Type) {
     def →: (σ : Type): → = types.→(σ, τ)
     def ₌  (σ : Type): ₌ = types.₌(τ, σ)
+
+    def replaceFreeNames(f: Map[δ, Type]): Type = τ.fold[Type] {
+      case freeName: δ if f isDefinedAt freeName => f(freeName)
+      case otherwise => otherwise.toADT
+    }
+
+    def replaceFreeName(freeName: δ, replacement: Type): Type =
+      replaceFreeName(freeName, replacement)
   }
 
   // free names. δωρεάν όνοματα (?)
@@ -56,13 +64,7 @@ trait Types {
 
     /** universally quantify over a free name */
     def apply(alpha: δ, body: Type): ∀ = ∀(alpha.name) {
-      // body of this universal type is procedually generated.
-      // nevertheless, it's a valid HOAS because we never examine
-      // tvar by folds or pattern matching.
-      tvar => body.fold[Type] {
-        case δ_(name) if name == alpha.name => tvar
-        case otherwise => otherwise.toADT
-      }
+      tvar => body replaceFreeName (alpha, tvar)
     }
   }
 
@@ -136,6 +138,19 @@ trait TypeAbstraction extends Types {
     def apply(alpha: δ, body: ADT): Λ = new Λ(alpha, body)
     def unapply(tabs: Λ): Option[(δ, ADT)] = Some((tabs.alpha, tabs.body))
   }
+
+  // likewise about Ξ, ξ
+  case class Ξ_[T](t: T, σ: Type) extends Functor[T] {
+    def toADT: ADT = t match { case t: ADT => Ξ(t, σ) }
+  }
+  class Ξ(t: ADT, σ: Type) extends Ξ_[ADT](t, σ) with ADT {
+    override def toString: String =
+      s"${getClass.getSimpleName}($t, $σ)"
+  }
+  object Ξ {
+    def apply(t: ADT, σ: Type): Ξ = new Ξ(t, σ)
+    def unapply(a: Ξ): Option[(ADT, Type)] = Some((a.t, a.σ))
+  }
 }
 
 trait Terms extends TypeAbstraction {
@@ -145,6 +160,7 @@ trait Terms extends TypeAbstraction {
     override
     def fmap[T, R](f: T => R): Functor[T] => Functor[R] = {
       case χ_(name)        => χ_(name)           // variable
+      case ξ_(name)        => ξ_(name)           // free variable
       case λ_(name, body)  => λ_(name, f(body))  // term abstraction
       case Λ_(alpha, body) => Λ_(alpha, f(body)) // type abstraction
       case ₋:(fun, arg)    => ₋:(f(fun), f(arg)) // term application
@@ -159,19 +175,27 @@ trait Terms extends TypeAbstraction {
 
   import Term._
 
-  implicit class InfixTermConstructors(t: Term) {
+  implicit class InfixTermConstructorsAndUsefulOps(t: Term) {
     def ₋(s: Term): ₋ = terms.₋(t, s)
     def □(σ: Type): □ = terms.□(t, σ)
     def Ξ(σ: Type): Ξ = terms.Ξ(t, σ)
+
+    def replaceFreeNames(f: Map[ξ, Term]): Term = t.fold[Term] {
+      case freeName: ξ if f isDefinedAt freeName => f(freeName)
+      case otherwise => otherwise.toADT
+    }
+
+    def replaceFreeName(freeName: ξ, replacement: Type): Type =
+      replaceFreeName(freeName, replacement)
   }
 
-  case class χ_[T](binder: Binder) extends Bound[T] {
+  case class χ_[T](binder: λ) extends Bound[T] {
     def toADT: ADT = χ(binder)
   }
-  class χ(binder: Binder) extends χ_[ADT](binder) with ADT
+  class χ(binder: λ) extends χ_[ADT](binder) with ADT
   object χ {
-    def apply(binder: Binder): χ = new χ(binder)
-    def unapply(a: χ): Option[Binder] = Some(a.binder)
+    def apply(binder: λ): χ = new χ(binder)
+    def unapply(a: χ): Option[λ] = Some(a.binder)
   }
 
   case class λ_[T](var binder: Binder, var body: T) extends Functor[T] {
@@ -184,7 +208,7 @@ trait Terms extends TypeAbstraction {
   }
   object λ extends BinderFactory[λ] {
     def newBinder: λ = new λ
-    def bound(binder: Binder): χ = χ(binder)
+    def bound(binder: Binder): χ = χ(binder.asInstanceOf[λ])
   }
 
   case class ₋:[T](fun: T, arg: T) extends Functor[T] {
@@ -213,15 +237,55 @@ trait Terms extends TypeAbstraction {
     def unapply(a: □): Option[(ADT, Type)] = Some((a.t, a.σ))
   }
 
-  case class Ξ_[T](t: T, σ: Type) extends Functor[T] {
-    def toADT: ADT = t match { case t: ADT => t Ξ σ }
+  // free variables
+  case class ξ_[T](name: String) extends Functor[T] {
+    def toADT: ADT = ξ(name)
   }
-  class Ξ(t: ADT, σ: Type) extends Ξ_[ADT](t, σ) with ADT {
-    override def toString: String =
-      s"${getClass.getSimpleName}($t, $σ)"
+  class ξ(name: String) extends ξ_[ADT](name) with ADT
+  object ξ {
+    def apply(name: String): ξ = new ξ(name)
+    def unapply(freevar: ξ): Option[String] = Some(freevar.name)
   }
-  object Ξ {
-    def apply(t: ADT, σ: Type): Ξ = new Ξ(t, σ)
-    def unapply(a: Ξ): Option[(ADT, Type)] = Some((a.t, a.σ))
+}
+
+trait Modules extends Terms {
+  object Module {
+    def empty = Module(Map.empty, Map.empty, Map.empty, Map.empty)
   }
+
+  case class Module(
+    synonyms   : Map[δ, Type],
+    signatures : Map[ξ, Type],
+    annotations: Map[λ, Type],
+    terms      : Map[ξ, Term])
+  {
+    def addSynonym(a: δ, τ: Type): Module = {
+      if (synonyms contains a)
+        sys error s"\nrepeated synonym:\ntype $a = $τ"
+      Module(synonyms updated (a, τ), signatures, annotations, terms)
+    }
+
+    def addSignature(x: ξ, τ: Type): Module = {
+      if (signatures contains x)
+        sys error s"\nrepeated signature:\n$x : $τ"
+      Module(synonyms, signatures updated (x, τ), annotations, terms)
+    }
+
+    def addAnnotations(newLambdas: Map[λ, Type]): Module = {
+      if (! (newLambdas.keySet & annotations.keySet).isEmpty)
+        sys error s"\nwe're in trouble. duplicated λs. need α-equiv now."
+      Module(synonyms, signatures, annotations ++ newLambdas, terms)
+    }
+
+    def addTerm(x: ξ, xdef: Term): Module = {
+      if (terms contains x)
+        sys error s"\nrepeated definition:\n$x = $xdef"
+      Module(synonyms, signatures, annotations, terms updated (x, xdef))
+    }
+
+    def Γ(x: χ): Type = annotations(x.binder)
+    def Γ(x: ξ): Type = signatures(x) // override this for literals
+  }
+
+  // a subclass of module supporting literals perhaps?
 }

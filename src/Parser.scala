@@ -1,5 +1,24 @@
 // parse file, produce terms and types
-trait Parser extends ParagraphGrammar with Terms {
+trait Parser extends ParagraphGrammar with Modules {
+  def parse(s: String): Module =
+    parseParagraphs(ParagraphExpr(s))
+
+  def parseFile(path: String): Module =
+    parseParagraphs(ParagraphExpr fromFile path)
+
+  def parseParagraphs(paragraphs: Iterator[AST]): Module =
+    (paragraphs foldLeft Module.empty) {
+      case (module, nextParagraph) =>
+        processParagraph(nextParagraph, module)
+    }
+
+  // starts with an immature module and make it more mature
+  def processParagraph(paragraph: AST, module: Module): Module =
+    paragraph.tag match {
+      // the paragraph is a rant, do nothing
+      case ParagraphComment =>
+        module
+    }
 }
 
 object TestParser extends Parser {

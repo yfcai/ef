@@ -277,7 +277,7 @@ trait Fixities extends Lexer {
 
 trait Grammar extends Fixities {
   // AST is decoupled from specific grammars
-  sealed trait AST
+  sealed trait AST { def tag: Operator }
   case class Leaf(tag: Operator, get: Seq[Tokens]) extends AST
   case class Branch(tag: Operator, children: List[AST]) extends AST
 
@@ -558,7 +558,21 @@ trait ParagraphGrammar extends ExpressionGrammar with Paragraphs {
 
   case object TypeExpr      extends DummyOperator(typeOps)
   case object TermExpr      extends DummyOperator(termOps)
-  case object ParagraphExpr extends DummyOperator(paragraphOps)
+  case object ParagraphExpr extends DummyOperator(paragraphOps) {
+    def fromFile(path: String): Iterator[AST] =
+      (Paragraphs fromFile path) map fromParagraph(path.split("/").last)
+
+    def apply(string: String): Iterator[AST] =
+      Paragraphs(string) map fromParagraph("#LINE")
+
+    def fromParagraph(path: String)(paragraph: Paragraph): AST =
+      parse(paragraph.body) match {
+        case None =>
+          sys error s"\n$path:${paragraph.line}   PARSE ERROR\n"
+        case Some(ast) =>
+          ast
+      }
+  }
 
   case object ParagraphComment
   extends Operator(AllTokensTogether, Nil) {
