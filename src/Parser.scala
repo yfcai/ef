@@ -87,6 +87,11 @@ trait ExpressionGrammar extends Grammar {
     Seq(Seq(Atomic), typeOps, termOps)
   )
 
+  case object LetBinding extends Operator(
+    Prefix("let", "=", "in"),
+    Seq(Seq(Atomic), termOps, termOps)
+  )
+
   val typeOps: List[Operator] =
     List(
       UniversalQuantification   ,
@@ -98,6 +103,7 @@ trait ExpressionGrammar extends Grammar {
 
   val termOps: List[Operator] =
     List(
+      LetBinding        ,
       TermAbstraction   ,
       TypeAbstraction   ,
       TypeInstantiation ,
@@ -270,6 +276,15 @@ trait Parser extends ParagraphGrammar with Terms {
 }
 
 object TestParser extends Parser {
+  val rant =
+    """|. rant
+       |
+       |  All the whores and politicians will look
+       |  up to me and shout, "save us!"
+       |
+       |  I will look down and whisper, "no".
+       |""".stripMargin
+
   val loremIpsum =
     """|      	
        |
@@ -287,16 +302,7 @@ object TestParser extends Parser {
        |  . wow
        |  . rant
        |     . this is a fake rant
-       |
-       |. rant
-       |
-       |  All the whores and politicians will look
-       |  up to me and shout, "save us!"
-       |
-       |  I will look down and whisper, "no".
-       |            	
-       |
-       |""".stripMargin
+       |""".stripMargin + rant
 
   def testParagraphs(s: String, p: Paragraphs) {
     println("TESTING PARAGRAPHS")
@@ -322,7 +328,21 @@ object TestParser extends Parser {
   def thisFile: String =
     new Throwable().getStackTrace().head.getFileName
 
+  val paragraphs =
+    List(
+      rant,
+      "type List α = ∀β. β → (α → β → β) → β",
+      "cons : ∀α. α → List α → List α",
+      "four = let two = 2 in + two two",
+      "cons x xs = λz : β. λ++ : (α → β → β). ++ x (xs z ++)"
+    )
+
   def main(args: Array[String]) {
-    testParagraphs(loremIpsum)
+    val s = "y = let x = 5 in + x 1"
+    paragraphs foreach { paragraph =>
+      println(paragraph)
+      println(ParagraphExpr parse paragraph)
+      println
+    }
   }
 }
