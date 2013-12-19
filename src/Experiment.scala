@@ -57,28 +57,28 @@ trait ExperimentSubjects extends Parser with EFTypes {
     )
 
   object Hmf {
-    val pair = "∀α β. α → β → Pair α β"
-    val uncurry = "∀α β γ. (α → β → γ) → Pair α β → γ"
-    val app = "∀α β. (α → β) → α → β"
-    val truth = "Bool"
-    val falsehood = "Bool"
-    val ifthenelse = "∀α. Bool → α → α → α"
-    val cons = "∀α. α → List α → List α"
-    val nil = "∀α. List α"
-    val foldr = "∀α β. α → (α → β → β) → List α → β"
-    val undefined = "∀α. α"
-    val foldrUndefined = "∀α β. (α → β → β) → List α → β"
-    val const = "∀α β. α → β → α"
-    val flip = "∀α β γ. (α → β → γ) → β → α → γ"
-    val revapp = "∀α β. α → (α → β) → β"
-    val poly = "(∀ε. ε → ε) → ℤ"
+    val pair       = "∀α β. α → β → Pair α β"
+    val uncurry    = "∀α β γ. (α → β → γ) → Pair α β → γ"
+    val app        = "∀α β. (α → β) → α → β"
+    val truth      = "Bool"
+    val falsehood  = "Bool"
+    val ifThenElse = "∀α. Bool → α → α → α"
+    val cons       = "∀α. α → List α → List α"
+    val nil        = "∀α. List α"
+    val foldr      = "∀α β. α → (α → β → β) → List α → β"
+    val undefined  = "∀α. α"
+    val foldrUndef = "∀α β. (α → β → β) → List α → β"
+    val const      = "∀α β. α → β → α"
+    val flip       = "∀α β γ. (α → β → γ) → β → α → γ"
+    val revapp     = "∀α β. α → (α → β) → β"
+    val poly       = "(∀ε. ε → ε) → ℤ"
   }
 
   val hmfApps: List[(String, String)] = {
     import Hmf._
     List(
       (foldr, undefined),
-      (foldrUndefined, const),
+      (foldrUndef, const),
       (flip, app),
       (revapp, poly)
     )
