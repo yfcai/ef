@@ -50,14 +50,16 @@ trait NameBindingLanguage {
     // the ADT has a cycle.
     def para[T](f: (=> ADT, => Functor[T]) => T): T = ParaADT(this) fold f
 
+    def subst(from: Bound[ADT], to: ADT): ADT = subst(from.binder, to)
+
     def subst(from: Binder, to: ADT): ADT = subst(Map(from -> to))
 
     // substitution employs a paramorphism to divert recursion path
     // when the name to be substituted is rebound.
     // paramorphisms are not necessarily compositional.
     // substitution is not.
-    def subst(env: Map[Binder, ADT]): ADT = para[ADT] { (before, after) =>
-      before match {
+    def subst(env: Map[Binder, ADT]): ADT = para[ADT] {
+      (before, after) => before match {
         case binder: Binder if env isDefinedAt binder =>
           binder subst (env - binder)
         case _ => after match {

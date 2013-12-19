@@ -55,14 +55,55 @@ trait ExperimentSubjects extends Parser with EFTypes {
       "(∀α. P α → ⊥) → (∃α. P α) → ⊥",
       "(∃α. P α) → (∃α. Q α) → ∃α. P α → Q α"
     )
+
+  object Hmf {
+    val pair = "∀α β. α → β → Pair α β"
+    val uncurry = "∀α β γ. (α → β → γ) → Pair α β → γ"
+    val app = "∀α β. (α → β) → α → β"
+    val truth = "Bool"
+    val falsehood = "Bool"
+    val ifthenelse = "∀α. Bool → α → α → α"
+    val cons = "∀α. α → List α → List α"
+    val nil = "∀α. List α"
+    val foldr = "∀α β. α → (α → β → β) → List α → β"
+    val undefined = "∀α. α"
+    val foldrUndefined = "∀α β. (α → β → β) → List α → β"
+    val const = "∀α β. α → β → α"
+    val flip = "∀α β γ. (α → β → γ) → β → α → γ"
+    val revapp = "∀α β. α → (α → β) → β"
+    val poly = "(∀ε. ε → ε) → ℤ"
+  }
+
+  val hmfApps: List[(String, String)] = {
+    import Hmf._
+    List(
+      (foldr, undefined),
+      (foldrUndefined, const),
+      (flip, app),
+      (revapp, poly)
+    )
+  }
 }
 
 object Experiment extends ExperimentSubjects {
   def thisFile: String =
     new Throwable().getStackTrace().head.getFileName
 
-  def toPrenex(s: String): String =
-    PrenexForm((TypeExpr parse s).get.toType).toType.unparse
+  def toPrenex(s: String): String = PrenexForm(toType(s)).toType.unparse
+
+  def toType(s: String): Type = (TypeExpr parse s).get.toType
+
+  // precondition: fType is function type.
+  def provisionalMgs(fType: Type, xType: Type): Map[α, Type] = {
+    val PrenexForm(all1, _, σ1 → τ) = PrenexForm(fType)
+    val PrenexForm(all2, _, σ2    ) = PrenexForm(xType)
+    resolveConstraints(all1 ++ all2, σ1 ≡ σ2)
+  }
+
+  def prettifyMgs(mgs: Map[α, Type]): String =
+    mgs.toList.sortBy(_._1.binder.name).map({
+      case (β, τ) => s"$β ::= ${τ.unparse}"
+    }) mkString "\n"
 
   def testParagraphs(s: String, p: Paragraphs) {
     println("TESTING PARAGRAPHS")
@@ -102,7 +143,19 @@ object Experiment extends ExperimentSubjects {
     }
   }
 
+  def testApp(fType: String, xType: String) {
+    val (f, x) = (toType(fType), toType(xType))
+    println(s"fun : ${f.unparse}")
+    println(s"arg : ${x.unparse}")
+    println(prettifyMgs(provisionalMgs(f, x)))
+    println
+  }
+
+  def testConstraints() {
+    hmfApps foreach { case (f, x) => testApp(f, x) }
+  }
+
   def main(args: Array[String]) {
-    testPrenex
+    testConstraints
   }
 }

@@ -389,12 +389,12 @@ trait Syntax extends Modules with ASTConversions {
 
   implicit class unparsingModules(module: Module) {
     def unparse: String = {
-      val synonyms = module.synonyms.toList.sorted(byName1[Type]) map {
+      val synonyms = module.synonyms.toList.sortBy(_._1.toString) map {
         case (β, τ) =>
           s"type ${β.name} = ${τ.unparse}"
       }
       val bodied = for {
-        (f, τ) <- module.signatures.toList.sorted(byName2[Type])
+        (f, τ) <- module.signatures.toList.sortBy(_._1.toString)
         sig  = s"${f.name} : ${τ.unparse}"
         impl = if (module.definitions contains f)
                  s"\n${f.name} = ${module.definitions(f).unparse}"
@@ -405,23 +405,9 @@ trait Syntax extends Modules with ASTConversions {
         (f, body) <- (for {
           (f, body) <- module.definitions
           if ! (module.signatures contains f)
-        } yield (f, body)).toList.sorted(byName2[Object])
+        } yield (f, body)).toList.sortBy(_._1.toString)
       } yield s"${f.name} = ${body.unparse}"
       (synonyms ++ bodied ++ nohead) mkString "\n\n"
     }
-
-    private[this]
-    implicit def byName1[T](implicit c: Ordering[String]) =
-      new Ordering[(δ, T)] {
-        def compare(x: (δ, T), y: (δ, T)): Int =
-          c.compare(x._1.name, y._1.name)
-      }
-
-    private[this]
-    implicit def byName2[T](implicit c: Ordering[String]) =
-      new Ordering[(ξ, T)] {
-        def compare(x: (ξ, T), y: (ξ, T)): Int =
-          c.compare(x._1.name, y._1.name)
-      }
   }
 }
