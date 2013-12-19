@@ -38,21 +38,17 @@ trait Types {
   case class δ_[T](name: String) extends FreeName[T] {
     def toADT: ADT = δ(name)
   }
-  class δ(name: String) extends δ_[ADT](name) with ADT {
+  class δ(name: String) extends δ_[ADT](name) with Π0ADT {
     override def toString = s"δ($name)"
-    def reverseTraversal = List(this)
   }
-  object δ {
+  object δ extends FreeNameFactory[δ] {
     def apply(name: String): δ = new δ(name)
-    def unapply(freevar: δ): Option[String] = Some(freevar.name)
   }
 
   case class α_[T](binder: Binder) extends Bound[T] {
     def toADT: ADT = α(binder)
   }
-  class α(binder: Binder) extends α_[ADT](binder) with ADT {
-    def reverseTraversal = List(this)
-  }
+  class α(binder: Binder) extends α_[ADT](binder) with Π0ADT
   object α {
     def apply(binder: Binder): α = new α(binder)
     def unapply(a: α): Option[Binder] = Some(a.binder)
@@ -89,14 +85,13 @@ trait Types {
       case (domain: ADT, range: ADT) => domain →: range
     }
   }
-  class →(domain: ADT, range: ADT) extends →:[ADT](domain, range) with ADT {
+  class →(domain: ADT, range: ADT) extends →:[ADT](domain, range) with Π2ADT {
     override def toString = s"→($domain, $range)"
-    def reverseTraversal =
-      this :: (range.reverseTraversal ++ domain.reverseTraversal)
+    def π1 = domain
+    def π2 = range
   }
-  object → {
+  object → extends Π2Factory[→] {
     def apply(domain: ADT, range: ADT): → = new →(domain, range)
-    def unapply(a: →): Option[(ADT, ADT)] = Some((a.domain, a.range))
   }
 
   case class ₌:[T](functor: T, arg: T) extends Functor[T] {
@@ -104,14 +99,13 @@ trait Types {
       case (functor: ADT, arg: ADT) => functor ₌ arg
     }
   }
-  class ₌(functor: ADT, arg: ADT) extends ₌:[ADT](functor, arg) with ADT {
+  class ₌(functor: ADT, arg: ADT) extends ₌:[ADT](functor, arg) with Π2ADT {
     override def toString = s"₌($functor, $arg)"
-    def reverseTraversal =
-      this :: (arg.reverseTraversal ++ functor.reverseTraversal)
+    def π1 = functor
+    def π2 = arg
   }
-  object ₌ {
+  object ₌ extends Π2Factory[₌] {
     def apply(functor: ADT, arg: ADT): ₌ = new ₌(functor, arg)
-    def unapply(a: ₌): Option[(ADT, ADT)] = Some((a.functor, a.arg))
   }
 }
 
@@ -130,15 +124,14 @@ trait TypeAbstraction extends Types {
   // classes will overwrite one another on case-insensitive
   // filesystems.
 
-  case class Λ_[T](alpha: δ, body: T) extends Functor[T] {
+  case class Λ_[T](alpha: δ, body: T) extends Π1[T] {
     def toADT: ADT = body match {
       case body: ADT => Λ(alpha, body)
     }
+    def π1 = body
   }
-  class Λ(alpha: δ, body: ADT) extends Λ_(alpha, body) with ADT {
+  class Λ(alpha: δ, body: ADT) extends Λ_(alpha, body) with Π1ADT {
     override def toString = s"Λ(${alpha.name}, $body)"
-
-    def reverseTraversal = this :: body.reverseTraversal
 
     def detachNestedDoppelgaenger: (List[Λ], ADT) = body match {
       case tabs: Λ =>
@@ -157,12 +150,12 @@ trait TypeAbstraction extends Types {
   }
 
   // likewise about Ξ, ξ
-  case class Ξ_[T](t: T, σ: Type) extends Functor[T] {
+  case class Ξ_[T](t: T, σ: Type) extends Π1[T] {
     def toADT: ADT = t match { case t: ADT => Ξ(t, σ) }
+    def π1 = t
   }
-  class Ξ(t: ADT, σ: Type) extends Ξ_[ADT](t, σ) with ADT {
+  class Ξ(t: ADT, σ: Type) extends Ξ_[ADT](t, σ) with Π1ADT {
     override def toString = s"Ξ($t, $σ)"
-    def reverseTraversal = this :: t.reverseTraversal
   }
   object Ξ {
     def apply(t: ADT, σ: Type): Ξ = new Ξ(t, σ)
@@ -201,9 +194,7 @@ trait Terms extends TypeAbstraction {
   case class χ_[T](binder: λ) extends Bound[T] {
     def toADT: ADT = χ(binder)
   }
-  class χ(binder: λ) extends χ_[ADT](binder) with ADT {
-    def reverseTraversal = List(this)
-  }
+  class χ(binder: λ) extends χ_[ADT](binder) with Π0ADT
   object χ {
     def apply(binder: λ): χ = new χ(binder)
     def unapply(a: χ): Option[λ] = Some(a.binder)
@@ -222,27 +213,26 @@ trait Terms extends TypeAbstraction {
     def bound(binder: λ): χ = χ(binder)
   }
 
-  case class ₋:[T](fun: T, arg: T) extends Functor[T] {
+  case class ₋:[T](fun: T, arg: T) extends Π2[T] {
     def toADT: ADT = (fun, arg) match {
       case (fun: ADT, arg: ADT) => fun ₋ arg
     }
+    def π1 = fun
+    def π2 = arg
   }
-  class ₋(fun: ADT, arg: ADT) extends ₋:[ADT](fun, arg) with ADT {
+  class ₋(fun: ADT, arg: ADT) extends ₋:[ADT](fun, arg) with Π2ADT {
     override def toString = s"₋($fun, $arg)"
-    def reverseTraversal =
-      this :: (arg.reverseTraversal ++ fun.reverseTraversal)
   }
-  object ₋ {
+  object ₋ extends Π2Factory[₋] {
     def apply(fun: ADT, arg: ADT): ₋ = new ₋(fun, arg)
-    def unapply(a: ₋): Option[(ADT, ADT)] = Some((a.fun, a.arg))
   }
 
-  case class □:[T](t: T, σ: Type) extends Functor[T] {
+  case class □:[T](t: T, σ: Type) extends Π1[T] {
     def toADT: ADT = t match { case t: ADT => t □ σ }
+    def π1 = t
   }
-  class □(t: ADT, σ: Type) extends □:[ADT](t, σ) with ADT {
+  class □(t: ADT, σ: Type) extends □:[ADT](t, σ) with Π1ADT {
     override def toString = s"□($t, $σ)"
-    def reverseTraversal = this :: t.reverseTraversal
   }
   object □ {
     def apply(t: ADT, σ: Type): □ = new □(t, σ)
@@ -253,17 +243,57 @@ trait Terms extends TypeAbstraction {
   case class ξ_[T](name: String) extends FreeName[T] {
     def toADT: ADT = ξ(name)
   }
-  class ξ(name: String) extends ξ_[ADT](name) with ADT {
+  class ξ(name: String) extends ξ_[ADT](name) with Π0ADT {
     override def toString = s"ξ($name)"
-    def reverseTraversal = List(this)
   }
-  object ξ {
+  object ξ extends FreeNameFactory[ξ] {
     def apply(name: String): ξ = new ξ(name)
-    def unapply(freevar: ξ): Option[String] = Some(freevar.name)
+  }
+
+  trait ExtractLambdas {
+    // extract lambdas in reverse preorder
+    def extractLambdas(term: Term): List[λ] =
+      term.reverseTraversal.flatMap[λ, List[λ]] {
+        case abs: λ => Some(abs)
+        case _      => None
+      }
   }
 
   // terms with argument types annotated
   case class ChurchTerm(term: Term, annotations: Map[λ, Type])
+  extends ExtractLambdas
+  {
+    def from(subterm: Term) = ChurchTerm(subterm, annotations)
+
+    def subst(β: δ, τ: Type): ChurchTerm =
+      subst(Map(β -> τ): PartialFunction[Type.FreeName[Type], Type])
+
+    def subst(f: PartialFunction[Type.FreeName[Type], Type]): ChurchTerm =
+      ChurchTerm(term,
+        annotations map { case (abs, τ) => (abs, τ subst f) })
+
+    // all used type variable names regardless of their nature
+    def freeTypeNames: Set[String] = annotations.flatMap({
+      case (abs, τ) => τ.freeNames.map(_.name)
+    })(collection.breakOut)
+
+    def toProto: ProtoChurchTerm =
+      ProtoChurchTerm(term, extractLambdas(term) map annotations)
+  }
+
+  /** Church terms in a state of incompleteness */
+  case class ProtoChurchTerm(term: Term, annotations: List[Type])
+  extends ExtractLambdas
+  {
+    /** the Church term instrumentality project */
+    def toChurchTerm: ChurchTerm =
+      ChurchTerm(term,
+        (annotations, extractLambdas(term)).zipped.map({
+          case (τ, abs) => (abs, τ)
+        })(collection.breakOut))
+
+    def updateTerm(newTerm: Term) = ProtoChurchTerm(newTerm, annotations)
+  }
 }
 
 trait Modules extends Terms {
@@ -300,14 +330,58 @@ trait Modules extends Terms {
   // a subclass of module supporting literals perhaps?
 }
 
-// assemble things together with a pretty printer
+// α-equivalence, pretty printer (unparse)
 trait Syntax extends Modules with ASTConversions {
-  implicit class unparsingTerms(t: ChurchTerm) {
-    def unparse: String = t.toAST.unparse
-  }
-
   implicit class unparsingTypes(τ: Type) {
     def unparse: String = τ.toAST.unparse
+
+    def α_equiv(σ: Type): Boolean = (σ, τ) match {
+      case (α(binder_σ), α(binder_τ)) =>
+        binder_σ == binder_τ
+      case (δ(name_σ), δ(name_τ)) =>
+        name_σ == name_τ
+      case (σ: ∀, τ: ∀) =>
+        val newName = δ.avoid(σ, τ)
+        σ(newName) α_equiv τ(newName)
+      case (σ: ∃, τ: ∃) =>
+        val newName = δ.avoid(σ, τ)
+        σ(newName) α_equiv τ(newName)
+      case (σ0 → σ1, τ0 → τ1) =>
+        (σ0 α_equiv τ0) && (σ1 α_equiv τ1)
+      case (σ0 ₌ σ1, τ0 ₌ τ1) =>
+        (σ0 α_equiv τ0) && (σ1 α_equiv τ1)
+      case _ =>
+        false
+    }
+  }
+
+  implicit class unparsingTerms(t: ChurchTerm) {
+    def unparse: String = t.toAST.unparse
+
+    def α_equiv(s: ChurchTerm): Boolean = (s.term, t.term) match {
+      case (χ(binder_s), χ(binder_t)) =>
+        binder_s == binder_t
+      case (ξ(name_s), ξ(name_t)) =>
+        name_s == name_t
+      case (abs_s: λ, abs_t: λ) =>
+        val x = ξ.avoid(abs_s, abs_t)
+        (s from abs_s.body).toProto.updateTerm(abs_s(x)).toChurchTerm α_equiv
+        (t from abs_t.body).toProto.updateTerm(abs_t(x)).toChurchTerm
+      // here, the interference between two functors become apparent.
+      // the name binding cabability of one is no help to the other.
+      case (Λ(β, body_s), Λ(γ, body_t)) =>
+        val ε = δ.avoid(s.freeTypeNames ++ t.freeTypeNames)
+        s.from(body_s).subst(β, ε) α_equiv t.from(body_t).subst(γ, ε)
+      case ((fs ₋ xs), (ft ₋ xt)) =>
+        ((s from fs) α_equiv (t from ft)) &&
+        ((s from xs) α_equiv (t from xt))
+      case ((xs □ σ), (xt □ τ)) =>
+        (σ α_equiv τ) && ((s from xs) α_equiv (t from xt))
+      case ((xs Ξ σ), (xt Ξ τ)) =>
+        (σ α_equiv τ) && ((s from xs) α_equiv (t from xt))
+      case _ =>
+        false
+    }
   }
 
   implicit class unparsingModules(module: Module) {

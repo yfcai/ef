@@ -678,19 +678,6 @@ trait ParagraphGrammar extends ExpressionGrammar with Paragraphs {
 }
 
 trait ASTConversions extends ExpressionGrammar with Terms {
-  /** Church terms in a state of incompleteness */
-  case class ProtoChurchTerm(term: Term, annotations: List[Type]) {
-    /** the Church term instrumentality project */
-    def toChurchTerm: ChurchTerm =
-      ChurchTerm(term,
-        (annotations, term.reverseTraversal.flatMap[λ, List[λ]] {
-          case abs: λ => Some(abs)
-          case _      => None
-        }).zipped.map({
-          case (τ, abs) => (abs, τ)
-        })(collection.breakOut))
-  }
-
   implicit class ConversionsFromTypeToOperator(τ: Type) {
     def toAST: AST = τ match {
       case α(binder) =>

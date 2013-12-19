@@ -49,7 +49,8 @@ trait Parser extends ParagraphGrammar with ASTConversions with Syntax {
           case (_, σ) => σ
         }
         if (argTypes.length != parameters.length)
-          sys error s"too many arguments in the definition of:\n$lhs : $τ"
+          sys error (s"too many arguments in the definition of:\n"+
+            s"${lhs.name} : ${τ.unparse}")
         val rhs = ProtoChurchTerm(
           abs,
           argTypes ++ protobody.annotations
@@ -122,16 +123,22 @@ object TestParser extends Parser {
 
   val paragraphs = rant +
     """|type List α = ∀β. β → (α → β → β) → β
-       |cons : ℤ → List ℤ → List ℤ
+       |cons  : ℤ → List ℤ → List ℤ
+       |cons2 : ℤ → List ℤ → List ℤ
        |five = (Λα. λx : ℤ. + ((λx : ℤ. x) 2) 2) [ℤ]
        |         ((λx : ℤ → ℤ. x 5) (λx : ℤ. x)) {∃α. α}
-       |cons x xs = λz : β. λ++ : (α → β → β). ++ x (xs z ++)
+       |cons  x xs = λz : β. λ++ : (ℤ → β → β). ++ x (xs z ++)
+       |cons2 y ys = λa : γ. λ-- : (ℤ → γ → γ). -- y (ys a --)
        |""".stripMargin
 
   def main(args: Array[String]) {
     val module = parse(paragraphs)
     println(module.unparse)
     println
-    println(module definitions ξ("five"))
+    val five  = module definitions ξ("five")
+    val cons  = module definitions ξ("cons")
+    val cons2 = module definitions ξ("cons2")
+    println(s"${cons α_equiv five  }: cons ≅ five")
+    println(s"${cons α_equiv cons2} : cons ≅ cons2")
   }
 }

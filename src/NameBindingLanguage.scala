@@ -80,6 +80,11 @@ trait NameBindingLanguage {
 
     /** list of ADTs in reversed postorder (which is NOT preorder) */
     def reverseTraversal: List[ADT]
+
+    def freeNames: Set[FreeName[ADT]] = reverseTraversal.flatMap({
+      case x: FreeName[ADT] => Some(x)
+      case _                => None
+    })(collection.breakOut)
   }
 
   object ADT {
@@ -87,35 +92,70 @@ trait NameBindingLanguage {
     def ana[T](psi: Coalgebra[T])(x: T): ADT = (psi(x) map (ana(psi))).toADT
   }
 
-  // NAME BINDING LANGUAGE
+  // CLASSIFICATION OF FUNCTOR CONSTRUCTORS
 
-  // Binders are names and names are binders.
-  //
-  // The source of the difficulty of substitution lies in the gap
-  // between the lambda term's meaning as a graph and its
-  // representation as a tree. We eliminate the difficulty at the
-  // root via a graph representation of lambda terms. Objects are
-  // nodes. References are edges.
-  //
-  // This arrangement makes node identity equal to reference
-  // identity. Binders are generative: two binders are equal if
-  // and only if they occupy the same space on the heap.
+  trait Π0[T] extends Functor[T]
+
+  trait Π0ADT extends Π0[ADT] with ADT {
+    def reverseTraversal = List(this)
+  }
+
+  trait Π1[T] extends Functor[T] {
+    def π1: T
+  }
+
+  trait Π1ADT extends Π1[ADT] with ADT {
+    def reverseTraversal: List[ADT] = this :: π1.reverseTraversal
+  }
+
+  trait Π2[T] extends Functor[T] {
+    def π1: T
+    def π2: T
+  }
+
+  trait Π2ADT extends Π2[ADT] with ADT {
+    def reverseTraversal =
+      this :: (π2.reverseTraversal ++ π1.reverseTraversal)
+  }
+
+  trait Π2Factory[T <: Π2ADT] {
+    def apply(lhs: ADT, rhs: ADT): T
+    def unapply(a: T): Option[(ADT, ADT)] = Some((a.π1, a.π2))
+  }
+
+  // NAME BINDING LANGUAGE
 
   type Env[T] = PartialFunction[Binder, T]
 
   // a free name has a string
-  trait FreeName[T] extends Functor[T] {
+  trait FreeName[T] extends Π0[T] {
     def name: String
   }
 
+  trait FreeNameFactory[T <: FreeName[ADT]] {
+    def apply(name: String): T
+    def unapply(freevar: T): Option[String] = Some(freevar.name)
+
+    def avoid(usedNames: Set[String]): T = {
+      val startingID = 0
+      var i = startingID
+      while (usedNames contains i.toString) i += 1
+      apply(i.toString)
+    }
+
+    def avoid(things: ADT*): T =
+      avoid(things.map(_.freeNames.map(_.name)).
+                   fold(Set.empty[String])(_ ++ _))
+  }
+
   // a bound name has a back edge to its binder
-  trait Bound[T] extends Functor[T] {
+  trait Bound[T] extends Π0[T] {
     def binder: Binder
     override def toString: String = binder.name
   }
 
   // a binder is a name is a binder
-  trait Binder extends ADT {
+  trait Binder extends Π1ADT {
     // inherited from case class of the functor.
     // they should be mutated nowhere outside trait NameBindingLanguage
     // but we can't make them private because the case classes has to
@@ -125,6 +165,9 @@ trait NameBindingLanguage {
 
     // cleverly loop to self
     binder = this
+
+    // inherited from Π1
+    def π1 = body
 
     lazy val name: String = christianMe(body)
 
@@ -136,8 +179,6 @@ trait NameBindingLanguage {
       case y: Bound[_] if y.binder == this => x
       case otherwise => algebra(otherwise)
     }
-
-    def reverseTraversal: List[ADT] = this :: body.reverseTraversal
 
     private[NameBindingLanguage]
     var defaultName: String = "x"
