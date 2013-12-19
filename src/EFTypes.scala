@@ -11,6 +11,23 @@ trait Unification extends Syntax with PrenexForm {
   private def err(message: String, constraints: List[≡]) =
     sys error s"$message:\n${constraints.head}"
 
+  def getResultTypeOfApplication(funType: Type, argType: Type): Type = {
+    val (funPrenex, argPrenex) = (PrenexForm(funType), PrenexForm(argType))
+    val PrenexForm(all_f, ex_f, σ1 → τ) = funPrenex
+    val PrenexForm(all_x, ex_x, σ2    ) = argPrenex
+    val mgs0 = resolveConstraints(all_f ++ all_x, σ1 ≡ σ2)
+    val (all, ex, mgs) = classifyMGS(mgs0, funPrenex, argPrenex)
+    val σ1_inst = PrenexForm(requantify(all, ex, σ1 subst_α mgs)).toType
+    val σ2_inst = PrenexForm(requantify(all, ex, σ2 subst_α mgs)).toType
+    if (! (σ1_inst α_equiv σ2_inst)) {
+      println("Hey, not α-equivalent after unification:")
+      println(σ1_inst.unparse)
+      println(σ2_inst.unparse)
+      sys error s"debug time!"
+    }
+    requantify(all, ex, τ subst_α mgs)
+  }
+
   def resolveConstraints(dog: DegreeOfFreedom, constraints: ≡ *):
       Map[α, Type] =
   {
@@ -23,6 +40,9 @@ trait Unification extends Syntax with PrenexForm {
         loop(σ1 ≡ σ2 :: τ1 ≡ τ2 :: rest)
 
       case δ(a1) ≡ δ(a2) :: rest if a1 == a2 =>
+        loop(rest)
+
+      case α(a1) ≡ α(a2) :: rest if a1 == a2 =>
         loop(rest)
 
       case (a: α) ≡ τ :: rest =>
@@ -59,7 +79,7 @@ trait Unification extends Syntax with PrenexForm {
       (Set[α], Set[α], Map[α, Type]) = {
     import UnificationHelpers._
     val all = collection.mutable.Set.empty[α] ++ lhs.all ++ rhs.all
-    val ex  = collection.mutable.Set.empty[α] ++ lhs.ex  ++ rhs.ex
+    val ex  =                    Set.empty[α] ++ lhs.ex  ++ rhs.ex
     val either = all ++ ex
     def err(msg: String) = sys error (
       "\n$msg in:\nfun : ${lhs.toType.unparse}" +
@@ -84,8 +104,7 @@ trait Unification extends Syntax with PrenexForm {
             case (e, τ) =>
               // any existential in a nontrivial type unified to
               // a universal cannot appear anywhere outside.
-              ex -= e
-              // make sure that e appears nowhere else
+              // make sure of that.
               if (count(e, τ0) != count(e, lhs.τ, rhs.τ))
                 err(s"the existential $e in ${τ0.unparse} escaped!")
               // compute depth (number of greatest nesting to the
@@ -103,7 +122,24 @@ trait Unification extends Syntax with PrenexForm {
           (a, τ)
       }
     }
-    (all.toSet, ex.toSet, modifiedMGS)
+    (all.toSet, ex, modifiedMGS)
+  }
+
+  // try to quantify all unbound names in a fixed order
+  def requantify(_all: Set[α], _ex: Set[α], τ: Type): Type = {
+    import UnificationHelpers._
+    val yetUnbound = unbound(τ)
+    val all = _all.filter(yetUnbound contains _).toList.
+              sortBy(a => ordinal(a, τ))
+    val ex  = _ex .filter(yetUnbound contains _).toList.
+              sortBy(a => ordinal(a, τ))
+    all.foldRight[Type](
+      ex.foldRight[Type](τ) {
+        case (a, τ) => ∃(a.binder.name) { x => τ subst (a, x) }
+      }
+    ) {
+      case (a, τ) => ∀(a.binder.name) { x => τ subst (a, x) }
+    }
   }
 
   object UnificationHelpers {

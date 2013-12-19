@@ -71,7 +71,9 @@ trait ExperimentSubjects extends Parser with EFTypes {
     val const      = "∀α β. α → β → α"
     val flip       = "∀α β γ. (α → β → γ) → β → α → γ"
     val revapp     = "∀α β. α → (α → β) → β"
-    val poly       = "(∀ε. ε → ε) → ℤ"
+    val poly       = "(∀ε. ε → ε) → Pair ℤ String"
+    val id         = "∀α. α → α"
+    val revappId   = "∀α β. ((α → α) → β) → β"
   }
 
   val hmfApps: List[(String, String)] = {
@@ -80,7 +82,8 @@ trait ExperimentSubjects extends Parser with EFTypes {
       (foldr, undefined),
       (foldrUndef, const),
       (flip, app),
-      (revapp, poly)
+      (revapp, id),
+      (revappId, poly)
     )
   }
 }
@@ -147,15 +150,16 @@ object Experiment extends ExperimentSubjects {
     val (f, x) = (toType(fType), toType(xType))
     println(s"fun : ${f.unparse}")
     println(s"arg : ${x.unparse}")
-    println(prettifyMgs(provisionalMgs(f, x)))
+    val τ = getResultTypeOfApplication(f, x)
+    println(s"ret : ${τ.unparse}")
     println
   }
 
-  def testConstraints() {
+  def testUnification() {
     hmfApps foreach { case (f, x) => testApp(f, x) }
   }
 
   def main(args: Array[String]) {
-    testConstraints
+    testUnification
   }
 }

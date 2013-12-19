@@ -32,6 +32,9 @@ trait Types {
           domain
       }
     }
+
+    def subst_α(f: Map[α, Type]): Type =
+      τ subst (f map { case (k, v) => (k.binder, v) })
   }
 
   // free names. δωρεάν όνοματα (?)
