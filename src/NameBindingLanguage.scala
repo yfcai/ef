@@ -104,6 +104,12 @@ trait NameBindingLanguage {
     def π1: T
   }
 
+  trait Π1Binder[T] extends Π1[T] {
+    def binder: Binder
+    def body: T
+    def π1 = body
+  }
+
   trait Π1ADT extends Π1[ADT] with ADT {
     def reverseTraversal: List[ADT] = this :: π1.reverseTraversal
   }
@@ -155,7 +161,7 @@ trait NameBindingLanguage {
   }
 
   // a binder is a name is a binder
-  trait Binder extends Π1ADT {
+  trait Binder extends Π1Binder[ADT] with Π1ADT {
     // inherited from case class of the functor.
     // they should be mutated nowhere outside trait NameBindingLanguage
     // but we can't make them private because the case classes has to
@@ -165,9 +171,6 @@ trait NameBindingLanguage {
 
     // cleverly loop to self
     binder = this
-
-    // inherited from Π1
-    def π1 = body
 
     lazy val name: String = christianMe(body)
 
@@ -190,12 +193,25 @@ trait NameBindingLanguage {
         sys error (s"name of incomplete binder:" +
             s"${getClass.getSimpleName}($defaultName, $body)")
       // - And all his works?
-      val usedNames: Set[String] =
-        body.traverse.flatMap({
-          // - I do renounce them.
-          case binder: Binder => Some(binder.name)
-          case _ => None
-        })(collection.breakOut)
+      //   (which consists of binders above anything bound by you)
+      //   (assume that all case classes extend one of the Πn traits)
+      val usedNames = body.fold[Option[Set[String]]]({
+        case x: Bound[_] if x.binder == this =>
+          Some(Set.empty)
+        // - I do renounce them.
+        case b: Π1Binder[Option[Set[String]]] if b.body != None =>
+          Some(b.body.get + b.binder.name)
+        case p: Π1[_] =>
+          p.π1
+        case p: Π2[_] => (p.π1, p.π2) match {
+          case (None, None) => None
+          case (None, some) => some
+          case (some, None) => some
+          case (Some(x), Some(y)) => Some(x ++ y)
+        }
+        case _: Π0[_] =>
+          None
+      }).fold(Set.empty[String])(identity)
       var myName = defaultName
       var startingIndex = -1
       var i = startingIndex

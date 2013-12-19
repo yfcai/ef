@@ -54,7 +54,7 @@ trait Types {
     def unapply(a: α): Option[Binder] = Some(a.binder)
   }
 
-  case class ∀:[T](var binder: Binder, var body: T) extends Functor[T] {
+  case class ∀:[T](var binder: Binder, var body: T) extends Π1Binder[T] {
     def toADT: ADT = body match {
       case body: ADT => ∀.replaceBody(binder, body)
     }
@@ -67,7 +67,7 @@ trait Types {
     def bound(binder: ∀): α = α(binder)
   }
 
-  case class ∃:[T](var binder: Binder, var body: T) extends Functor[T] {
+  case class ∃:[T](var binder: Binder, var body: T) extends Π1Binder[T] {
     def toADT: ADT = body match {
       case body: ADT => ∃.replaceBody(binder, body)
     }
@@ -80,29 +80,29 @@ trait Types {
     def bound(binder: ∃): α = α(binder)
   }
 
-  case class →:[T](domain: T, range: T) extends Functor[T] {
+  case class →:[T](domain: T, range: T) extends Π2[T] {
     def toADT: ADT = (domain, range) match {
       case (domain: ADT, range: ADT) => domain →: range
     }
+    def π1 = domain
+    def π2 = range
   }
   class →(domain: ADT, range: ADT) extends →:[ADT](domain, range) with Π2ADT {
     override def toString = s"→($domain, $range)"
-    def π1 = domain
-    def π2 = range
   }
   object → extends Π2Factory[→] {
     def apply(domain: ADT, range: ADT): → = new →(domain, range)
   }
 
-  case class ₌:[T](functor: T, arg: T) extends Functor[T] {
+  case class ₌:[T](functor: T, arg: T) extends Π2[T] {
     def toADT: ADT = (functor, arg) match {
       case (functor: ADT, arg: ADT) => functor ₌ arg
     }
+    def π1 = functor
+    def π2 = arg
   }
   class ₌(functor: ADT, arg: ADT) extends ₌:[ADT](functor, arg) with Π2ADT {
     override def toString = s"₌($functor, $arg)"
-    def π1 = functor
-    def π2 = arg
   }
   object ₌ extends Π2Factory[₌] {
     def apply(functor: ADT, arg: ADT): ₌ = new ₌(functor, arg)
@@ -200,7 +200,7 @@ trait Terms extends TypeAbstraction {
     def unapply(a: χ): Option[λ] = Some(a.binder)
   }
 
-  case class λ_[T](var binder: Binder, var body: T) extends Functor[T] {
+  case class λ_[T](var binder: Binder, var body: T) extends Π1Binder[T] {
     def toADT: ADT = body match {
       case body: ADT => λ.replaceBody(binder, body)
     }
@@ -332,6 +332,9 @@ trait Modules extends Terms {
 
 // α-equivalence, pretty printer (unparse)
 trait Syntax extends Modules with ASTConversions {
+  // α-equivalence is implemented by tree comparison.
+  // Comparing the graph directly would be more productive...
+  // think about it.
   implicit class unparsingTypes(τ: Type) {
     def unparse: String = τ.toAST.unparse
 
