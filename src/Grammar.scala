@@ -114,7 +114,9 @@ trait Fixities extends Lexer {
     def splits(tokens: Tokens) = Singleton(tokens)
   }
 
-  case object IndividualTokens extends Fixity {
+  trait Juxtaposed extends Fixity
+
+  case object IndividualTokens extends Juxtaposed {
     def splits(tokens: Tokens): Iterator[Seq[Tokens]] =
       IndividualIterator(tokens)
 
@@ -131,7 +133,7 @@ trait Fixities extends Lexer {
     }
   }
 
-  case object Juxtaposition extends Fixity {
+  case object Juxtaposition extends Juxtaposed {
     def splits(tokens: Tokens): Iterator[Seq[Tokens]] =
       Juxtapositor(tokens)
 
@@ -277,11 +279,71 @@ trait Fixities extends Lexer {
 
 trait Grammar extends Fixities {
   // AST is decoupled from specific grammars
-  sealed trait AST { def tag: Operator }
+  trait AST {
+    def tag: Operator
+
+    def unparse: String = this match {
+      case Branch(operator, children) =>
+        val tokens = children map (_.unparse)
+        val subops = operator toTryNext tokens
+        val parens = ((children map (_.tag), tokens).zipped, subops).zipped.
+          map({ case ((childOp, child), subOps) =>
+            if (subOps contains childOp)
+              child
+            else
+              s"($child)"
+          }).toSeq
+        pack(operator.fixity match {
+          case _: Juxtaposed =>
+            parens
+          case p: Prefix     =>
+            prefixLike (p.ops, parens)
+          case p: Postfix    =>
+            postfixLike(p.ops, parens)
+          case i: Infix      =>
+            parens.head +: prefixLike(i.ops, parens.tail)
+          case e: Enclosing  =>
+            e.ops.head +: postfixLike(e.ops.tail, parens)
+        })
+
+      case Leaf(_, seq) =>
+        pack(seq map pack)
+    }
+
+    // duplicates partial info in keyword. how to merge?
+    private
+    val leftParens  = Set("{", "[", "λ", "Λ", "∀", "∃")
+    private
+    val rightParens = Set("}", "]", ".")
+
+    private[this]
+    def pack(tokens: Seq[String]): String =
+      (tokens.head +: ((tokens, tokens.tail).zipped.flatMap {
+        case (before, after)
+            if (leftParens contains before)
+            || (rightParens contains after) => List(after)
+        case (_, after) =>
+          List(" ", after)
+      })).mkString
+
+    private[this]
+    def prefixLike(ops: Tokens, children: Tokens): Tokens =
+      (ops, children).zipped flatMap {
+        case (op, child) => List(op, child)
+      }
+
+    private[this]
+    def postfixLike(ops: Tokens, children: Tokens): Tokens =
+      prefixLike(children, ops)
+  }
+
   case class Leaf(tag: Operator, get: Seq[Tokens]) extends AST
   case class Branch(tag: Operator, children: List[AST]) extends AST
 
-  class Operator(fixity: Fixity, toTryNext: Tokens => Seq[Seq[Operator]]) {
+  class Operator(
+    val fixity: Fixity,
+    val toTryNext: Tokens => Seq[Seq[Operator]])
+  {
     def this(fixity: Fixity, tryNext: => Seq[Seq[Operator]]) =
         this(fixity, _ => tryNext)
 
@@ -312,11 +374,6 @@ trait Grammar extends Fixities {
             ) {
               case ((_, _), None) => None
               case ((parsersToTry, tokens), Some(bros)) =>
-                if (parsersToTry == null) {
-                  println(parsersToTry)
-                  println(tokens)
-                  sys error "?"
-                }
                 parsersToTry findFirst (_ parse tokens) map (_ :: bros)
             }
           // if a feasible split is found, do not try other,
@@ -414,7 +471,7 @@ trait ExpressionGrammar extends Grammar {
 
   case object TypeAbstraction extends Operator(
     Prefix("Λ", "."),
-    Seq(Seq(Atomic), termOps)
+    Seq(Seq(TypeParameterList), termOps)
   )
 
   case object TermAbstraction extends Operator(
@@ -588,7 +645,7 @@ trait ParagraphGrammar extends ExpressionGrammar with Paragraphs {
   case object TypeSignature
   extends DefinitionOperator(":", TypeExpr)
 
-  case object TermDeclaration
+  case object TermDefinition
   extends DefinitionOperator("=", TermExpr)
 
   // can't set TermParameterList = TypeParameterList
@@ -599,14 +656,14 @@ trait ParagraphGrammar extends ExpressionGrammar with Paragraphs {
     _ map (_ => Seq(Atomic))
   )
 
-  // we'd want to try TypedFunctionDeclaration last
+  // we'd like to try TypedFUnctionDefinition last
   // because it fails more slowly than others
-  case object TypedFunctionDeclaration extends Operator (
+  case object TypedFUnctionDefinition extends Operator (
     Infixr("="),
     Seq(Seq(TermParameterList), Seq(TermExpr))
   ) {
     // if "=" comes immediately after a name,
-    // then TermDeclaration should take care of it.
+    // then TermDefinition should take care of it.
     override def precondition(tokens: Tokens) =
       (tokens indexOf "=") > 1
   }
@@ -616,6 +673,129 @@ trait ParagraphGrammar extends ExpressionGrammar with Paragraphs {
       ParagraphComment,
       TypeSynonym,
       TypeSignature,
-      TermDeclaration,
-      TypedFunctionDeclaration)
+      TermDefinition,
+      TypedFUnctionDefinition)
+}
+
+trait ASTConversions extends ExpressionGrammar with Terms {
+  implicit class ConversionsFromTypeToOperator(τ: Type) {
+    def toAST: AST = τ match {
+      case α(binder) =>
+        Leaf(Atomic, Seq(Seq(binder.name)))
+      case δ(name) =>
+        Leaf(Atomic, Seq(Seq(name)))
+      case all: ∀ =>
+        unnestBinders(all, UniversalQuantification)
+      case ex: ∃ =>
+        unnestBinders(ex , ExistentialQuantification)
+      case σ → τ =>
+        Branch(FunctionArrow, List(σ.toAST, τ.toAST))
+      case f ₌ τ =>
+        Branch(FunctorApplication, List(f.toAST, τ.toAST))
+    }
+  }
+
+  implicit class ConversionsFromTermToOperator(t: ChurchTerm) {
+    def toAST: AST = t.term match {
+      case χ(binder) =>
+        toAtomic(binder.name)
+      case ξ(name) =>
+        toAtomic(name)
+      case abs @ λ(x, body) =>
+        Branch(TermAbstraction,
+          List(toAtomic(x.name), (t annotations abs).toAST,
+               loop(body)))
+      case tabs: Λ =>
+        // can't use "unnestBinders" because Λ isn't a binder.
+        // maybe we should have some common trait between a binder
+        // of bound names and a pseudobinder of free names?
+        val (tabses, body) = tabs.detachNestedDoppelgaenger
+        Branch(TypeAbstraction,
+          List(toParameterList(tabses map (_.alpha.name)),
+               loop(body)))
+      case ₋(f, x) =>
+        Branch(TermApplication  , List(loop(f), loop(x)))
+      case □(t, τ) =>
+        Branch(TypeInstantiation, List(loop(t), τ.toAST))
+      case Ξ(t, τ) =>
+        Branch(TypeAmnesia      , List(loop(t), τ.toAST))
+    }
+
+    private[this]
+    def loop(body: Term): AST = ChurchTerm(body, t.annotations).toAST
+  }
+
+  private[this] def toAtomic(name: String): AST =
+    Leaf(Atomic, Seq(Seq(name)))
+
+  private[this]
+  def toParameterList(names: List[String]): AST =
+    Branch(TypeParameterList, names map toAtomic)
+
+  private[this]
+  def unnestBinders(binder: Type.Binder, binderOp: Operator): AST = {
+    val (binders, body) = binder.detachNestedDoppelgaenger
+    Branch(binderOp,
+      List(toParameterList(binders map (_.name)), body.toAST))
+  }
+
+  implicit class ConversionsFromAST(ast: AST) {
+    def toChurchTerm: ChurchTerm = ast match {
+      case Branch(TermAbstraction, List(x, xtype, body)) =>
+        val t = body.toChurchTerm
+        val abs = λ(x.to_ξ)(t.term)
+        if (t.annotations contains abs)
+          sys error s"we're in trouble, λs are not generative: $abs"
+        ChurchTerm(abs, t.annotations updated (abs, xtype.toType))
+      case Branch(TypeAbstraction,
+                  List(Branch(TypeParameterList, parameterList), body)) =>
+        val t = body.toChurchTerm
+        val parameters = parameterList map (_.to_δ)
+        ChurchTerm(Λ(parameters, t.term), t.annotations)
+      case Branch(TypeInstantiation, List(term, τ)) =>
+        val t = term.toChurchTerm
+        ChurchTerm(t.term □ τ.toType, t.annotations)
+      case Branch(TypeAmnesia, List(term, τ)) =>
+        val t = term.toChurchTerm
+        ChurchTerm(t.term Ξ τ.toType, t.annotations)
+      case Branch(TermApplication, List(fun, arg)) =>
+        val (f, x) = (fun.toChurchTerm, arg.toChurchTerm)
+        if (! (f.annotations.keySet & x.annotations.keySet).isEmpty)
+          sys error "we're in trouble, need α-equivalence, NOW!"
+        ChurchTerm(f.term ₋ x.term, f.annotations ++ x.annotations)
+      case Branch(TermParenthetic, List(t)) =>
+        t.toChurchTerm
+      case x =>
+        ChurchTerm(x.to_ξ, Map.empty)
+    }
+
+    def to_ξ: ξ = ast match {
+      case Leaf(Atomic, Seq(Seq(name))) =>
+        ξ(name)
+    }
+
+    def toType: Type = ast match {
+      case Branch(LetBinding, List(x, xdef, body)) =>
+        sys error "TODO: implement type checker to support let-bindings"
+      case Branch(UniversalQuantification,
+                  List(Branch(TypeParameterList, parameterList), body)) =>
+        ∀(parameterList map (_.to_δ), body.toType)
+      case Branch(ExistentialQuantification,
+                  List(Branch(TypeParameterList, parameterList), body)) =>
+        ∃(parameterList map (_.to_δ), body.toType)
+      case Branch(FunctionArrow, List(domain, range)) =>
+        domain.toType →: range.toType
+      case Branch(FunctorApplication, List(functor, arg)) =>
+        functor.toType ₌ arg.toType
+      case Branch(TypeParenthetic, List(τ)) =>
+        τ.toType
+      case a =>
+        a.to_δ
+    }
+
+    def to_δ: δ = ast match {
+      case Leaf(Atomic, Seq(Seq(name))) =>
+        δ(name)
+    }
+  }
 }

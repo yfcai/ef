@@ -67,6 +67,14 @@ trait NameBindingLanguage {
       }
     }
 
+    def subst(freeName: FreeName[ADT], replacement: ADT): ADT =
+      subst(Map(freeName -> replacement))
+
+    def subst(f: PartialFunction[FreeName[ADT], ADT]): ADT = fold[ADT] {
+      case freeName: FreeName[ADT] if f isDefinedAt freeName => f(freeName)
+      case otherwise => otherwise.toADT
+    }
+
     /** gives a list of ADTs in traversal order */
     def traverse: List[ADT] = {
       var traversed: List[ADT] = Nil
@@ -100,6 +108,11 @@ trait NameBindingLanguage {
   // and only if they occupy the same space on the heap.
 
   type Env[T] = PartialFunction[Binder, T]
+
+  // a free name has a string
+  trait FreeName[T] extends Functor[T] {
+    def name: String
+  }
 
   // a bound name has a back edge to its binder
   trait Bound[T] extends Functor[T] {
@@ -176,6 +189,14 @@ trait NameBindingLanguage {
 
     override def toString: String =
       s"${getClass.getSimpleName}($name, $body)"
+
+    def detachNestedDoppelgaenger: (List[Binder], ADT) = body match {
+      case b: Binder if b.getClass == this.getClass =>
+        val (tail, body) = b.detachNestedDoppelgaenger
+        (this :: tail, body)
+      case body =>
+        (List(this), body)
+    }
   }
 
   object Binder {
@@ -190,7 +211,7 @@ trait NameBindingLanguage {
 
   trait BinderFactory[T <: Binder] {
     def newBinder(): T
-    def bound(binder: Binder): ADT with Bound[ADT]
+    def bound(binder: T): ADT with Bound[ADT]
 
     // constructs a binder from an HOAS, passing itself as the argument
 
@@ -206,6 +227,14 @@ trait NameBindingLanguage {
       binder.body = body(bound(binder))
       binder
     }
+
+    def apply(namesToBind: Seq[FreeName[ADT]], body: ADT): T =
+      ((namesToBind foldRight body) {
+        case (free, body) => apply(free.name) { x => body.subst(free, x) }
+      }).asInstanceOf[T]
+
+    def apply(xs: FreeName[ADT]*)(body: => ADT): T =
+      apply(xs, body)
 
     def unapply(b: T): Option[(Binder, ADT)] = Some((b.binder, b.body))
 
