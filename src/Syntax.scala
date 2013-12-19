@@ -40,6 +40,7 @@ trait Types {
   }
   class δ(name: String) extends δ_[ADT](name) with ADT {
     override def toString = s"δ($name)"
+    def reverseTraversal = List(this)
   }
   object δ {
     def apply(name: String): δ = new δ(name)
@@ -49,7 +50,9 @@ trait Types {
   case class α_[T](binder: Binder) extends Bound[T] {
     def toADT: ADT = α(binder)
   }
-  class α(binder: Binder) extends α_[ADT](binder) with ADT
+  class α(binder: Binder) extends α_[ADT](binder) with ADT {
+    def reverseTraversal = List(this)
+  }
   object α {
     def apply(binder: Binder): α = new α(binder)
     def unapply(a: α): Option[Binder] = Some(a.binder)
@@ -88,6 +91,8 @@ trait Types {
   }
   class →(domain: ADT, range: ADT) extends →:[ADT](domain, range) with ADT {
     override def toString = s"→($domain, $range)"
+    def reverseTraversal =
+      this :: (range.reverseTraversal ++ domain.reverseTraversal)
   }
   object → {
     def apply(domain: ADT, range: ADT): → = new →(domain, range)
@@ -101,6 +106,8 @@ trait Types {
   }
   class ₌(functor: ADT, arg: ADT) extends ₌:[ADT](functor, arg) with ADT {
     override def toString = s"₌($functor, $arg)"
+    def reverseTraversal =
+      this :: (arg.reverseTraversal ++ functor.reverseTraversal)
   }
   object ₌ {
     def apply(functor: ADT, arg: ADT): ₌ = new ₌(functor, arg)
@@ -131,6 +138,8 @@ trait TypeAbstraction extends Types {
   class Λ(alpha: δ, body: ADT) extends Λ_(alpha, body) with ADT {
     override def toString = s"Λ(${alpha.name}, $body)"
 
+    def reverseTraversal = this :: body.reverseTraversal
+
     def detachNestedDoppelgaenger: (List[Λ], ADT) = body match {
       case tabs: Λ =>
         val (tail, body) = tabs.detachNestedDoppelgaenger
@@ -153,6 +162,7 @@ trait TypeAbstraction extends Types {
   }
   class Ξ(t: ADT, σ: Type) extends Ξ_[ADT](t, σ) with ADT {
     override def toString = s"Ξ($t, $σ)"
+    def reverseTraversal = this :: t.reverseTraversal
   }
   object Ξ {
     def apply(t: ADT, σ: Type): Ξ = new Ξ(t, σ)
@@ -191,7 +201,9 @@ trait Terms extends TypeAbstraction {
   case class χ_[T](binder: λ) extends Bound[T] {
     def toADT: ADT = χ(binder)
   }
-  class χ(binder: λ) extends χ_[ADT](binder) with ADT
+  class χ(binder: λ) extends χ_[ADT](binder) with ADT {
+    def reverseTraversal = List(this)
+  }
   object χ {
     def apply(binder: λ): χ = new χ(binder)
     def unapply(a: χ): Option[λ] = Some(a.binder)
@@ -217,6 +229,8 @@ trait Terms extends TypeAbstraction {
   }
   class ₋(fun: ADT, arg: ADT) extends ₋:[ADT](fun, arg) with ADT {
     override def toString = s"₋($fun, $arg)"
+    def reverseTraversal =
+      this :: (arg.reverseTraversal ++ fun.reverseTraversal)
   }
   object ₋ {
     def apply(fun: ADT, arg: ADT): ₋ = new ₋(fun, arg)
@@ -228,6 +242,7 @@ trait Terms extends TypeAbstraction {
   }
   class □(t: ADT, σ: Type) extends □:[ADT](t, σ) with ADT {
     override def toString = s"□($t, $σ)"
+    def reverseTraversal = this :: t.reverseTraversal
   }
   object □ {
     def apply(t: ADT, σ: Type): □ = new □(t, σ)
@@ -240,6 +255,7 @@ trait Terms extends TypeAbstraction {
   }
   class ξ(name: String) extends ξ_[ADT](name) with ADT {
     override def toString = s"ξ($name)"
+    def reverseTraversal = List(this)
   }
   object ξ {
     def apply(name: String): ξ = new ξ(name)

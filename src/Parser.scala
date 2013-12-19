@@ -32,7 +32,7 @@ trait Parser extends ParagraphGrammar with ASTConversions with Syntax {
 
       // term definition: add binding now, verify type later
       case Branch(TermDefinition, List(x, xdef)) =>
-        module addDefinition (x.to_ξ, xdef.toChurchTerm)
+        module addDefinition (x.to_ξ, xdef.toProtoChurchTerm.toChurchTerm)
 
       // typed function definition: requires a signature
       case Branch(TypedFUnctionDefinition,
@@ -41,27 +41,20 @@ trait Parser extends ParagraphGrammar with ASTConversions with Syntax {
         // do the smart thing after we figure out prenex form
         val lhs :: parameters = parameterList map (_.to_ξ)
         val τ = module Γ lhs
-        val ChurchTerm(oldTerm, oldAnnotations) = body.toChurchTerm
-        val abs = (parameters foldRight oldTerm)({
+        val protobody = body.toProtoChurchTerm
+        val abs = (parameters foldRight protobody.term)({
            case (x, body) => λ(x)(body)
         }).asInstanceOf[λ]
-        val typedArgs = (abs.detachNestedDoppelgaenger._1,
-                         τ.argumentTypes.toSeq).zipped.toSeq
-        if (typedArgs.length != parameters.length)
+        val argTypes = (parameters, τ.argumentTypes.toSeq).zipped.map {
+          case (_, σ) => σ
+        }
+        if (argTypes.length != parameters.length)
           sys error s"too many arguments in the definition of:\n$lhs : $τ"
-        //
-        // TODO FIXME: breaks on shadowing.
-        //
-        // α-equivalence will not help, for terms may differ in
-        // type annotations alone. Figure out a way to bind Church
-        // terms, like ChurchTerm.bind(x: ξ): ChurchTerm.
-        val nameToAbs: Map[String, λ] = getLambdas(abs).map({
-          lambda => (lambda.name, lambda)
-        })(collection.breakOut)
-        val annotations = oldAnnotations.map({
-          case (x, τ) => (nameToAbs(x.name), τ)
-        }) ++ typedArgs.asInstanceOf[Seq[(λ, Type)]]
-        module addDefinition (lhs, ChurchTerm(abs, annotations))
+        val rhs = ProtoChurchTerm(
+          abs,
+          argTypes ++ protobody.annotations
+        ).toChurchTerm
+        module addDefinition (lhs, rhs)
     }
 
   private[this]
@@ -130,14 +123,15 @@ object TestParser extends Parser {
   val paragraphs = rant +
     """|type List α = ∀β. β → (α → β → β) → β
        |cons : ℤ → List ℤ → List ℤ
-       |five = (Λα. λx : ℤ. + 2 2) [ℤ] 5 {∃α. α}
+       |five = (Λα. λx : ℤ. + ((λx : ℤ. x) 2) 2) [ℤ]
+       |         ((λx : ℤ → ℤ. x 5) (λx : ℤ. x)) {∃α. α}
        |cons x xs = λz : β. λ++ : (α → β → β). ++ x (xs z ++)
        |""".stripMargin
 
-/*
- */
   def main(args: Array[String]) {
     val module = parse(paragraphs)
     println(module.unparse)
+    println
+    println(module definitions ξ("five"))
   }
 }

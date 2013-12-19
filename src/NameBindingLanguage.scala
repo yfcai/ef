@@ -75,17 +75,11 @@ trait NameBindingLanguage {
       case otherwise => otherwise.toADT
     }
 
-    /** gives a list of ADTs in traversal order */
-    def traverse: List[ADT] = {
-      var traversed: List[ADT] = Nil
-      fold[ADT] {
-        case s: Functor[ADT] =>
-          val visiting = s.toADT
-          traversed = visiting :: traversed
-          visiting
-      }
-      traversed.reverse
-    }
+    /** gives a list of ADTs in postorder */
+    def traverse: List[ADT] = reverseTraversal.reverse
+
+    /** list of ADTs in reversed postorder (which is NOT preorder) */
+    def reverseTraversal: List[ADT]
   }
 
   object ADT {
@@ -142,6 +136,8 @@ trait NameBindingLanguage {
       case y: Bound[_] if y.binder == this => x
       case otherwise => algebra(otherwise)
     }
+
+    def reverseTraversal: List[ADT] = this :: body.reverseTraversal
 
     private[NameBindingLanguage]
     var defaultName: String = "x"

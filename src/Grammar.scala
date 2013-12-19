@@ -678,6 +678,19 @@ trait ParagraphGrammar extends ExpressionGrammar with Paragraphs {
 }
 
 trait ASTConversions extends ExpressionGrammar with Terms {
+  /** Church terms in a state of incompleteness */
+  case class ProtoChurchTerm(term: Term, annotations: List[Type]) {
+    /** the Church term instrumentality project */
+    def toChurchTerm: ChurchTerm =
+      ChurchTerm(term,
+        (annotations, term.reverseTraversal.flatMap[λ, List[λ]] {
+          case abs: λ => Some(abs)
+          case _      => None
+        }).zipped.map({
+          case (τ, abs) => (abs, τ)
+        })(collection.breakOut))
+  }
+
   implicit class ConversionsFromTypeToOperator(τ: Type) {
     def toAST: AST = τ match {
       case α(binder) =>
@@ -740,33 +753,31 @@ trait ASTConversions extends ExpressionGrammar with Terms {
   }
 
   implicit class ConversionsFromAST(ast: AST) {
-    def toChurchTerm: ChurchTerm = ast match {
+    def toProtoChurchTerm: ProtoChurchTerm = ast match {
       case Branch(TermAbstraction, List(x, xtype, body)) =>
-        val t = body.toChurchTerm
+        val t = body.toProtoChurchTerm
         val abs = λ(x.to_ξ)(t.term)
-        if (t.annotations contains abs)
-          sys error s"we're in trouble, λs are not generative: $abs"
-        ChurchTerm(abs, t.annotations updated (abs, xtype.toType))
+        ProtoChurchTerm(abs, xtype.toType :: t.annotations)
       case Branch(TypeAbstraction,
                   List(Branch(TypeParameterList, parameterList), body)) =>
-        val t = body.toChurchTerm
+        val t = body.toProtoChurchTerm
         val parameters = parameterList map (_.to_δ)
-        ChurchTerm(Λ(parameters, t.term), t.annotations)
+        ProtoChurchTerm(Λ(parameters, t.term), t.annotations)
       case Branch(TypeInstantiation, List(term, τ)) =>
-        val t = term.toChurchTerm
-        ChurchTerm(t.term □ τ.toType, t.annotations)
+        val t = term.toProtoChurchTerm
+        ProtoChurchTerm(t.term □ τ.toType, t.annotations)
       case Branch(TypeAmnesia, List(term, τ)) =>
-        val t = term.toChurchTerm
-        ChurchTerm(t.term Ξ τ.toType, t.annotations)
+        val t = term.toProtoChurchTerm
+        ProtoChurchTerm(t.term Ξ τ.toType, t.annotations)
       case Branch(TermApplication, List(fun, arg)) =>
-        val (f, x) = (fun.toChurchTerm, arg.toChurchTerm)
-        if (! (f.annotations.keySet & x.annotations.keySet).isEmpty)
-          sys error "we're in trouble, need α-equivalence, NOW!"
-        ChurchTerm(f.term ₋ x.term, f.annotations ++ x.annotations)
+        val (f, x) = (fun.toProtoChurchTerm, arg.toProtoChurchTerm)
+        // annotations are concatenated in reverse preorder
+        // (cf. NameBindingLanguage.AST.reverseTraversal)
+        ProtoChurchTerm(f.term ₋ x.term, x.annotations ++ f.annotations)
       case Branch(TermParenthetic, List(t)) =>
-        t.toChurchTerm
+        t.toProtoChurchTerm
       case x =>
-        ChurchTerm(x.to_ξ, Map.empty)
+        ProtoChurchTerm(x.to_ξ, Nil)
     }
 
     def to_ξ: ξ = ast match {
