@@ -49,9 +49,12 @@ trait Parser extends ParagraphGrammar with ASTConversions with Syntax {
                          τ.argumentTypes.toSeq).zipped.toSeq
         if (typedArgs.length != parameters.length)
           sys error s"too many arguments in the definition of:\n$lhs : $τ"
-        // hack the annotations for now.
-        // need α-equivalence to be robust.
-        // FIXME: breaks on shadowing. aaaaaah.
+        //
+        // TODO FIXME: breaks on shadowing.
+        //
+        // α-equivalence will not help, for terms may differ in
+        // type annotations alone. Figure out a way to bind Church
+        // terms, like ChurchTerm.bind(x: ξ): ChurchTerm.
         val nameToAbs: Map[String, λ] = getLambdas(abs).map({
           lambda => (lambda.name, lambda)
         })(collection.breakOut)
