@@ -480,7 +480,7 @@ trait ExpressionGrammar extends Grammar {
   )
 
   case object LetBinding extends Operator(
-    Prefix("let", "=", "in"),
+    Prefix("let", "=", "."),
     Seq(Seq(Atomic), termOps, termOps)
   )
 
