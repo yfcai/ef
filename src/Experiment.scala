@@ -100,7 +100,7 @@ object Experiment extends ExperimentSubjects {
   def provisionalMgs(fType: Type, xType: Type): Map[α, Type] = {
     val PrenexForm(all1, _, σ1 → τ) = PrenexForm(fType)
     val PrenexForm(all2, _, σ2    ) = PrenexForm(xType)
-    resolveConstraints(all1 ++ all2, σ1 ≡ σ2)
+    resolveConstraints(Set(all1 ++ all2: _*), σ1 ≡ σ2)
   }
 
   def prettifyMgs(mgs: Map[α, Type]): String =

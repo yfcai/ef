@@ -6,8 +6,6 @@ trait Unification extends Syntax with PrenexForm {
     def ≡(rhs: Type) = new ≡(lhs, rhs)
   }
 
-  private type DegreeOfFreedom = List[α]
-
   private def err(message: String, constraints: List[≡]) =
     sys error s"$message:\n${constraints.head}"
 
@@ -15,8 +13,10 @@ trait Unification extends Syntax with PrenexForm {
     val (funPrenex, argPrenex) = (PrenexForm(funType), PrenexForm(argType))
     val PrenexForm(all_f, ex_f, σ1 → τ) = funPrenex
     val PrenexForm(all_x, ex_x, σ2    ) = argPrenex
-    val mgs0 = resolveConstraints(all_f ++ all_x, σ1 ≡ σ2)
-    val (all, ex, mgs) = classifyMGS(mgs0, funPrenex, argPrenex)
+    val all     = Set(all_f ++ all_x: _*)
+    val ex      = Set( ex_f ++  ex_x: _*)
+    val mgs0    = resolveConstraints(all, σ1 ≡ σ2)
+    val mgs     = captureSkolems(mgs0, funPrenex, argPrenex)
     val σ1_inst = PrenexForm(requantify(all, ex, σ1 subst_α mgs)).toType
     val σ2_inst = PrenexForm(requantify(all, ex, σ2 subst_α mgs)).toType
     if (! (σ1_inst α_equiv σ2_inst)) {
@@ -27,6 +27,8 @@ trait Unification extends Syntax with PrenexForm {
     }
     requantify(all, ex, τ subst_α mgs)
   }
+
+  private type DegreeOfFreedom = Set[α]
 
   def resolveConstraints(dog: DegreeOfFreedom, constraints: ≡ *):
       Map[α, Type] =
@@ -70,23 +72,17 @@ trait Unification extends Syntax with PrenexForm {
     loop(constraints.toList) map { case (binder, τ) => (α(binder), τ) }
   }
 
-  // given mgs and two prenexes (for quantifiers only),
-  // produce:
-  //
-  //     (universal survivors, existential survivors, modified mgs)
-  //
-  def classifyMGS(mgs: Map[α, Type], lhs: PrenexForm, rhs: PrenexForm):
-      (Set[α], Set[α], Map[α, Type]) = {
+  def captureSkolems(mgs: Map[α, Type], lhs: PrenexForm, rhs: PrenexForm):
+      Map[α, Type] = {
     import UnificationHelpers._
-    val all = collection.mutable.Set.empty[α] ++ lhs.all ++ rhs.all
-    val ex  =                    Set.empty[α] ++ lhs.ex  ++ rhs.ex
-    val either = all ++ ex
     def err(msg: String) = sys error (
       "\n$msg in:\nfun : ${lhs.toType.unparse}" +
                 "\narg : ${rhs.toType.unparse}"
     )
-    val modifiedMGS: Map[α, Type] = mgs map { case (a, τ) =>
-      all -= a
+    val all = Set.empty[α] ++ lhs.all ++ rhs.all
+    val ex  = Set.empty[α] ++ lhs.ex  ++ rhs.ex
+    val either = all ++ ex
+    val mgsAfterCapturing: Map[α, Type] = mgs map { case (a, τ) =>
       τ match {
         // universal unified to universal, do nothing, or:
         // universal unified to existential, do nothing beyond
@@ -122,7 +118,7 @@ trait Unification extends Syntax with PrenexForm {
           (a, τ)
       }
     }
-    (all.toSet, ex, modifiedMGS)
+    mgsAfterCapturing
   }
 
   // try to quantify all unbound names in a fixed order
