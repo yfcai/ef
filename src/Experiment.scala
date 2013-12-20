@@ -1,4 +1,4 @@
-trait ExperimentSubjects extends Parser with EFTypes {
+trait ExperimentSubjects extends Parser with Unification {
   val rant =
     """|. rant
        |

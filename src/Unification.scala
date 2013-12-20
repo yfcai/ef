@@ -222,6 +222,3 @@ trait PrenexForm extends Types {
     }
   }
 }
-
-trait EFTypes extends Gamma with Unification {
-}
