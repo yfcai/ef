@@ -198,9 +198,9 @@ trait NameBindingLanguage {
       //   (which consists of binders above anything bound by you)
       //   (assume that all case classes extend one of the Πn traits)
       val usedNames = body.fold[Option[Set[String]]]({
+        // - I do renounce them.
         case x: Bound[_] if x.binder == this =>
           Some(Set.empty)
-        // - I do renounce them.
         case b: Π1Binder[Option[Set[String]]] if b.body != None =>
           Some(b.body.get + b.binder.name)
         case p: Π1[_] =>
@@ -213,7 +213,11 @@ trait NameBindingLanguage {
         }
         case _: Π0[_] =>
           None
-      }).fold(Set.empty[String])(identity)
+      }).fold(Set.empty[String])(identity) ++
+         body.traverse.flatMap({
+           case x: FreeName[_] => Some(x.name)
+           case _              => None
+         })
       var myName = defaultName
       var startingIndex = -1
       var i = startingIndex
