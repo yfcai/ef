@@ -32,8 +32,8 @@ trait ExperimentSubjects extends Parser with Gammas {
     """|type List α = ∀β. β → (α → β → β) → β
        |cons  : ℤ → List ℤ → List ℤ
        |cons2 : ℤ → List ℤ → List ℤ
-       |five = (Λα. λx : ℤ. + ((λx : ℤ. x) 2) 2) [ℤ]
-       |         ((λx : ℤ → ℤ. x 5) (λx : ℤ. x)) {∃α. α}
+       |five = (Λα. λx : ℤ. + ((λx : ℤ. x : ℤ) 2) 2) [ℤ]
+       |         ((λx : ℤ → ℤ. x 5) (λx : ℤ. x)) : ∃α. α
        |cons  x xs = λz : β. λ++ : (ℤ → β → β). ++ x (xs z ++)
        |cons2 y ys = λa : γ. λ-- : (ℤ → γ → γ). -- y (ys a --)
        |
@@ -76,14 +76,21 @@ trait ExperimentSubjects extends Parser with Gammas {
     val revappId   = "∀α β. ((α → α) → β) → β"
   }
 
+  object SecretMagicSword {
+    val alchemist  = "∀α. Metal α"
+    val blacksmith = "∃β. Metal β → Sword β"
+  }
+
   val hmfApps: List[(String, String)] = {
     import Hmf._
+    import SecretMagicSword._
     List(
       (foldr, undefined),
       (foldrUndef, const),
       (flip, app),
       (revapp, id),
-      (revappId, poly)
+      (revappId, poly),
+      (blacksmith, alchemist)
     )
   }
 }
@@ -160,6 +167,7 @@ object Experiment extends ExperimentSubjects {
   }
 
   def main(args: Array[String]) {
+    testModule
     testUnification
   }
 }

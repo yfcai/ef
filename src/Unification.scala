@@ -25,53 +25,22 @@ trait Unification extends Syntax with PrenexForm {
     * Thus, σ ⊆ τ means that σ is more general than τ and every
     * term of type σ can be used as a term of type τ.
     */
-  implicit class GreaterTypeGenerality(σ0: Type) {
-    def ⊆ (τ0: Type): Boolean = try {
-      val PrenexForm(all_σ, ex_σ, σ) = PrenexForm(σ0)
-      val PrenexForm(all_τ, ex_τ, τ) = PrenexForm(τ0)
-      val mgs   = resolveConstraints(all_σ ++ ex_σ, σ ≡ τ)
-      val mgs_∀ = mgs filter {
-        case (k, v: α) => (all_σ contains k) &&
-                          ((all_τ contains v) || (ex_τ contains v))
-        case _         => false
-      }
-      val mgs_∃ = mgs filter {
-        case (k, v: α) => (ex_σ contains k) && (ex_τ contains v)
-        case _         => false
-      }
-      val mgs_→ = mgs filter {
-        case (k, v) => (all_σ contains k) && ! v.isInstanceOf[α]
-      }
-      // all legal unifications are captured in mgs_∀, _∃, or _→.
-      // if anything else is present, then it is illegal.
-      if (mgs_∀.size + mgs_∃.size + mgs_→.size != mgs.size) {
-        // println(s"reason for rejection = illegal unification")
-        return false
-      }
-      // if mgs_∀ and mgs_∃ are not bijections, then we have illegal
-      // unifications as well.
-      {
-        val image_∀ = Set.empty ++ mgs_∀.map(_._2)
-        val image_∃ = Set.empty ++ mgs_∃.map(_._2)
-        if (image_∀.size != mgs_∀.size ||
-            image_∃.size != mgs_∃.size) {
-          // println(
-          //   s"reason for rejection = variable unification not bijective"
-          // )
-          return false
-        }
-      }
-      // Skolems must not escape!
-      captureSkolems(mgs_→, all_τ ++ ex_τ, σ, τ) // raises TypeError
+  implicit class GreaterTypeGenerality(σ: Type) {
+    def ⊆ (τ: Type): Boolean = try {
+      // σ0 is more specific than τ0 if any function taking
+      // τ0 as argument can take σ0 as well?!
+      val PrenexForm(all_σ, ex_σ, σ0) = PrenexForm(σ)
+      val PrenexForm(all_τ, ex_τ, τ0) = PrenexForm(τ)
+      val bot = δ avoid ("⊥", σ0, τ0)
+      getResultTypeOfApplication(
+        PrenexForm( ex_τ, all_τ, τ0 →: bot).toType,
+        PrenexForm(all_σ,  ex_σ, σ0       ).toType)
+      // if no exception, then σ is more general than τ.
       true
-    } catch {
-      case e: TypeError =>
-        false
-    }
+    } catch { case e: TypeError => false }
   }
 
   // THE ELIMINATION RULE (→∀∃E)
-
   def getResultTypeOfApplication(funType: Type, argType: Type): Type = {
     val (funPrenex, argPrenex) = (PrenexForm(funType), PrenexForm(argType))
     val PrenexForm(all_f, ex_f, σ1 → τ) = funPrenex
@@ -132,7 +101,12 @@ trait Unification extends Syntax with PrenexForm {
           })
           mgs updated (a.binder, τ subst mgs)
         }
-        else err("trying to unify rigid type variable", constraints)
+        else τ match {
+          case b: α if dog contains b =>
+            loop(b ≡ a :: rest)
+          case _ =>
+            err("trying to unify rigid type variable", constraints)
+        }
 
       case τ ≡ (a: α) :: rest =>
         loop(a ≡ τ :: rest)
@@ -152,29 +126,11 @@ trait Unification extends Syntax with PrenexForm {
 
   // THE INCARCERATION OF SKOLEMS
 
-  // skolem capturing for application
   def captureSkolems(mgs: Map[α, Type], lhs: PrenexForm, rhs: PrenexForm):
       Map[α, Type] = {
+    import UnificationHelpers._
     val all = Set.empty[α] ++ lhs.all ++ rhs.all
     val ex  = Set.empty[α] ++ lhs.ex  ++ rhs.ex
-    captureSkolems(mgs, all, ex, lhs.τ, rhs.τ)
-  }
-
-  // skolem capturing for deciding the generality partial order on types
-  def captureSkolems(mgs: Map[α, Type], skolems: List[α],
-                     lhs_τ: Type, rhs_τ: Type): Map[α, Type] =
-    captureSkolems(mgs, Set.empty, Set(skolems: _*), lhs_τ, rhs_τ)
-
-  // all-purpose skolem capturing (may want to split)
-  def captureSkolems(
-    mgs  : Map[α, Type],
-    all  : Set[α],
-    ex   : Set[α],
-    lhs_τ: Type,
-    rhs_τ: Type
-  ): Map[α, Type] =
-  {
-    import UnificationHelpers._
     val either = all ++ ex
     val mgsAfterCapturing: Map[α, Type] = mgs map { case (a, τ) =>
       τ match {
@@ -195,12 +151,12 @@ trait Unification extends Syntax with PrenexForm {
               // any existential in a nontrivial type unified to
               // a universal cannot appear anywhere outside.
               // make sure of that.
-              if (count(e, τ0) != count(e, lhs_τ, rhs_τ))
+              if (count(e, τ0) != count(e, lhs.τ, rhs.τ))
                 err(s"the existential $e in ${τ0.unparse} escaped!")
               // compute depth (number of greatest nesting to the
               // left of function arrows)
               val depthInside  = depth(e, τ0)
-              val depthOutside = depth(e, lhs_τ, rhs_τ)
+              val depthOutside = depth(e, lhs.τ, rhs.τ)
               assert(depthInside >= 0 && depthOutside >= 0)
               // if depth parities are equal inside & out,
               // quantify e existentially; otherwise universally

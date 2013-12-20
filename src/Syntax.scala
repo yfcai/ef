@@ -152,7 +152,13 @@ trait TypeAbstraction extends Types {
       (alphas foldRight body) { case (alpha, body) => apply(alpha, body) }
   }
 
-  // likewise about Ξ, ξ
+  // likewise about Ξ, ξ (about capitalization, I mean.)
+  //
+  // The interpretation of type amnesia Ξ in Existential F
+  // is different from its interpretation in Continuation Calculus.
+  // In Continuation Calculus, type amnesia is about forgetting
+  // a part of the type of something to obtain an existential
+  // type. In Existential F, it is type ascription.
   case class Ξ_[T](t: T, σ: Type) extends Π1[T] {
     def toADT: ADT = t match { case t: ADT => Ξ(t, σ) }
     def π1 = t

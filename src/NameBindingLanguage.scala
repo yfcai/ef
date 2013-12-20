@@ -144,11 +144,21 @@ trait NameBindingLanguage {
     def apply(name: String): T
     def unapply(freevar: T): Option[String] = Some(freevar.name)
 
-    def avoid(usedNames: Set[String]): T = {
+    def avoid(usedNames: Set[String]): T = avoid("", usedNames)
+
+    def avoid(default: String, trees: ADT*): T =
+      avoid(default, (trees map (_.freeNames map (_.name))).
+        fold(Set.empty[String])(_ ++ _))
+
+    def avoid(default: String, usedNames: Set[String]): T = {
       val startingID = 0
       var i = startingID
-      while (usedNames contains i.toString) i += 1
-      apply(i.toString)
+      var x = default
+      while (usedNames contains x) {
+        i += 1 ; x = default + i
+        if (i == startingID) sys error "ran outta names"
+      }
+      apply(x)
     }
 
     def avoid(things: ADT*): T =

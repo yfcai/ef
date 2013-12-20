@@ -432,9 +432,9 @@ trait ExpressionGrammar extends Grammar {
   )
 
   case object TypeAmnesia extends Operator(
-    Postfix("{", "}"),
+    Infixl(":"),
     Seq(downFrom(TypeInstantiation, termOps),
-        Seq(ExistentialQuantification))
+        typeOps)
   )
 
   def typeInstantiationSelfReference  = TypeInstantiation
@@ -498,8 +498,8 @@ trait ExpressionGrammar extends Grammar {
       LetBinding        ,
       TermAbstraction   ,
       TypeAbstraction   ,
-      TypeInstantiation ,
       TypeAmnesia       ,
+      TypeInstantiation ,
       TermApplication   ,
       TermParenthetic   ,
       Atomic            )
