@@ -3,7 +3,7 @@ trait Unification extends Syntax with PrenexForm {
 
   // ERROR HANDLING
 
-  class TypeError(message: String) extends Exception(message)
+  class TypeError(val message: String) extends Exception(message)
   object TypeError {
     def apply(message: => String) = throw new TypeError(s"\n$message")
   }
@@ -11,10 +11,11 @@ trait Unification extends Syntax with PrenexForm {
   private def err(message: String, constraints: List[≡]) =
     TypeError { s"$message:\n${constraints.head}" }
 
-  private def err(msg: String) = TypeError {
-    "$msg in:\nfun : ${lhs.toType.unparse}" +
-      "\narg : ${rhs.toType.unparse}"
-  }
+  private def err(msg: String, lhs: PrenexForm, rhs: PrenexForm) =
+    TypeError {
+      s"$msg in:\nfun : ${lhs.toType.unparse}" +
+      s"\narg : ${rhs.toType.unparse}"
+    }
 
   // TYPE ORDERING
 
@@ -26,18 +27,44 @@ trait Unification extends Syntax with PrenexForm {
     * term of type σ can be used as a term of type τ.
     */
   implicit class GreaterTypeGenerality(σ: Type) {
-    def ⊆ (τ: Type): Boolean = try {
-      // σ0 is more specific than τ0 if any function taking
-      // τ0 as argument can take σ0 as well?!
-      val PrenexForm(all_σ, ex_σ, σ0) = PrenexForm(σ)
-      val PrenexForm(all_τ, ex_τ, τ0) = PrenexForm(τ)
-      val bot = δ avoid ("⊥", σ0, τ0)
-      getResultTypeOfApplication(
-        PrenexForm( ex_τ, all_τ, τ0 →: bot).toType,
-        PrenexForm(all_σ,  ex_σ, σ0       ).toType)
-      // if no exception, then σ is more general than τ.
-      true
-    } catch { case e: TypeError => false }
+    def ⊆ (τ: Type): Boolean =
+      (PrenexForm(σ) ⊆? PrenexForm(τ)).isInstanceOf[Success[_, _]]
+  }
+
+  trait TrialAndError[S, T]
+  case class Success[S, T](result: S) extends TrialAndError[S, T]
+  case class Failure[S, T](lesson: T) extends TrialAndError[S, T]
+
+  implicit class GreaterPrenexGenerality(σ_p: PrenexForm) {
+    def ⊆? (τ_p: PrenexForm): TrialAndError[Map[α, Type], String] =
+      try {
+        val PrenexForm(all_σ, ex_σ, σ0) = σ_p
+        val PrenexForm(all_τ, ex_τ, τ0) = τ_p
+        val all     = Set(all_σ ++ ex_τ: _*)
+        val ex      = Set(ex_σ ++ all_τ: _*)
+        val mgs0    = resolveConstraints(all, σ0 ≡ τ0)
+        val mgs     = captureSkolems_⊆(mgs0, σ_p, τ_p)
+        // If we end up instantiating captured Skolems globally instead of
+        // locally, then we may not have to convert σ_inst & τ_inst to
+        // prenex form.
+        //
+        // The instantiation of τ is not an instantiation, but rather
+        // the recall of what it has forgotten from the instantiation of
+        // σ.
+        val σ_inst = PrenexForm(requantify(all, ex, σ0 subst_α mgs)).toType
+        val τ_inst = PrenexForm(requantify(all, ex, τ0 subst_α mgs)).toType
+        if (! (σ_inst α_equiv τ_inst)) sys error {
+          // this is a system error, not a type error
+          s"""|Hey, not α-equivalent after unification:
+              |${σ_inst.unparse}
+              |${τ_inst.unparse}
+              |""".stripMargin
+        }
+        Success(mgs)
+      }
+      catch { case e: TypeError =>
+        Failure(s"${e.message}\n${e.getStackTrace take 20 mkString "\n"}")
+      }
   }
 
   // THE ELIMINATION RULE (→∀∃E)
@@ -45,22 +72,12 @@ trait Unification extends Syntax with PrenexForm {
     val (funPrenex, argPrenex) = (PrenexForm(funType), PrenexForm(argType))
     val PrenexForm(all_f, ex_f, σ1 → τ) = funPrenex
     val PrenexForm(all_x, ex_x, σ2    ) = argPrenex
-    val all     = Set(all_f ++ all_x: _*)
-    val ex      = Set( ex_f ++  ex_x: _*)
-    val mgs0    = resolveConstraints(all, σ1 ≡ σ2)
-    val mgs     = captureSkolems(mgs0, funPrenex, argPrenex)
-    // If we end up instantiating captured Skolems globally instead of
-    // locally, then we may not have to convert σ1_inst & σ2_inst to
-    // prenex form.
-    val σ1_inst = PrenexForm(requantify(all, ex, σ1 subst_α mgs)).toType
-    val σ2_inst = PrenexForm(requantify(all, ex, σ2 subst_α mgs)).toType
-    if (! (σ1_inst α_equiv σ2_inst)) TypeError {
-      s"""|Hey, not α-equivalent after unification:
-          |${σ1_inst.unparse}
-          |${σ2_inst.unparse}
-          |""".stripMargin
-    }
-    requantify(all, ex, τ subst_α mgs)
+    val mgs =
+      PrenexForm(all_x, ex_x, σ2) ⊆? PrenexForm(ex_f, all_f, σ1) match {
+        case Success(mgs) => mgs
+        case Failure(msg) => TypeError { msg }
+      }
+    requantify(Set(all_f ++ all_x: _*), Set(ex_f ++ ex_x: _*), τ subst_α mgs)
   }
 
   // UNIFICATION UNDER A MIXED PREFIX
@@ -142,7 +159,7 @@ trait Unification extends Syntax with PrenexForm {
 
         // unified to something not bound here, freak out
         case b: α =>
-          err(s"$a unified to out-of-scope name $b")
+          err(s"$a unified to out-of-scope name $b", lhs, rhs)
 
         // universal unified to a nontrivial type, tons of work
         case τ0 =>
@@ -152,7 +169,7 @@ trait Unification extends Syntax with PrenexForm {
               // a universal cannot appear anywhere outside.
               // make sure of that.
               if (count(e, τ0) != count(e, lhs.τ, rhs.τ))
-                err(s"the existential $e in ${τ0.unparse} escaped!")
+                err(s"the existential $e in ${τ0.unparse} escaped!", lhs, rhs)
               // compute depth (number of greatest nesting to the
               // left of function arrows)
               val depthInside  = depth(e, τ0)
@@ -171,6 +188,59 @@ trait Unification extends Syntax with PrenexForm {
                 ∃(e.binder.name) { x => τ subst (e, x) }
               else
                 ∀(e.binder.name) { x => τ subst (e, x) }
+          }
+          (a, τ)
+      }
+    }
+    mgsAfterCapturing
+  }
+
+  // capture skolems in the process of proving lhs ⊆ rhs
+  def captureSkolems_⊆(mgs: Map[α, Type], lhs: PrenexForm, rhs: PrenexForm):
+      Map[α, Type] = {
+    import UnificationHelpers._
+    val all = Set.empty[α] ++ lhs.all ++ rhs.ex
+    val ex  = Set.empty[α] ++ lhs.ex  ++ rhs.all
+    val either = all ++ ex
+    val mgsAfterCapturing: Map[α, Type] = mgs map { case (a, τ) =>
+      τ match {
+        // universal unified to universal, do nothing, or:
+        // universal unified to existential, do nothing beyond
+        // the deletion of the universal, which is already done
+        case b: α if either contains b =>
+          (a, b)
+
+        // unified to something not bound here, freak out
+        case b: α =>
+          err(s"$a unified to out-of-scope name $b", lhs, rhs)
+
+        // universal unified to a nontrivial type, tons of work
+        case τ0 =>
+          val τ = (ex & unbound(τ0)).foldRight(τ0) {
+            case (e, τ) =>
+              // any existential in a nontrivial type unified to
+              // a universal cannot appear anywhere outside.
+              // make sure of that.
+              if (count(e, τ0) != count(e, lhs.τ, rhs.τ))
+                err(s"the existential $e in ${τ0.unparse} escaped!", lhs, rhs)
+              // compute depth (number of greatest nesting to the
+              // left of function arrows)
+              val depthInside  = depth(e, τ0)
+              val depthOutside = depth(e, lhs.τ, rhs.τ)
+              assert(depthInside >= 0 && depthOutside >= 0)
+              // if depth parities are equal inside & out,
+              // quantify e universally; otherwise existentially
+              //
+              // Instead of laboriously requantify on instantiation,
+              // we may choose to quantify the existential from
+              // outside once it's certain that it did not escape.
+              // For now, we use the slow method so that we don't
+              // have to think about possible loopholes in the fast
+              // method.
+              if (depthInside % 2 == depthOutside % 2)
+                ∀(e.binder.name) { x => τ subst (e, x) }
+              else
+                ∃(e.binder.name) { x => τ subst (e, x) }
           }
           (a, τ)
       }

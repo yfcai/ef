@@ -76,21 +76,32 @@ trait ExperimentSubjects extends Parser with Gammas {
     val revappId   = "∀α β. ((α → α) → β) → β"
   }
 
-  object SecretMagicSword {
+  object Alchemy {
     val alchemist  = "∀α. Metal α"
     val blacksmith = "∃β. Metal β → Sword β"
+    val nukesmith  = "∃μ. Metal (Radioactive μ) → Bomb μ"
+    val allmighty  = "∀α. α"
+    val nuke1      = "∃μ. (μ → ⊥) → (μ → ⊥)"
+    val nuke2      = "∃μ. (μ → ⊥) → (⊥ → μ)"
+    val nuke3      = "∃μ. (⊥ → μ) → (μ → ⊥)"
+    val nuke4      = "∃μ. (⊥ → μ) → (⊥ → μ)"
   }
 
   val hmfApps: List[(String, String)] = {
     import Hmf._
-    import SecretMagicSword._
+    import Alchemy._
     List(
+      //(nuke1, allmighty) // bad
+      //(nuke2, allmighty) // bad
+      //(nuke3, allmighty) // bad
+      //(nuke4, allmighty) // bad
       (foldr, undefined),
       (foldrUndef, const),
       (flip, app),
       (revapp, id),
       (revappId, poly),
-      (blacksmith, alchemist)
+      (blacksmith, alchemist),
+      (nukesmith, alchemist) // interesting effect!
     )
   }
 }
