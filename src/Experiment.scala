@@ -1,4 +1,4 @@
-trait ExperimentSubjects extends Parser with Unification {
+trait ExperimentSubjects extends Parser with Gammas {
   val rant =
     """|. rant
        |
