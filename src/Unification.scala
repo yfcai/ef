@@ -11,10 +11,11 @@ trait Unification extends Syntax with PrenexForm {
   private def err(message: String, constraints: List[≡]) =
     TypeError { s"$message:\n${constraints.head}" }
 
-  private def err(msg: String) = TypeError {
-    "$msg in:\nfun : ${lhs.toType.unparse}" +
-      "\narg : ${rhs.toType.unparse}"
-  }
+  private def err(msg: String, lhs: PrenexForm, rhs: PrenexForm) =
+    TypeError {
+      s"$msg in:\nfun : ${lhs.toType.unparse}" +
+      s"\narg : ${rhs.toType.unparse}"
+    }
 
   // TYPE ORDERING
 
@@ -28,7 +29,18 @@ trait Unification extends Syntax with PrenexForm {
   implicit class GreaterTypeGenerality(σ: Type) {
     def ⊆ (τ: Type): Boolean = try {
       // σ0 is more specific than τ0 if any function taking
-      // τ0 as argument can take σ0 as well?!
+      // τ0 as argument can take σ0 as well.
+      //
+      // ⊆ is a more liberal relation than function argument
+      // taking. Consider
+      //
+      //     nukesmith : ∃μ. Metal (Radioactive μ) → Bomb μ
+      //
+      //     alchemist : ∀α. Metal α
+      //
+      // Then it is a bad idea to hire the alchemist to
+      // supply the nukesmith's raw material. I have to
+      // think more about the question why.
       val PrenexForm(all_σ, ex_σ, σ0) = PrenexForm(σ)
       val PrenexForm(all_τ, ex_τ, τ0) = PrenexForm(τ)
       val bot = δ avoid ("⊥", σ0, τ0)
@@ -142,7 +154,7 @@ trait Unification extends Syntax with PrenexForm {
 
         // unified to something not bound here, freak out
         case b: α =>
-          err(s"$a unified to out-of-scope name $b")
+          err(s"$a unified to out-of-scope name $b", lhs, rhs)
 
         // universal unified to a nontrivial type, tons of work
         case τ0 =>
@@ -152,7 +164,7 @@ trait Unification extends Syntax with PrenexForm {
               // a universal cannot appear anywhere outside.
               // make sure of that.
               if (count(e, τ0) != count(e, lhs.τ, rhs.τ))
-                err(s"the existential $e in ${τ0.unparse} escaped!")
+                err(s"the existential $e in ${τ0.unparse} escaped!", lhs, rhs)
               // compute depth (number of greatest nesting to the
               // left of function arrows)
               val depthInside  = depth(e, τ0)
