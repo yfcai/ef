@@ -85,6 +85,7 @@ trait ExperimentSubjects extends Parser with Gammas {
     val smith1     = "∃σ. (σ → ⊥) → (⊥ → σ)"
     val smith2     = "∃σ. (⊥ → σ) → (σ → ⊥)"
     val smith3     = "∃σ. (⊥ → σ) → (⊥ → σ)"
+    val ufo        = "∃ω. ω"
   }
 
   val hmfApps: List[(String, String)] = {
@@ -100,7 +101,8 @@ trait ExperimentSubjects extends Parser with Gammas {
       (smith0, unobtainium), // can have better example w/ ADT
       (smith1, unobtainium), // think "nil" as unobtainium
       (smith2, unobtainium), // & "∃α. List (List α)" as needed material
-      (smith3, unobtainium)
+      (smith3, unobtainium),
+      (id, ufo)
     )
   }
 
