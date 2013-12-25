@@ -80,6 +80,11 @@ trait ExperimentSubjects extends Parser with Gammas {
     val alchemist  = "∀α. Metal α"
     val blacksmith = "∃β. Metal β → Sword β"
     val nukesmith  = "∃μ. Metal (Radioactive μ) → Bomb μ"
+    val unobtainium= "∀α. α"
+    val smith0     = "∃σ. (σ → ⊥) → (σ → ⊥)"
+    val smith1     = "∃σ. (σ → ⊥) → (⊥ → σ)"
+    val smith2     = "∃σ. (⊥ → σ) → (σ → ⊥)"
+    val smith3     = "∃σ. (⊥ → σ) → (⊥ → σ)"
   }
 
   val hmfApps: List[(String, String)] = {
@@ -91,14 +96,18 @@ trait ExperimentSubjects extends Parser with Gammas {
       (flip, app),
       (revapp, id),
       (revappId, poly),
-      (blacksmith, alchemist)
+      (blacksmith, alchemist),
+      (smith0, unobtainium), // can have better example w/ ADT
+      (smith1, unobtainium), // think "nil" as unobtainium
+      (smith2, unobtainium), // & "∃α. List (List α)" as needed material
+      (smith3, unobtainium)
     )
   }
 
   val illTyped: List[(String, String)] = {
     import Alchemy._
     List(
-      (nukesmith, alchemist)
+      (nukesmith, alchemist) // pending ADT
     )
   }
 }

@@ -3,7 +3,7 @@ trait Unification extends Syntax with PrenexForm {
 
   // ERROR HANDLING
 
-  class TypeError(message: String) extends Exception(message)
+  class TypeError(val message: String) extends Exception(message)
   object TypeError {
     def apply(message: => String) = throw new TypeError(s"\n$message")
   }
@@ -19,6 +19,10 @@ trait Unification extends Syntax with PrenexForm {
 
   // TYPE ORDERING
 
+  trait TrialAndError[S, T]
+  case class Success[S, T](get: S)     extends TrialAndError[S, T]
+  case class Failure[S, T](message: T) extends TrialAndError[S, T]
+
   /** @param σ0 the more general type
     * @param τ0 the less general type
     *
@@ -27,52 +31,60 @@ trait Unification extends Syntax with PrenexForm {
     * term of type σ can be used as a term of type τ.
     */
   implicit class GreaterTypeGenerality(σ: Type) {
-    def ⊆ (τ: Type): Boolean = try {
-      // σ0 is more specific than τ0 if any function taking
-      // τ0 as argument can take σ0 as well.
-      //
-      // ⊆ is a more liberal relation than function argument
-      // taking. Consider
-      //
-      //     nukesmith : ∃μ. Metal (Radioactive μ) → Bomb μ
-      //
-      //     alchemist : ∀α. Metal α
-      //
-      // Then it is a bad idea to hire the alchemist to
-      // supply the nukesmith's raw material. I have to
-      // think more about the question why.
-      val PrenexForm(all_σ, ex_σ, σ0) = PrenexForm(σ)
-      val PrenexForm(all_τ, ex_τ, τ0) = PrenexForm(τ)
-      val bot = δ avoid ("⊥", σ0, τ0)
-      getResultTypeOfApplication(
-        PrenexForm( ex_τ, all_τ, τ0 →: bot).toType,
-        PrenexForm(all_σ,  ex_σ, σ0       ).toType)
-      // if no exception, then σ is more general than τ.
-      true
-    } catch { case e: TypeError => false }
+    def ⊆ (τ: Type): Boolean =
+      (PrenexForm(σ) ⊆? PrenexForm(τ)).isInstanceOf[Success[_, _]]
+  }
+
+  implicit class GreaterPrenexGenerality(lhsPrenex: PrenexForm) {
+    def ⊆?(rhsPrenex: PrenexForm):
+        TrialAndError[Map[α, Type], String] =
+      try {
+        val PrenexForm(all0, ex0, σ0) = lhsPrenex
+        val PrenexForm(all1, ex1, σ1) = rhsPrenex
+        val all     = Set(all0 ++ ex1: _*)
+        val ex      = Set(ex0 ++ all1: _*)
+        val mgs0    = resolveConstraints(all, σ0 ≡ σ1)
+        val mgs     = captureSkolems(mgs0, lhsPrenex, rhsPrenex)
+        Success(mgs)
+      }
+      catch {
+        case e: TypeError =>
+          Failure(s"${e.message}\nin\n${
+            e.getStackTrace.take(20) mkString "\n"
+          }")
+      }
   }
 
   // THE ELIMINATION RULE (→∀∃E)
   def getResultTypeOfApplication(funType: Type, argType: Type): Type = {
-    val (funPrenex, argPrenex) = (PrenexForm(funType), PrenexForm(argType))
-    val PrenexForm(all_f, ex_f, σ1 → τ) = funPrenex
-    val PrenexForm(all_x, ex_x, σ2    ) = argPrenex
-    val all     = Set(all_f ++ all_x: _*)
-    val ex      = Set( ex_f ++  ex_x: _*)
-    val mgs0    = resolveConstraints(all, σ1 ≡ σ2)
-    val mgs     = captureSkolems(mgs0, funPrenex, argPrenex)
-    // If we end up instantiating captured Skolems globally instead of
-    // locally, then we may not have to convert σ1_inst & σ2_inst to
-    // prenex form.
-    val σ1_inst = PrenexForm(requantify(all, ex, σ1 subst_α mgs)).toType
-    val σ2_inst = PrenexForm(requantify(all, ex, σ2 subst_α mgs)).toType
-    if (! (σ1_inst α_equiv σ2_inst)) TypeError {
+    val argPrenex = PrenexForm(argType)
+    val PrenexForm(all_x, ex_x, σ0    ) = argPrenex
+    val PrenexForm(all_f, ex_f, σ1 → τ) = PrenexForm(funType)
+    val mgs = (argPrenex ⊆? PrenexForm(ex_f, all_f, σ1)) match {
+      case Success(mgs) => mgs
+      case Failure(msg) => TypeError { msg }
+    }
+    val σ0_inst = PrenexForm(
+      requantify(all_f ++ all_x, ex_f ++ ex_x, σ0 subst_α mgs)).toType
+    val σ1_inst = PrenexForm(
+      requantify(all_f ++ all_x, ex_f ++ ex_x, σ1 subst_α mgs)).toType
+    if (! (σ0_inst α_equiv σ1_inst)) TypeError {
       s"""|Hey, not α-equivalent after unification:
-          |${σ1_inst.unparse}
-          |${σ2_inst.unparse}
+          |
+          |  ${σ0_inst.unparse}
+          |  ${σ1_inst.unparse}
+          |
+          |in the application where
+          |
+          |  fun : ${funType.unparse}
+          |  arg : ${argType.unparse}
           |""".stripMargin
     }
-    requantify(all, ex, τ subst_α mgs)
+    if (false) { // debug information
+      println(s"  actual param : ${σ0_inst.unparse}")
+      println(s"  formal param : ${σ1_inst.unparse}")
+    }
+    requantify(all_f ++ all_x, ex_x, requantify(Nil, ex_f, τ) subst_α mgs)
   }
 
   // UNIFICATION UNDER A MIXED PREFIX
@@ -141,8 +153,8 @@ trait Unification extends Syntax with PrenexForm {
   def captureSkolems(mgs: Map[α, Type], lhs: PrenexForm, rhs: PrenexForm):
       Map[α, Type] = {
     import UnificationHelpers._
-    val all = Set.empty[α] ++ lhs.all ++ rhs.all
-    val ex  = Set.empty[α] ++ lhs.ex  ++ rhs.ex
+    val all = Set.empty[α] ++ lhs.all ++ rhs.ex
+    val ex  = Set.empty[α] ++ lhs.ex ++ rhs.all
     val either = all ++ ex
     val mgsAfterCapturing: Map[α, Type] = mgs map { case (a, τ) =>
       τ match {
@@ -171,7 +183,7 @@ trait Unification extends Syntax with PrenexForm {
               val depthOutside = depth(e, lhs.τ, rhs.τ)
               assert(depthInside >= 0 && depthOutside >= 0)
               // if depth parities are equal inside & out,
-              // quantify e existentially; otherwise universally
+              // quantify e universally; otherwise existentially.
               //
               // Instead of laboriously requantify on instantiation,
               // we may choose to quantify the existential from
@@ -191,6 +203,9 @@ trait Unification extends Syntax with PrenexForm {
   }
 
   // STABLE LINEARIZATION OF QUANTIFIERS
+
+  def requantify(all: Seq[α], ex: Seq[α], τ: Type): Type =
+    requantify(Set(all: _*), Set(ex: _*), τ)
 
   def requantify(_all: Set[α], _ex: Set[α], τ: Type): Type = {
     import UnificationHelpers._
@@ -244,7 +259,7 @@ trait Unification extends Syntax with PrenexForm {
       τ.fold[Int] {
         case α_(b) if α(b) == a => 0
         case →:(lhs, rhs)       => Math.max(1 + lhs, rhs)
-        case p: Π2[_]           => Math.max(p.π1, p.π2)
+        case ₌:(lhs, rhs)       => sys error "pending ADT functor variance"
         case b: Π1[_]           => b.π1
         case _: Π0[_]           => Int.MinValue // I mean -∞
       }
