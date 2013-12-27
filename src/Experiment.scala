@@ -37,8 +37,8 @@ trait ExperimentSubjects extends Parser with Gammas {
        |cons  x xs = λz : β. λ++ : (ℤ → β → β). ++ x (xs z ++)
        |cons2 y ys = λa : γ. λ-- : (ℤ → γ → γ). -- y (ys a --)
        |
-       |shadowedTerm = λx x x x x. x
-       |shadowedType = ∀α α α. ∃α α. ∀α. α → α
+       |shadowedTerm = λx : α. λx : α. λx : α. λx : α. λx : α. x
+       |type shadowedType = ∀α α α. ∃α α. ∀α. α → α
        |""".stripMargin
 
 
@@ -215,6 +215,11 @@ object Experiment extends ExperimentSubjects {
   }
 
   def main(args: Array[String]) {
+    //testParagraphs(someModule)
+    //testParagraphsFromFile(thisFile)
+    //testModule
+    //testPrenex
+    //testUnification
     testTyping
   }
 }
