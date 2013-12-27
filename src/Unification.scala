@@ -13,8 +13,8 @@ trait Unification extends Syntax with PrenexForm {
 
   private def err(msg: String, lhs: PrenexForm, rhs: PrenexForm) =
     TypeError {
-      s"$msg in:\nfun : ${lhs.toType.unparse}" +
-      s"\narg : ${rhs.toType.unparse}"
+      s"$msg in:\nlhs : ${lhs.toType.unparse}" +
+      s"\nrhs : ${rhs.toType.unparse}"
     }
 
   // TYPE ORDERING
@@ -78,9 +78,9 @@ trait Unification extends Syntax with PrenexForm {
       case Failure(msg) => TypeError { msg }
     }
     val σ0_inst = PrenexForm(
-      requantify(all_f ++ all_x, ex_f ++ ex_x, σ0 subst_α mgs)).toType
+      requantify(all_f ++ all_x, ex_f ++ ex_x, σ0 subst_α mgs)).normalize
     val σ1_inst = PrenexForm(
-      requantify(all_f ++ all_x, ex_f ++ ex_x, σ1 subst_α mgs)).toType
+      requantify(all_f ++ all_x, ex_f ++ ex_x, σ1 subst_α mgs)).normalize
     if (! (σ0_inst α_equiv σ1_inst)) TypeError {
       s"""|Hey, not α-equivalent after unification:
           |
@@ -242,6 +242,10 @@ trait Unification extends Syntax with PrenexForm {
     ) {
       case (a, τ) => ∀(a.binder.name) { x => τ subst (a, x) }
     }
+  }
+
+  implicit class NormalizePrenexForm(p: PrenexForm) {
+    def normalize: Type = requantify(p.all, p.ex, p.τ)
   }
 
   // HELPERS

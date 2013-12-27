@@ -21,16 +21,13 @@ trait Gammas extends Unification {
   ) extends Γ {
     Γ =>
 
-    // call this to refresh term-level types
-    def ⊢ (t0: Term) = ⊢ (t0, identity)
-
-    def ⊢ (t0: Term, resolveSynonyms: Type => Type): Type = t0 match {
+    def ⊢ (t0: Term): Type = t0 match {
       // (TAUT)
       case χ(x) =>
-        resolveSynonyms(termvars(x))
+        termvars(x)
 
       case x: ξ if freevars isDefinedAt x =>
-        resolveSynonyms(freevars(x))
+        freevars(x)
 
       // (ascription)
       // in EF, ascription is a syntactic sugar.
@@ -39,8 +36,8 @@ trait Gammas extends Unification {
         val id = λ { x => x }
         val desugared = id ₋ t
         Γ_EF(typevars,
-             termvars updated (id, resolveSynonyms(τ_ascribed)),
-             freevars) ⊢ (desugared, resolveSynonyms)
+             termvars updated (id, τ_ascribed),
+             freevars) ⊢ desugared
 
       // (∀I)
       // oh dear, let's hope we managed to get rid of it.
@@ -49,16 +46,15 @@ trait Gammas extends Unification {
 
       // (→∀I)
       case x @ λ(_, body) =>
-        val σ = resolveSynonyms(termvars(x))
+        val σ = termvars(x)
         val toQuantify = σ.freeNames -- typevars
-        val τ = Γ_EF(typevars ++ toQuantify, termvars, freevars) ⊢
-                (body, resolveSynonyms)
+        val τ = Γ_EF(typevars ++ toQuantify, termvars, freevars) ⊢ body
         ∀(toQuantify, σ →: τ)
 
       // (→∀∃E)
       case s ₋ t =>
-        val funType = Γ ⊢ (s, resolveSynonyms)
-        val argType = Γ ⊢ (t, resolveSynonyms)
+        val funType = Γ ⊢ s
+        val argType = Γ ⊢ t
         getResultTypeOfApplication(funType, argType)
 
       case _ =>
@@ -85,7 +81,7 @@ trait Gammas extends Unification {
             val newNotes = resolveLetBindings(church, x => mkEF(x, defs))
             assert((newNotes find (notes contains _._1)) == None)
             val accumulatedNotes = notes ++ newNotes
-            val τ = mkEF(newNotes, defs) ⊢ (t, synonyms.resolve _)
+            val τ = mkEF(newNotes, defs) ⊢ t
             if (signatures contains name) {
               PrenexForm(τ) ⊑? PrenexForm(signatures(name)) match {
                 case Success(_) => ()
