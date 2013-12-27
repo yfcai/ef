@@ -33,17 +33,10 @@ trait Gammas extends Unification {
       // in EF, ascription is a syntactic sugar.
       // (t : τ) can be written as ((λx : τ. x) t).
       case Ξ(t, τ_ascribed) =>
-        val τ = Γ ⊢ t
-        if (τ ⊑ τ_ascribed)
-          τ_ascribed
-        else
-          TypeError {
-            s"""|incompatible type ascription:
-                |  ${t0.unparse}
-                |real type is:
-                |  ${τ.unparse}
-                |""".stripMargin
-          }
+        val id = λ { x => x }
+        val desugared = id ₋ t
+        Γ_EF(typevars, termvars updated (id, τ_ascribed), freevars) ⊢
+          desugared
 
       // (→∀I)
       case x @ λ(_, body) =>
@@ -107,6 +100,7 @@ trait Gammas extends Unification {
                   |unknown type name ${name.name}"
                   |""".stripMargin
             }
+          case _ => ()
         }
       }
       mkEF(notes, defs)

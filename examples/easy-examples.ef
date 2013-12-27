@@ -20,3 +20,5 @@ hmf0    = apply poly id
 hmf1    = revapp id poly
 
 fourty2 = let x = 6 in let y = 7 in * x y
+
+ascript = id : α → α
