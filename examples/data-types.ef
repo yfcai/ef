@@ -1,0 +1,115 @@
+. PRELUDE
+
+. a signature without body is a postulate
+undefined : ∀α. α
+
+id    = λx : α. x
+const = λx : α. λy : β. x
+flip  = λf : α → β → γ. λy : β. λx : α. f x y
+
+
+. CONJUNCTION
+
+type Pair α β = ∀γ. (α → β → γ) → γ
+
+pair : ∀α β. α → β → Pair α β
+pair = λx : α. λy : β. λf : α → β → γ. f x y
+
+proj₁ : ∀α β. Pair α β → α
+proj₁ = λp : Pair α β. p const
+
+proj₂ : ∀α β. Pair α β → β
+proj₂ = λp : Pair α β. p (flip const)
+
+
+. DISJUNCTION
+
+type Either α β = ∀γ. (α → γ) → (β → γ) → γ
+
+inj₁ : ∀α β. α → Either α β
+inj₁ = λx : α. λf : α → γ. λg : β → γ. f x
+
+inj₂ : ∀α β. β → Either α β
+inj₂ = λy : β. λf : α → γ. λg : β → γ. g y
+
+. a disjunction is its own elimination form
+
+
+. LIST
+
+type List α = ∀β. β → (α → β → β) → β
+
+. rant
+  TO SUPPORT:
+
+  nil : List
+  nil = const
+
+  incompatible signature.
+  declared:  ∀γ δ. δ → (γ → δ → δ) → δ
+  actual:    ∀α. α → ∀β. β → α
+  due to
+
+  the existential δ in γ → δ → δ escaped! in:
+  lhs : ∀α β. α → β → α
+  rhs : ∀γ δ. δ → (γ → δ → δ) → δ
+
+. List is desugared to (∀α. List α)
+nil : List
+nil = λz : β. λf : α → β → β. (z)
+
+cons : ∀α. α → List α → List α
+cons = λx : α. λxs : List α. λz : β. λf : α → β → β. (f x (xs z f))
+
+head : ∀α. List α → α
+head = λxs : List α. xs undefined const
+
+. BӦHM-BERADUCCI ENCODING FOR PATTERN MATCHING ON LISTS
+
+
+type FinalList α = ∀β. β → (α → List α → β) → β
+
+. rant
+  this version of finalList breaks type inference.
+
+  finalList : ∀α. List α → FinalList α
+  finalList = λxs : List α. λg : FinalListView α β.
+    xs (g (inj₁ nil)) (g (inj₂ undefined))
+
+  Hey, not α-equivalent after unification:
+
+    ∀β00. ∃γ β0 β.
+      ((β0 → (α → β0 → β0) → β0) → γ) →
+      ((α → (β00 → (α → β00 → β00) → β00) → β → (α → β → β) → β) → γ) → γ
+
+    ∀β1. ∃β0 γ β.
+      ((β0 → (α → β0 → β0) → β0) → γ) →
+      ((α → (β1  → (α → β1  → β1 ) → β1 ) → β → (α → β → β) → β) → γ) → γ
+
+. rant
+  let-bindings need fix.
+
+  goodFinalList : ∀α. FinalList α
+  finalList : ∀α. List α → FinalList α
+  finalList = let x = 5 in goodFinalList
+
+goodFinalList : ∀α. FinalList α
+type FinalCons α = (α → FinalList α → FinalList α) → FinalList α
+
+. to fix: type sig breaks stuff
+.finalList : ∀α. List α → FinalList α
+finalList = λxs : List α.
+ (λz : FinalCons α. z) (
+  xs (λz : β. λf : α → List α → β. z)
+ )
+
+.rant
+     (λx : α. λy : FinalList α. λz : β. λf : α → List α → β.
+       f x (y nil cons))
+
+tail = λxs : List α. finalList xs undefined (flip const)
+
+. rant
+  Need fix: ascription doesn't resolve synonyms
+
+  x = inj₁ 5 : Either ℤ ℤ
