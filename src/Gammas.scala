@@ -61,12 +61,33 @@ trait Gammas extends Unification {
     }
   }
 
+  // consider putting methods of this object in a trait.
   object Γ_ℤ extends ℤ_Ring {
+    def ⊢ (c: ChurchTerm): Type = Γ_ℤ(c) ⊢ c.term
+
     def apply(c: ChurchTerm): Γ_EF =
       Γ_EF(Set(ℤ), c.annotations, ℤ_lit_arith)
 
-    // abstract over?
-    def ⊢ (c: ChurchTerm): Type = Γ_ℤ(c) ⊢ c.term
+    def apply(m: Module): Γ_EF = {
+      val synonyms = m.resolveSynonyms
+      val signatures = synonyms resolve m.signatures
+      def mkEF(notes: Map[λ, Type], defs: Map[ξ, Type]) =
+        Γ_EF(Set(ℤ), notes, signatures ++ defs orElse ℤ_lit_arith)
+      val (notes, defs) = m.linearizedDefinitions.
+        foldLeft[(Map[λ, Type], Map[ξ, Type])]((Map.empty, Map.empty)) {
+          case ((notes, defs), (name, ChurchTerm(t, newNotes))) =>
+            assert((newNotes find (notes contains _._1)) == None)
+            val accumulatedNotes = notes ++ newNotes
+            val τ = mkEF(newNotes, defs) ⊢ t
+            if (signatures contains name) {
+              assert(τ ⊑ signatures(name))
+              (accumulatedNotes, defs)
+            }
+            else
+              (accumulatedNotes, defs updated (name, τ))
+        }
+      mkEF(notes, defs)
+    }
   }
 
   trait ℤ_Ring {

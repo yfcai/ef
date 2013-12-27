@@ -28,7 +28,10 @@ trait Parser extends ParagraphGrammar with ASTConversions with Syntax {
 
       // type signature: add binding now, instantiate later
       case Branch(TypeSignature, List(x, xtype)) =>
-        module addSignature (x.to_ξ, xtype.toType)
+        val xi = x.to_ξ
+        if (module.definitions contains xi)
+          sys error s"signature of $x after definition"
+        module addSignature (xi, xtype.toType)
 
       // term definition: add binding now, verify type later
       case Branch(TermDefinition, List(x, xdef)) =>

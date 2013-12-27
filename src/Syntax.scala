@@ -305,7 +305,8 @@ trait Terms extends TypeAbstraction {
   }
 }
 
-trait Modules extends Terms {
+// modules, α-equivalence, pretty printer (unparse)
+trait Syntax extends Terms with ASTConversions {
   object Module {
     def empty = Module(Map.empty, Map.empty, Map.empty)
   }
@@ -332,13 +333,52 @@ trait Modules extends Terms {
         sys error s"\nrepeated definition:\n$x = $xdef"
       Module(synonyms, signatures, definitions updated (x, xdef))
     }
+
+    def findSource[K, K2 >: K, V](ss: Map[K, V], fv: V => Set[K2]):
+        Option[(K, V)] =
+      ss find { case (_, τ) => (ss find (fv(τ) contains _._1)) == None }
+
+    def resolveSynonyms: SynonymResolution = {
+      var result: Map[δ, Type] = Map.empty
+      var toResolve = synonyms
+      while(! toResolve.isEmpty) {
+        // if next == None, then we've got circular synonyms.
+        val next = findSource(toResolve, (x: Type) => x.freeNames).get
+        result = result + next
+        toResolve = (toResolve - next._1) map {
+          case (name, τ) => (name, τ subst (next._1, next._2))
+        }
+      }
+      SynonymResolution(result)
+    }
+
+    def linearizedDefinitions: List[(ξ, ChurchTerm)] = {
+      def loop(defs: Map[ξ, ChurchTerm]): List[(ξ, ChurchTerm)] =
+        if (defs.isEmpty)
+          Nil
+        else {
+          val x = findSource(defs, (x: ChurchTerm) => x.term.freeNames).get
+          x :: loop(defs - x._1)
+        }
+      loop(definitions)
+    }
   }
 
-  // a subclass of module supporting literals perhaps?
-}
+  case class SynonymResolution(toMap: Map[δ, Type]) {
+    def resolve(τ : Type): Type = {
+      (τ.fold[Type] {
+        case δ_(a) if toMap contains δ(a) => toMap(δ(a))
+        case otherwise => otherwise.toADT
+      }).fold[Type] {
+        case ₌:(σ: ∀, τ) => σ(τ)
+        case otherwise => otherwise.toADT
+      }
+    }
 
-// α-equivalence, pretty printer (unparse)
-trait Syntax extends Modules with ASTConversions {
+    def resolve[K](m: Map[K, Type]): Map[K, Type] =
+      m map { case (k, τ) => (k, resolve(τ)) }
+  }
+
   // α-equivalence is implemented by tree comparison.
   // Comparing the graph directly would be more productive...
   // think about it.

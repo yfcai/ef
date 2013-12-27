@@ -77,7 +77,14 @@ trait ExperimentSubjects extends Parser with Gammas {
   }
 
   val hmfTerms =
-    """|id      = λx : α. x
+    """|sid     = selfApp id
+       |poly    = λf : ∀α. α → α. (f id) (f 5)
+       |apply   = λf : α → β. λx : α. f x
+       |revapp  = flip apply
+       |hmf0    = apply poly id
+       |hmf1    = revapp id poly
+       |
+       |id      = λx : α. x
        |const   = λx : α. λy : β. x
        |flip    = λf : α → β → γ. λy : β. λx : α. f x y
        |selfApp = λf : ∀α. α → α. f f
@@ -194,9 +201,11 @@ object Experiment extends ExperimentSubjects {
   }
 
   def testTyping() {
-    parse(hmfTerms).definitions foreach {
-      case (ξ(name), church) => try {
-        println(s"$name : ${(Γ_ℤ ⊢ church).unparse}")
+    val module = parse(hmfTerms)
+    val Γ = Γ_ℤ(module)
+    module.linearizedDefinitions foreach {
+      case (xi @ ξ(name), church @ ChurchTerm(t, _)) => try {
+        println(s"$name : ${(Γ freevars xi).unparse}")
         println(s"$name = ${church.unparse}\n")
       } catch {
         case e: TypeError =>
