@@ -37,6 +37,12 @@ trait Types {
       τ subst (f map { case (k, v) => (k.binder, v) })
   }
 
+  // placeholder for let bindings et co.
+  case object UnknownType extends Type {
+    def toADT = this
+    def reverseTraversal = this :: Nil
+  }
+
   // free names. δωρεάν όνοματα (?)
   case class δ_[T](name: String) extends FreeName[T] {
     def toADT: ADT = δ(name)
@@ -329,6 +335,7 @@ trait Syntax extends Terms with ASTConversions {
     def addSynonym(a: δ, τ: Type, line: Int): Module = {
       val result = addSynonym(a, τ)
       result.lineNumber = lineNumber updated (a, line)
+      result.filename = this.filename
       result
     }
 
@@ -341,6 +348,7 @@ trait Syntax extends Terms with ASTConversions {
     def addSignature(x: ξ, τ: Type, line: Int): Module = {
       val result = addSignature(x, τ)
       result.lineNumber = lineNumber updated (x, line)
+      result.filename = this.filename
       result
     }
 
@@ -353,6 +361,14 @@ trait Syntax extends Terms with ASTConversions {
     def addDefinition(x: ξ, xdef: ChurchTerm, line: Int): Module = {
       val result = addDefinition(x, xdef)
       result.lineNumber = lineNumber updated (x, line)
+      result.filename = this.filename
+      result
+    }
+
+    def setDefinition(x: ξ, xdef: ChurchTerm): Module = {
+      val result = Module(synonyms, signatures, definitions updated (x, xdef))
+      result.lineNumber = lineNumber
+      result.filename = filename
       result
     }
 

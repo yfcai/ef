@@ -480,7 +480,7 @@ trait ExpressionGrammar extends Grammar {
   )
 
   case object LetBinding extends Operator(
-    Prefix("let", "=", "."),
+    Prefix("let", "=", "in"),
     Seq(Seq(Atomic), termOps, termOps)
   )
 
@@ -723,6 +723,11 @@ trait ASTConversions extends ExpressionGrammar with Terms {
         Branch(TypeAbstraction,
           List(toParameterList(tabses map (_.alpha.name)),
                loop(body)))
+
+      case ₋(x: λ, xdef) if t.annotations(x) == UnknownType =>
+        Branch(LetBinding,
+          List(toAtomic(x.name), loop(xdef), loop(x.body)))
+
       case ₋(f, x) =>
         Branch(TermApplication  , List(loop(f), loop(x)))
       case □(t, τ) =>
@@ -752,7 +757,11 @@ trait ASTConversions extends ExpressionGrammar with Terms {
   implicit class ConversionsFromAST(ast: AST) {
     def toProtoChurchTerm: ProtoChurchTerm = ast match {
       case Branch(LetBinding, List(x, xdef, body)) =>
-        sys error "TODO: implement type checker to support let-bindings"
+        val t = body.toProtoChurchTerm
+        val abs = λ(x.to_ξ)(t.term)
+        val ano = UnknownType :: t.annotations
+        val dfn = xdef.toProtoChurchTerm
+        ProtoChurchTerm(abs ₋ dfn.term, dfn.annotations ++ ano)
       case Branch(TermAbstraction, List(x, xtype, body)) =>
         val t = body.toProtoChurchTerm
         val abs = λ(x.to_ξ)(t.term)

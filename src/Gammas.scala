@@ -30,6 +30,8 @@ trait Gammas extends Unification {
         freevars(x)
 
       // (ascription)
+      // in EF, ascription is a syntactic sugar.
+      // (t : τ) can be written as ((λx : τ. x) t).
       case Ξ(t, τ_ascribed) =>
         val τ = Γ ⊢ t
         if (τ ⊑ τ_ascribed)
@@ -75,7 +77,8 @@ trait Gammas extends Unification {
         Γ_EF(Set(ℤ), notes, signatures ++ defs orElse ℤ_lit_arith)
       val (notes, defs) = m.linearizedDefinitions.
         foldLeft[(Map[λ, Type], Map[ξ, Type])]((Map.empty, Map.empty)) {
-          case ((notes, defs), (name, ChurchTerm(t, newNotes))) =>
+          case ((notes, defs), (name, church @ ChurchTerm(t, _))) =>
+            val newNotes = resolveLetBindings(church, x => mkEF(x, defs))
             assert((newNotes find (notes contains _._1)) == None)
             val accumulatedNotes = notes ++ newNotes
             val τ = try {
@@ -95,6 +98,25 @@ trait Gammas extends Unification {
         }
       mkEF(notes, defs)
     }
+
+    def resolveLetBindings(c: ChurchTerm, Γ: Map[λ, Type] => Γ):
+        Map[λ, Type] =
+      c.term.traverse.foldLeft(c.annotations) {
+        case (notes, (abs: λ) ₋ dfn)
+            if notes(abs) == UnknownType =>
+          notes updated (abs, Γ(notes) ⊢ dfn)
+        case (notes, _) =>
+          notes
+      }
+
+    def resolveLetBindings(m: Module): (Γ, Module) = {
+      val Γ = Γ_ℤ(m)
+      (Γ, m.definitions.foldRight(m) {
+        case ((x, xdef), module) =>
+          module.setDefinition(x, ChurchTerm(xdef.term, Γ.termvars))
+      })
+    }
+
   }
 
   trait ℤ_Ring {

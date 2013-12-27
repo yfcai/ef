@@ -40,8 +40,11 @@ trait Parser extends ParagraphGrammar with ASTConversions with Syntax {
 
       // term definition: add binding now, verify type later
       case Branch(TermDefinition, List(x, xdef)) =>
-        module.
-          addDefinition(x.to_ξ, xdef.toProtoChurchTerm.toChurchTerm, line)
+        module.addDefinition(
+          x.to_ξ,
+          xdef.toProtoChurchTerm.toChurchTerm,
+          line
+        )
 
       // typed function definition: requires a signature
       case Branch(TypedFUnctionDefinition,
@@ -65,7 +68,11 @@ trait Parser extends ParagraphGrammar with ASTConversions with Syntax {
           abs,
           argTypes ++ protobody.annotations
         ).toChurchTerm
-        module addDefinition (lhs, rhs, line)
+        module addDefinition (
+          lhs,
+          rhs,
+          line
+        )
     }
   }
 
