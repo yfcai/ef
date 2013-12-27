@@ -616,8 +616,18 @@ trait ParagraphGrammar extends ExpressionGrammar with Paragraphs {
   case object TypeExpr      extends DummyOperator(typeOps)
   case object TermExpr      extends DummyOperator(termOps)
   case object ParagraphExpr extends DummyOperator(paragraphOps) {
+    def fromFileWithLines(path: String): Iterator[(AST, Int)] =
+      (Paragraphs fromFile path) map {
+        p => (fromParagraph(path.split("/").last)(p), p.line)
+      }
+
     def fromFile(path: String): Iterator[AST] =
       (Paragraphs fromFile path) map fromParagraph(path.split("/").last)
+
+    def withLines(string: String): Iterator[(AST, Int)] =
+      Paragraphs(string) map {
+        p => (fromParagraph("#LINE")(p), p.line)
+      }
 
     def apply(string: String): Iterator[AST] =
       Paragraphs(string) map fromParagraph("#LINE")
@@ -741,6 +751,8 @@ trait ASTConversions extends ExpressionGrammar with Terms {
 
   implicit class ConversionsFromAST(ast: AST) {
     def toProtoChurchTerm: ProtoChurchTerm = ast match {
+      case Branch(LetBinding, List(x, xdef, body)) =>
+        sys error "TODO: implement type checker to support let-bindings"
       case Branch(TermAbstraction, List(x, xtype, body)) =>
         val t = body.toProtoChurchTerm
         val abs = λ(x.to_ξ)(t.term)
@@ -773,8 +785,6 @@ trait ASTConversions extends ExpressionGrammar with Terms {
     }
 
     def toType: Type = ast match {
-      case Branch(LetBinding, List(x, xdef, body)) =>
-        sys error "TODO: implement type checker to support let-bindings"
       case Branch(UniversalQuantification,
                   List(Branch(TypeParameterList, parameterList), body)) =>
         ∀(parameterList map (_.to_δ), body.toType)

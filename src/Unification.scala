@@ -64,11 +64,14 @@ trait Unification extends Syntax with PrenexForm {
     val argPrenex = PrenexForm(argType.duplicate)
     val funPrenex = PrenexForm(funType)
     val PrenexForm(all_x, ex_x, σ0    ) = argPrenex
-    val PrenexForm(all_f, ex_f, σ1 → τ) = funPrenex match {
+    val (all_f, ex_f, σ1, τ) = funPrenex match {
       case PrenexForm(all, _, a: α) if all contains a =>
         return ∀(a.binder.name){ x => x } // operator is absurd
-      case _ =>
-        funPrenex
+      case PrenexForm(all_f, ex_f, σ1 → τ) =>
+        (all_f, ex_f, σ1, τ)
+      case _ => TypeError {
+        s"nonfunction in operator position: ${funType.unparse}"
+      }
     }
     val mgs = (argPrenex ⊑? PrenexForm(ex_f, all_f, σ1)) match {
       case Success(mgs) => mgs

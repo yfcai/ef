@@ -316,10 +316,20 @@ trait Syntax extends Terms with ASTConversions {
     signatures : Map[ξ, Type],
     definitions: Map[ξ, ChurchTerm])
   {
+    // optional
+    var lineNumber: Map[Any, Int] = Map.empty
+    var filename: String = "#LINE"
+
     def addSynonym(a: δ, τ: Type): Module = {
       if (synonyms contains a)
         sys error s"\nrepeated synonym:\ntype $a = $τ"
       Module(synonyms updated (a, τ), signatures, definitions)
+    }
+
+    def addSynonym(a: δ, τ: Type, line: Int): Module = {
+      val result = addSynonym(a, τ)
+      result.lineNumber = lineNumber updated (a, line)
+      result
     }
 
     def addSignature(x: ξ, τ: Type): Module = {
@@ -328,10 +338,22 @@ trait Syntax extends Terms with ASTConversions {
       Module(synonyms, signatures updated (x, τ), definitions)
     }
 
+    def addSignature(x: ξ, τ: Type, line: Int): Module = {
+      val result = addSignature(x, τ)
+      result.lineNumber = lineNumber updated (x, line)
+      result
+    }
+
     def addDefinition(x: ξ, xdef: ChurchTerm): Module = {
       if (definitions contains x)
         sys error s"\nrepeated definition:\n$x = $xdef"
       Module(synonyms, signatures, definitions updated (x, xdef))
+    }
+
+    def addDefinition(x: ξ, xdef: ChurchTerm, line: Int): Module = {
+      val result = addDefinition(x, xdef)
+      result.lineNumber = lineNumber updated (x, line)
+      result
     }
 
     def findSource[K, K2 >: K, V](ss: Map[K, V], fv: V => Set[K2]):

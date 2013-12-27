@@ -78,7 +78,14 @@ trait Gammas extends Unification {
           case ((notes, defs), (name, ChurchTerm(t, newNotes))) =>
             assert((newNotes find (notes contains _._1)) == None)
             val accumulatedNotes = notes ++ newNotes
-            val τ = mkEF(newNotes, defs) ⊢ t
+            val τ = try {
+              mkEF(newNotes, defs) ⊢ t
+            } catch {
+              case e: TypeError => sys error (
+                s"\n${m.filename}:${m lineNumber name}   TYPE ERROR\n" +
+                  e.message
+              )
+            }
             if (signatures contains name) {
               assert(τ ⊑ signatures(name))
               (accumulatedNotes, defs)
