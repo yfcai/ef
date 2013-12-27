@@ -21,13 +21,16 @@ trait Gammas extends Unification {
   ) extends Γ {
     Γ =>
 
-    def ⊢ (t0: Term): Type = t0 match {
+    // call this to refresh term-level types
+    def ⊢ (t0: Term) = ⊢ (t0, identity)
+
+    def ⊢ (t0: Term, resolveSynonyms: Type => Type): Type = t0 match {
       // (TAUT)
       case χ(x) =>
-        termvars(x)
+        resolveSynonyms(termvars(x))
 
       case x: ξ if freevars isDefinedAt x =>
-        freevars(x)
+        resolveSynonyms(freevars(x))
 
       // (ascription)
       // in EF, ascription is a syntactic sugar.
@@ -35,24 +38,31 @@ trait Gammas extends Unification {
       case Ξ(t, τ_ascribed) =>
         val id = λ { x => x }
         val desugared = id ₋ t
-        Γ_EF(typevars, termvars updated (id, τ_ascribed), freevars) ⊢
-          desugared
+        Γ_EF(typevars,
+             termvars updated (id, resolveSynonyms(τ_ascribed)),
+             freevars) ⊢ (desugared, resolveSynonyms)
+
+      // (∀I)
+      // oh dear, let's hope we managed to get rid of it.
+      //case Λ(a, body) =>
+      //  ∀(a)(Γ ⊢ body)
 
       // (→∀I)
       case x @ λ(_, body) =>
-        val toQuantify = termvars(x).freeNames -- typevars
-        val σ = termvars(x)
-        val τ = Γ_EF(typevars ++ toQuantify, termvars, freevars) ⊢ body
+        val σ = resolveSynonyms(termvars(x))
+        val toQuantify = σ.freeNames -- typevars
+        val τ = Γ_EF(typevars ++ toQuantify, termvars, freevars) ⊢
+                (body, resolveSynonyms)
         ∀(toQuantify, σ →: τ)
 
       // (→∀∃E)
       case s ₋ t =>
-        val funType = Γ ⊢ s
-        val argType = Γ ⊢ t
+        val funType = Γ ⊢ (s, resolveSynonyms)
+        val argType = Γ ⊢ (t, resolveSynonyms)
         getResultTypeOfApplication(funType, argType)
 
       case _ =>
-        TypeError { s"${t0.unparse} is untypeable" }
+        TypeError { s"${t0.unparse} is not a typeable construct" }
     }
   }
 
@@ -70,25 +80,35 @@ trait Gammas extends Unification {
         Γ_EF(Set(ℤ), notes, signatures ++ defs orElse ℤ_lit_arith)
       val (notes, defs) = m.linearizedDefinitions.
         foldLeft[(Map[λ, Type], Map[ξ, Type])]((Map.empty, Map.empty)) {
-          case ((notes, defs), (name, church @ ChurchTerm(t, _))) =>
+          case ((notes, defs), (name, ChurchTerm(t, oldNotes))) => try {
+            val church = ChurchTerm(t, synonyms resolve oldNotes)
             val newNotes = resolveLetBindings(church, x => mkEF(x, defs))
             assert((newNotes find (notes contains _._1)) == None)
             val accumulatedNotes = notes ++ newNotes
-            val τ = try {
-              mkEF(newNotes, defs) ⊢ t
-            } catch {
-              case e: TypeError => TypeError {
-                "TYPE ERROR IN PARAGRAPH\n" +
-                s"${m.filename}:${m lineNumber name}" +
-                  e.message
-              }
-            }
+            val τ = mkEF(newNotes, defs) ⊢ (t, synonyms.resolve _)
             if (signatures contains name) {
-              assert(τ ⊑ signatures(name))
+              PrenexForm(τ) ⊑? PrenexForm(signatures(name)) match {
+                case Success(_) => ()
+                case Failure(s) => TypeError {
+                  s"""|incompatible signature.
+                      |declared:  ${signatures(name).unparse}
+                      |actual:    ${τ.unparse}
+                      |due to
+                      |$s
+                      |""".stripMargin
+                }
+              }
               (accumulatedNotes, defs)
             }
             else
               (accumulatedNotes, defs updated (name, τ))
+          } catch {
+            case e: TypeError => TypeError {
+              "TYPE ERROR IN PARAGRAPH\n" +
+              s"${m.filename}:${m lineNumber name}" +
+              e.message
+            }
+          }
         }
       // sanity check
       (synonyms.toMap.toList ++ signatures ++ defs) foreach {
