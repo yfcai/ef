@@ -8,7 +8,7 @@ trait Compiler extends Parser {
 }
 
 object CheckEF extends Compiler with Gammas {
-  def processModule(m: Module) {
+  def processModule(m: Module): Unit = try {
     val Γ = Γ_ℤ(m) // type-checked!
     m.definitions.toList.sortBy(x => m lineNumber x._1) foreach {
       case (xi @ ξ(name), c @ ChurchTerm(t, _)) =>
@@ -16,5 +16,9 @@ object CheckEF extends Compiler with Gammas {
         println(s"$name : ${τ.unparse}")
         println(s"$name = ${c.unparse}\n")
     }
+  }
+  catch {
+    case e: TypeError =>
+      println(e.message)
   }
 }

@@ -84,10 +84,11 @@ trait Gammas extends Unification {
             val τ = try {
               mkEF(newNotes, defs) ⊢ t
             } catch {
-              case e: TypeError => sys error (
-                s"\n${m.filename}:${m lineNumber name}   TYPE ERROR\n" +
+              case e: TypeError => TypeError {
+                "TYPE ERROR IN PARAGRAPH\n" +
+                s"${m.filename}:${m lineNumber name}" +
                   e.message
-              )
+              }
             }
             if (signatures contains name) {
               assert(τ ⊑ signatures(name))
@@ -96,6 +97,18 @@ trait Gammas extends Unification {
             else
               (accumulatedNotes, defs updated (name, τ))
         }
+      // sanity check
+      (synonyms.toMap.toList ++ signatures ++ defs) foreach {
+        case (name0, τ) => τ.freeNames foreach {
+          case name: δ if name != ℤ && ! (synonyms.toMap contains name) =>
+            TypeError {
+              s"""|TYPE ERROR IN PARAGRAPH
+                  |${m.filename}:${m lineNumber name0}
+                  |unknown type name ${name.name}"
+                  |""".stripMargin
+            }
+        }
+      }
       mkEF(notes, defs)
     }
 
