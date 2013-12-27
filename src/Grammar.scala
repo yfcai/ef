@@ -397,7 +397,7 @@ trait ExpressionGrammar extends Grammar {
   val keywords = "( ) [ ] { } ∀ ∃ Λ λ .".words
 
   // things that can't be a name:
-  lazy val forbidden = "( )".words
+  lazy val forbidden = "( ) .".words
 
   implicit class SplitStringIntoWords(s: String) {
     def words: Set[String] = Set(s split " ": _*)

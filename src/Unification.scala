@@ -57,7 +57,11 @@ trait Unification extends Syntax with PrenexForm {
 
   // THE ELIMINATION RULE (→∀∃E)
   def getResultTypeOfApplication(funType: Type, argType: Type): Type = {
-    val argPrenex = PrenexForm(argType)
+    // we have to duplicate argPrenex here to make sure that
+    // binders in argPrenex and funPrenex are distinct even
+    // in the case of self application. this is a weakness of
+    // the name binding language.
+    val argPrenex = PrenexForm(argType.duplicate)
     val funPrenex = PrenexForm(funType)
     val PrenexForm(all_x, ex_x, σ0    ) = argPrenex
     val PrenexForm(all_f, ex_f, σ1 → τ) = funPrenex match {
@@ -84,6 +88,14 @@ trait Unification extends Syntax with PrenexForm {
           |
           |  fun : ${funType.unparse}
           |  arg : ${argType.unparse}
+          |
+          |and
+          |
+          |σ₀ = ${σ0.unparse}
+          |σ₁ = ${σ1.unparse}
+          |
+          |mgs =
+          |${mgs mkString "\n"}
           |""".stripMargin
     }
     if (false) { // debug information

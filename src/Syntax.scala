@@ -332,8 +332,6 @@ trait Modules extends Terms {
         sys error s"\nrepeated definition:\n$x = $xdef"
       Module(synonyms, signatures, definitions updated (x, xdef))
     }
-
-    def Γ(x: ξ): Type = signatures(x) // override this for literals
   }
 
   // a subclass of module supporting literals perhaps?

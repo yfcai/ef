@@ -23,8 +23,11 @@ trait Gammas extends Unification {
 
     def ⊢ (t0: Term): Type = t0 match {
       // (TAUT)
-      case x: χ => termvars(x.binder)
-      case x: ξ => freevars(x)
+      case χ(x) =>
+        termvars(x)
+
+      case x: ξ if freevars isDefinedAt x =>
+        freevars(x)
 
       // (ascription)
       case Ξ(t, τ_ascribed) =>
@@ -45,19 +48,25 @@ trait Gammas extends Unification {
         val toQuantify = termvars(x).freeNames -- typevars
         val σ = termvars(x)
         val τ = Γ_EF(typevars ++ toQuantify, termvars, freevars) ⊢ body
-        ∀(toQuantify.toSeq: _*)(σ →: τ)
+        ∀(toQuantify, σ →: τ)
 
       // (→∀∃E)
       case s ₋ t =>
         val funType = Γ ⊢ s
         val argType = Γ ⊢ t
         getResultTypeOfApplication(funType, argType)
+
+      case _ =>
+        TypeError { s"${t0.unparse} is untypeable" }
     }
   }
 
   object Γ_ℤ extends ℤ_Ring {
     def apply(c: ChurchTerm): Γ_EF =
       Γ_EF(Set(ℤ), c.annotations, ℤ_lit_arith)
+
+    // abstract over?
+    def ⊢ (c: ChurchTerm): Type = Γ_ℤ(c) ⊢ c.term
   }
 
   trait ℤ_Ring {

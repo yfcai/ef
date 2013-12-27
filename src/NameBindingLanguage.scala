@@ -87,6 +87,9 @@ trait NameBindingLanguage {
       case x: FreeName[ADT] => Some(x)
       case _                => None
     })(collection.breakOut)
+
+    /** refresh all binders */
+    def duplicate: ADT = fold[ADT] { case x => x.toADT }
   }
 
   object ADT {
@@ -297,13 +300,13 @@ trait NameBindingLanguage {
       binder
     }
 
-    def apply(namesToBind: Seq[FreeName[ADT]], body: ADT): T =
+    def apply(namesToBind: Iterable[FreeName[ADT]], body: ADT): ADT =
       ((namesToBind foldRight body) {
         case (free, body) => apply(free.name) { x => body.subst(free, x) }
-      }).asInstanceOf[T]
+      })
 
     def apply(xs: FreeName[ADT]*)(body: => ADT): T =
-      apply(xs, body)
+      apply(xs, body).asInstanceOf[T]
 
     def unapply(b: T): Option[(Binder, ADT)] = Some((b.binder, b.body))
 

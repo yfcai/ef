@@ -76,6 +76,13 @@ trait ExperimentSubjects extends Parser with Gammas {
     val revappId   = "∀α β. ((α → α) → β) → β"
   }
 
+  val hmfTerms =
+    """|id      = λx : α. x
+       |const   = λx : α. λy : β. x
+       |flip    = λf : α → β → γ. λy : β. λx : α. f x y
+       |selfApp = λf : ∀α. α → α. f f
+       |""".stripMargin
+
   object Alchemy {
     val alchemist  = "∀α. Metal α"
     val blacksmith = "∃β. Metal β → Sword β"
@@ -186,8 +193,19 @@ object Experiment extends ExperimentSubjects {
     hmfApps foreach { case (f, x) => testApp(f, x) }
   }
 
+  def testTyping() {
+    parse(hmfTerms).definitions foreach {
+      case (ξ(name), church) => try {
+        println(s"$name : ${(Γ_ℤ ⊢ church).unparse}")
+        println(s"$name = ${church.unparse}\n")
+      } catch {
+        case e: TypeError =>
+          sys error s"untypeable:\n$name = ${church}\ndue to\n$e"
+      }
+    }
+  }
+
   def main(args: Array[String]) {
-    testModule
-    testUnification
+    testTyping
   }
 }

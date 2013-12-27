@@ -40,7 +40,7 @@ trait Parser extends ParagraphGrammar with ASTConversions with Syntax {
         // do stupid argument extraction for now,
         // do the smart thing after we figure out prenex form
         val lhs :: parameters = parameterList map (_.to_ξ)
-        val τ = module Γ lhs
+        val τ = module signatures lhs
         val protobody = body.toProtoChurchTerm
         val abs = (parameters foldRight protobody.term)({
            case (x, body) => λ(x)(body)
