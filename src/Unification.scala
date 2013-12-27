@@ -27,16 +27,16 @@ trait Unification extends Syntax with PrenexForm {
     * @param τ0 the less general type
     *
     * A more general type has fewer terms under any given context.
-    * Thus, σ ⊆ τ means that σ is more general than τ and every
+    * Thus, σ ⊑ τ means that σ is more general than τ and every
     * term of type σ can be used as a term of type τ.
     */
   implicit class GreaterTypeGenerality(σ: Type) {
-    def ⊆ (τ: Type): Boolean =
-      (PrenexForm(σ) ⊆? PrenexForm(τ)).isInstanceOf[Success[_, _]]
+    def ⊑ (τ: Type): Boolean =
+      (PrenexForm(σ) ⊑? PrenexForm(τ)).isInstanceOf[Success[_, _]]
   }
 
   implicit class GreaterPrenexGenerality(lhsPrenex: PrenexForm) {
-    def ⊆?(rhsPrenex: PrenexForm):
+    def ⊑?(rhsPrenex: PrenexForm):
         TrialAndError[Map[α, Type], String] =
       try {
         val PrenexForm(all0, ex0, σ0) = lhsPrenex
@@ -58,9 +58,15 @@ trait Unification extends Syntax with PrenexForm {
   // THE ELIMINATION RULE (→∀∃E)
   def getResultTypeOfApplication(funType: Type, argType: Type): Type = {
     val argPrenex = PrenexForm(argType)
+    val funPrenex = PrenexForm(funType)
     val PrenexForm(all_x, ex_x, σ0    ) = argPrenex
-    val PrenexForm(all_f, ex_f, σ1 → τ) = PrenexForm(funType)
-    val mgs = (argPrenex ⊆? PrenexForm(ex_f, all_f, σ1)) match {
+    val PrenexForm(all_f, ex_f, σ1 → τ) = funPrenex match {
+      case PrenexForm(all, _, a: α) if all contains a =>
+        return ∀(a.binder.name){ x => x } // operator is absurd
+      case _ =>
+        funPrenex
+    }
+    val mgs = (argPrenex ⊑? PrenexForm(ex_f, all_f, σ1)) match {
       case Success(mgs) => mgs
       case Failure(msg) => TypeError { msg }
     }

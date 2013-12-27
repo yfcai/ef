@@ -102,7 +102,8 @@ trait ExperimentSubjects extends Parser with Gammas {
       (smith1, unobtainium), // think "nil" as unobtainium
       (smith2, unobtainium), // & "∃α. List (List α)" as needed material
       (smith3, unobtainium),
-      (id, ufo)
+      (id, ufo),
+      (unobtainium, nukesmith)
     )
   }
 
