@@ -1,0 +1,28 @@
+type Nat = ∀ν. ν → (ν → ν) → ν
+
+zero : Nat
+zero = λx : ζ. λf : ζ → ζ. x
+
+succ : Nat → Nat
+succ n = λx : σ. λf : σ → σ. f (n x f)
+
+type FinalNat = ∀φ. φ → (Nat → φ) → φ
+
+.finalNat : Nat → FinalNat
+finalNat = λn : Nat.
+  n (λx : ξ. λf : Nat → ξ. x)
+    (λy : FinalNat. y)
+
+
+type A = ∀α. α
+id = λx : α. x
+
+. this signature fits
+.f : A → A
+f = id (λx : A. x)
+
+g : ∀γ. (γ → γ) → γ
+
+.   IS: ∃α. α
+. WANT: ∀α. α = A
+h = g f
