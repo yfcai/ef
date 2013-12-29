@@ -23,6 +23,11 @@ f = id (λx : A. x)
 
 g : ∀γ. (γ → γ) → γ
 
+.No such element exception: Syntax.scala:398 (linearizeDefinitions)
+.g = g
+
+gee = g
+
 .   IS: ∃α. α
 . WANT: ∀α. α = A
 h = g f
