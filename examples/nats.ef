@@ -1,7 +1,9 @@
+...const = λx : α. λy : β. x
+...
 ...type Nat = ∀ν. ν → (ν → ν) → ν
 ...
 ...zero : Nat
-...zero = λx : ζ. λf : ζ → ζ. x
+...zero = const
 ...
 ...succ : Nat → Nat
 ...succ = λn : Nat. λx : σ. λf : σ → σ. f (n x f)
