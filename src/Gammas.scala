@@ -49,7 +49,7 @@ trait Gammas extends Unification {
         val σ = termvars(x)
         val toQuantify = σ.freeNames -- typevars
         val τ = Γ_EF(typevars ++ toQuantify, termvars, freevars) ⊢ body
-        ∀(toQuantify, σ →: τ)
+        ∀(toQuantify, σ.duplicate →: τ)
 
       // (→∀∃E)
       case s ₋ t =>

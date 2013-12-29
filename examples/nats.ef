@@ -1,33 +1,40 @@
-type Nat = ∀ν. ν → (ν → ν) → ν
-
-zero : Nat
-zero = λx : ζ. λf : ζ → ζ. x
-
-succ : Nat → Nat
-succ n = λx : σ. λf : σ → σ. f (n x f)
-
-type FinalNat = ∀φ. φ → (Nat → φ) → φ
-
-.finalNat : Nat → FinalNat
-finalNat = λn : Nat.
-  n (λx : ξ. λf : Nat → ξ. x)
-    (λy : FinalNat. y)
-
-
-type A = ∀α. α
-id = λx : α. x
-
-. this signature fits
-.f : A → A
-f = id (λx : A. x)
-
-g : ∀γ. (γ → γ) → γ
-
-.No such element exception: Syntax.scala:398 (linearizeDefinitions)
-.g = g
-
-gee = g
-
-.   IS: ∃α. α
-. WANT: ∀α. α = A
+...type Nat = ∀ν. ν → (ν → ν) → ν
+...
+...zero : Nat
+...zero = λx : ζ. λf : ζ → ζ. x
+...
+...succ : Nat → Nat
+...succ = λn : Nat. λx : σ. λf : σ → σ. f (n x f)
+...
+...type MatchNat = ∀φ. φ → (Nat → φ) → φ
+...
+....incompatible signature.
+....declared:  (∀ν. ν → (ν → ν) → ν) → ∀φ. φ → ((∀ν. ν → (ν → ν) → ν) → φ) → φ
+....actual:    (∀ν. ν → (ν → ν) → ν) → ∃φ ν. φ → ((ν → (ν → ν) → ν) → φ) → φ
+...
+....matchNat : Nat → MatchNat
+....matchNat = λn : Nat.
+....  n (λx : ξ. λf : Nat → ξ. x)
+....    (λy : MatchNat. y)
+...
+...
+f = (λx : ∀α. α. x : ∀β. β)
+g-postulate : ∀γ. (γ → γ) → γ
+g = g-postulate
 h = g f
+
+undefined : ∀α. α
+z = undefined : ∀β. β
+
+m-postulate : ∀ξ ν. ((ξ → ν) → (ξ → ν)) → (ξ → ν)
+m = m-postulate
+
+n-postulate : (∀α β. α → β) → (∀γ β. γ → β)
+n = n-postulate
+
+p = m n
+
+.. rant TODO
+.  1. figure out if m-postulate is the correct type of n const
+.  2. work out why there're existentials if we apply m-postulate
+.     to (MatchNat → MatchNat).

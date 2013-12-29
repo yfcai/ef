@@ -45,6 +45,7 @@ trait Unification extends Syntax with PrenexForm {
         val ex      = Set(ex0 ++ all1: _*)
         val mgs0    = resolveConstraints(all, σ0 ≡ σ1)
         val mgs     = captureSkolems(mgs0, lhsPrenex, rhsPrenex)
+        // TODO: sanity check here, do not check on application
         Success(mgs)
       }
       catch {
@@ -77,6 +78,8 @@ trait Unification extends Syntax with PrenexForm {
       case Success(mgs) => mgs
       case Failure(msg) => TypeError { msg }
     }
+    println(mgs) // DEBUG
+    /* sanity check: to move inside ⊑?
     val σ0_inst = PrenexForm(
       requantify(all_f ++ all_x, ex_f ++ ex_x, σ0 subst_α mgs)).normalize
     val σ1_inst = PrenexForm(
@@ -105,6 +108,8 @@ trait Unification extends Syntax with PrenexForm {
       println(s"  actual param : ${σ0_inst.unparse}")
       println(s"  formal param : ${σ1_inst.unparse}")
     }
+    */
+
     requantify(all_f ++ all_x, ex_x, requantify(Nil, ex_f, τ) subst_α mgs)
   }
 
@@ -177,48 +182,24 @@ trait Unification extends Syntax with PrenexForm {
     val all = Set.empty[α] ++ lhs.all ++ rhs.ex
     val ex  = Set.empty[α] ++ lhs.ex ++ rhs.all
     val either = all ++ ex
-    val mgsAfterCapturing: Map[α, Type] = mgs map { case (a, τ) =>
-      τ match {
-        // universal unified to universal, do nothing, or:
-        // universal unified to existential, do nothing beyond
-        // the deletion of the universal, which is already done
-        case b: α if either contains b =>
-          (a, b)
-
-        // unified to something not bound here, freak out
-        case b: α =>
-          err(s"$a unified to out-of-scope name $b", lhs, rhs)
-
-        // universal unified to a nontrivial type, tons of work
-        case τ0 =>
-          val τ = (ex & unbound(τ0)).foldRight(τ0) {
-            case (e, τ) =>
-              // any existential in a nontrivial type unified to
-              // a universal cannot appear anywhere outside.
-              // make sure of that.
-              if (count(e, τ0) != count(e, lhs.τ, rhs.τ))
-                err(s"the existential $e in ${τ0.unparse} escaped!", lhs, rhs)
-              // compute depth (number of greatest nesting to the
-              // left of function arrows)
-              val depthInside  = depth(e, τ0)
-              val depthOutside = depth(e, lhs.τ, rhs.τ)
-              assert(depthInside >= 0 && depthOutside >= 0)
-              // if depth parities are equal inside & out,
-              // quantify e universally; otherwise existentially.
-              //
-              // Instead of laboriously requantify on instantiation,
-              // we may choose to quantify the existential from
-              // outside once it's certain that it did not escape.
-              // For now, we use the slow method so that we don't
-              // have to think about possible loopholes in the fast
-              // method.
-              if (depthInside % 2 == depthOutside % 2)
-                ∃(e.binder.name) { x => τ subst (e, x) }
-              else
-                ∀(e.binder.name) { x => τ subst (e, x) }
-          }
-          (a, τ)
-      }
+    val mgsAfterCapturing: Map[α, Type] = mgs map {
+      case (a, τ0) =>
+        val τ = (ex & unbound(τ0)).foldRight(τ0) {
+          // e can be captured, capture it
+          case (e, τ) if (count(e, τ0) == count(e, lhs.τ, rhs.τ)) =>
+            // compute depth (number of greatest nesting to the
+            // left of function arrows)
+            val depthInside  = depth(e, τ0)
+            val depthOutside = depth(e, lhs.τ, rhs.τ)
+            assert(depthInside >= 0 && depthOutside >= 0)
+            if (depthInside % 2 == depthOutside % 2)
+              ∃(e.binder.name) { x => τ subst (e, x) }
+            else
+              ∀(e.binder.name) { x => τ subst (e, x) }
+          // e can't be captured
+          case (e, τ) => τ
+        }
+        (a, τ)
     }
     mgsAfterCapturing
   }
@@ -275,9 +256,9 @@ trait Unification extends Syntax with PrenexForm {
     }
 
     // depth: the biggest number of arrows to the right of
-    // this variable
+    // this variable.
     def depth(a: α, τ1: Type, τ2: Type): Int =
-      Math.max(depth(a, τ1), depth(a, τ2))
+      Math.max(depth(a, τ1), depth(a, τ2) + 1)
 
     def depth(a: α, τ: Type): Int = {
       import Type._
