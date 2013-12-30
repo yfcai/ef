@@ -1,8 +1,5 @@
 . PRELUDE
 
-. a signature without body is a postulate
-??? : ∀α. α
-
 auto  = λx : ∀ω. ω → ω. x x
 const = λx : α. λy : β. x
 flip  = λf : α → β → γ. λy : β. λx : α. f x y

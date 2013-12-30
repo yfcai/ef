@@ -153,6 +153,10 @@ trait Gammas extends Unification {
 
       case ξ("+") | ξ("-") | ξ("*") | ξ("/") =>
         ℤ →: ℤ →: ℤ
+
+      // undefined
+      case ξ("???") =>
+        ∀("a̧") { a => a } // broken a for "absurd"
     }
   }
 }

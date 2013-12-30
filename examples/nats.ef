@@ -1,7 +1,6 @@
 . PRELUDE
 
-??? : ∀α. α
-id = λx : ι. x
+id    = λx : ι. x
 const = λx : α. λy : β. x
 
 . NATURAL NUMBERS
