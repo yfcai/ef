@@ -1,11 +1,12 @@
 . PRELUDE
 
 . a signature without body is a postulate
-undefined : ∀α. α
+??? : ∀α. α
 
-id    = λx : α. x
+auto  = λx : ∀ω. ω → ω. x x
 const = λx : α. λy : β. x
 flip  = λf : α → β → γ. λy : β. λx : α. f x y
+id    = λx : α. x
 
 
 . CONJUNCTION
@@ -39,52 +40,42 @@ inj₂ = λy : β. λf : α → γ. λg : β → γ. g y
 
 type List α = ∀β. β → (α → β → β) → β
 
-. rant
-  TO SUPPORT:
-
-  nil : List
-  nil = const
-
-  incompatible signature.
-  declared:  ∀γ δ. δ → (γ → δ → δ) → δ
-  actual:    ∀α. α → ∀β. β → α
-  due to
-
-  the existential δ in γ → δ → δ escaped! in:
-  lhs : ∀α β. α → β → α
-  rhs : ∀γ δ. δ → (γ → δ → δ) → δ
-
 . List is desugared to (∀α. List α)
 nil : List
-nil = λz : β. λf : α → β → β. (z)
+nil = const
 
 cons : ∀α. α → List α → List α
 cons = λx : α. λxs : List α. λz : β. λf : α → β → β. (f x (xs z f))
 
-head : ∀α. List α → α
-head = λxs : List α. xs undefined const
-
 . BӦHM-BERADUCCI ENCODING FOR PATTERN MATCHING ON LISTS
 
-
-type FinalList α = ∀β. β → (α → List α → β) → β
+type MatchList α = ∀β. β → (α → List α → β) → β
 
 . rant
-  this version of finalList breaks type inference.
+  FIXME: investigate the α (element type) problem in lists.
+         this is a big problem because it leads to copy & paste.
 
-  finalList : ∀α. List α → FinalList α
-  finalList = λxs : List α. λg : FinalListView α β.
-    xs (g (inj₁ nil)) (g (inj₂ undefined))
+matchList : ∀α. List α → MatchList α
+matchList = λxs : List α.
+  xs (λz : β. λf : α → List α → β. z)
+     (λx : α. λys : MatchList α. λz : β. λf : α → List α → β.
+       f x (ys
+         (λz : γ. λg : α → γ → γ. z)
+         (λx : α. λxs : List α. λz : γ. λf : α → γ → γ. (f x (xs z f)))))
 
-  Hey, not α-equivalent after unification:
+. USAGE
 
-    ∀β00. ∃γ β0 β.
-      ((β0 → (α → β0 → β0) → β0) → γ) →
-      ((α → (β00 → (α → β00 → β00) → β00) → β → (α → β → β) → β) → γ) → γ
+head : ∀α. List α → α
+head = λxs : List α. xs ??? const
 
-    ∀β1. ∃β0 γ β.
-      ((β0 → (α → β0 → β0) → β0) → γ) →
-      ((α → (β1  → (α → β1  → β1 ) → β1 ) → β → (α → β → β) → β) → γ) → γ
+tail : ∀α. List α → List α
+tail = λxs : List α. matchList xs ??? (flip const)
+
+ana-ℤ : ℤ → List ℤ
+ana-ℤ = ???
+
+sum : List ℤ → ℤ
+sum ns = ns 0 +
 
 . rant
   let-bindings need fix.
@@ -92,22 +83,6 @@ type FinalList α = ∀β. β → (α → List α → β) → β
   goodFinalList : ∀α. FinalList α
   finalList : ∀α. List α → FinalList α
   finalList = let x = 5 in goodFinalList
-
-goodFinalList : ∀α. FinalList α
-type FinalCons α = (α → FinalList α → FinalList α) → FinalList α
-
-. to fix: type sig breaks stuff
-.finalList : ∀α. List α → FinalList α
-finalList = λxs : List α.
- (λz : FinalCons α. z) (
-  xs (λz : β. λf : α → List α → β. z)
- )
-
-.rant
-     (λx : α. λy : FinalList α. λz : β. λf : α → List α → β.
-       f x (y nil cons))
-
-tail = λxs : List α. finalList xs undefined (flip const)
 
 . rant
   Need fix: ascription doesn't resolve synonyms

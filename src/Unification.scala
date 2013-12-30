@@ -306,16 +306,18 @@ trait PrenexForm extends Types {
   }
 
   object PrenexForm {
-    def apply(τ: Type): PrenexForm = τ match {
+    def apply(τ: Type): PrenexForm = fromType(τ.duplicate)
+
+    def fromType(τ: Type): PrenexForm = τ match {
       case ∀(a, body) =>
-        apply(body) addUniversal   a
+        fromType(body) addUniversal   a
       case ∃(a, body) =>
-        apply(body) addExistential a
+        fromType(body) addExistential a
       case σ → τ =>
-        val (ps, pt) = (apply(σ.duplicate), apply(τ))
-        apply(ps.ex ++ pt.all, ps.all ++ pt.ex, ps.τ →: pt.τ)
+        val (ps, pt) = (fromType(σ), fromType(τ))
+        PrenexForm(ps.ex ++ pt.all, ps.all ++ pt.ex, ps.τ →: pt.τ)
       case _ =>
-        apply(Nil, Nil, τ)
+        PrenexForm(Nil, Nil, τ)
     }
   }
 }

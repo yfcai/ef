@@ -1,6 +1,6 @@
 . PRELUDE
 
-undefined : ∀α. α
+??? : ∀α. α
 id = λx : ι. x
 const = λx : α. λy : β. x
 
@@ -36,4 +36,4 @@ to_ℤ n = n 0 (+ 1)
 three = to_ℤ (succ (succ (succ zero)))
 
 pred : Nat → Nat
-pred n = matchNat n undefined id
+pred n = matchNat n ??? id
