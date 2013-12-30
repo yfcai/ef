@@ -58,11 +58,7 @@ trait Unification extends Syntax with PrenexForm {
 
   // THE ELIMINATION RULE (→∀∃E)
   def getResultTypeOfApplication(funType: Type, argType: Type): Type = {
-    // we have to duplicate argPrenex here to make sure that
-    // binders in argPrenex and funPrenex are distinct even
-    // in the case of self application. this is a weakness of
-    // the name binding language.
-    val argPrenex = PrenexForm(argType.duplicate)
+    val argPrenex = PrenexForm(argType)
     val funPrenex = PrenexForm(funType)
     val PrenexForm(all_x, ex_x, σ0    ) = argPrenex
     val (all_f, ex_f, σ1, τ) = funPrenex match {
@@ -78,7 +74,7 @@ trait Unification extends Syntax with PrenexForm {
       case Success(mgs) => mgs
       case Failure(msg) => TypeError { msg }
     }
-    println(mgs) // DEBUG
+    //println(mgs) // DEBUG
     /* sanity check: to move inside ⊑?
     val σ0_inst = PrenexForm(
       requantify(all_f ++ all_x, ex_f ++ ex_x, σ0 subst_α mgs)).normalize
@@ -184,11 +180,9 @@ trait Unification extends Syntax with PrenexForm {
     val either = all ++ ex
     val mgsAfterCapturing: Map[α, Type] = mgs map {
       case (a, τ0) =>
-        val τ = (ex & unbound(τ0)).foldRight(τ0) {
-          // e can be captured, capture it
+        val exposed = unbound(τ0)
+        val τ1 = (ex & exposed).foldRight(τ0) {
           case (e, τ) if (count(e, τ0) == count(e, lhs.τ, rhs.τ)) =>
-            // compute depth (number of greatest nesting to the
-            // left of function arrows)
             val depthInside  = depth(e, τ0)
             val depthOutside = depth(e, lhs.τ, rhs.τ)
             assert(depthInside >= 0 && depthOutside >= 0)
@@ -196,7 +190,17 @@ trait Unification extends Syntax with PrenexForm {
               ∃(e.binder.name) { x => τ subst (e, x) }
             else
               ∀(e.binder.name) { x => τ subst (e, x) }
-          // e can't be captured
+          case (e, τ) => τ
+        }
+        val τ = (all & exposed).foldRight(τ1) {
+          case (e, τ) if (count(e, τ0) == count(e, lhs.τ, rhs.τ)) =>
+            val depthInside  = depth(e, τ0)
+            val depthOutside = depth(e, lhs.τ, rhs.τ)
+            assert(depthInside >= 0 && depthOutside >= 0)
+            if (depthInside % 2 == depthOutside % 2)
+              ∀(e.binder.name) { x => τ subst (e, x) }
+            else
+              ∃(e.binder.name) { x => τ subst (e, x) }
           case (e, τ) => τ
         }
         (a, τ)
@@ -304,14 +308,14 @@ trait PrenexForm extends Types {
   object PrenexForm {
     def apply(τ: Type): PrenexForm = τ match {
       case ∀(a, body) =>
-        PrenexForm(body) addUniversal   a
+        apply(body) addUniversal   a
       case ∃(a, body) =>
-        PrenexForm(body) addExistential a
+        apply(body) addExistential a
       case σ → τ =>
-        val (ps, pt) = (PrenexForm(σ), PrenexForm(τ))
-        PrenexForm(ps.ex ++ pt.all, ps.all ++ pt.ex, ps.τ →: pt.τ)
+        val (ps, pt) = (apply(σ.duplicate), apply(τ))
+        apply(ps.ex ++ pt.all, ps.all ++ pt.ex, ps.τ →: pt.τ)
       case _ =>
-        PrenexForm(Nil, Nil, τ)
+        apply(Nil, Nil, τ)
     }
   }
 }

@@ -1,0 +1,27 @@
+. rant
+
+  PARITY TEST
+  ===========
+
+  verify correct quantification of captured skolems and antiskolems
+
+f = (λx : ∀α. α. x : ∀β. β)
+g-postulate : ∀γ. (γ → γ) → γ
+g = g-postulate
+h = g f
+
+undefined : ∀α. α
+z = undefined : ∀β. β
+
+m-postulate : ∀ξ ν. ((ξ → ν) → (ξ → ν)) → (ξ → ν)
+m = m-postulate
+
+n-postulate : (∀α β. α → β) → (∀γ β. γ → β)
+n = n-postulate
+
+p = (λx : α. x) (m n)
+
+.rant
+ q-postulate : ∀α. (α → ℤ) → α
+ q = q-postulate
+ ill-typed = q : ∀β γ. (β → ℤ) → γ

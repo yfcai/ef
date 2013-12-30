@@ -1,42 +1,39 @@
-...const = λx : α. λy : β. x
-...
-...type Nat = ∀ν. ν → (ν → ν) → ν
-...
-...zero : Nat
-...zero = const
-...
-...succ : Nat → Nat
-...succ = λn : Nat. λx : σ. λf : σ → σ. f (n x f)
-...
-...type MatchNat = ∀φ. φ → (Nat → φ) → φ
-...
-....incompatible signature.
-....declared:  (∀ν. ν → (ν → ν) → ν) → ∀φ. φ → ((∀ν. ν → (ν → ν) → ν) → φ) → φ
-....actual:    (∀ν. ν → (ν → ν) → ν) → ∃φ ν. φ → ((ν → (ν → ν) → ν) → φ) → φ
-...
-....matchNat : Nat → MatchNat
-....matchNat = λn : Nat.
-....  n (λx : ξ. λf : Nat → ξ. x)
-....    (λy : MatchNat. y)
-...
-...
-f = (λx : ∀α. α. x : ∀β. β)
-g-postulate : ∀γ. (γ → γ) → γ
-g = g-postulate
-h = g f
+. PRELUDE
 
 undefined : ∀α. α
-z = undefined : ∀β. β
+id = λx : ι. x
+const = λx : α. λy : β. x
 
-m-postulate : ∀ξ ν. ((ξ → ν) → (ξ → ν)) → (ξ → ν)
-m = m-postulate
+. NATURAL NUMBERS
 
-n-postulate : (∀α β. α → β) → (∀γ β. γ → β)
-n = n-postulate
+type Nat = ∀ν. ν → (ν → ν) → ν
 
-p = m n
+zero : Nat
+zero = const
 
-.. rant TODO
-.  1. figure out if m-postulate is the correct type of n const
-.  2. work out why there're existentials if we apply m-postulate
-.     to (MatchNat → MatchNat).
+succ : Nat → Nat
+succ = λn : Nat. λx : σ. λf : σ → σ. f (n x f)
+
+. PATTERN MATCHING ON NATURAL NUMBERS
+
+type MatchNat = ∀φ. φ → (Nat → φ) → φ
+
+. FIXME can't inline matchZero
+matchZero : MatchNat
+matchZero = const
+
+matchNat : Nat → MatchNat
+matchNat = λn : Nat.
+  n matchZero
+    (λy : MatchNat. λx : ξ. λf : Nat → ξ. f (y zero succ))
+
+. USAGE
+
+to_ℤ : Nat → ℤ
+to_ℤ n = n 0 (+ 1)
+
+. TODO: execute in racket to find out if this is 3
+three = to_ℤ (succ (succ (succ zero)))
+
+pred : Nat → Nat
+pred n = matchNat n undefined id
