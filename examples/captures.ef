@@ -1,0 +1,60 @@
+. TO CAPTURE OR NOT TO CAPTURE, THAT IS THE QUESTION
+
+id = λx : ι. x
+
+
+. rant 1: better not to capture
+
+  it is better not to capture if in the result type of f1,
+  α occurs at a covariant position no more than once.
+
+f1-postulate : ∀α. α → (α → α → α)
+f1 = f1-postulate
+
+g1 :   ∃β. ∃γ. ∀δ. (β → β) → (γ → γ) → (δ → δ)
+g1 = f1 id
+
+h1-postulate : ∀ε. (ε → ε) → (ε → ε) → (ε → ε)
+h1 = h1-postulate
+
+k1 = h1 : (∀β. β → β) → (∀γ. γ → γ) → (∀δ. δ → δ)
+
+
+. rant 2: better to capture
+
+  it is better to capture if in the result type of f2,
+  α has multiple covariant occurrences and no contravariant
+  occurrence.
+
+f2-postulate : ∀α. α → (α → ℤ) → α
+f2 = f2-postulate
+
+g2 :       ∀β. ∀γ. ((β → β) → ℤ) → γ → γ
+g2 = f2 id
+
+h2-postulate : ∀ε. ((ε → ε) → ℤ) → ε → ε
+h2 = h2-postulate
+
+j2 = g2 : ∀ε. ((ε → ε) → ℤ) → ε → ε
+
+
+. rant 3: that is the question indeed!
+
+  it is neither better to capture nor better not to capture
+  if in the result type of f3, α occurs at multiple covariant
+  positions and at least one contravariant position.
+
+f3-postulate : ∀α. α → (α → α) → α
+f3 = f3-postulate
+
+g3 :   ∀β. ∃γ. ∀δ. ((β → β) → (γ → γ)) → δ → δ
+g3 = f3 id
+
+h3-postulate : ∀ε. ((ε → ε) → (ε → ε)) → ε → ε
+h3 = h3-postulate
+
+. γ ≢ ε
+. j3 = g3 : ∀ε. ((ε → ε) → (ε → ε)) → ε → ε
+
+. β ≢ δ
+. k3 = h3 : ((∀β. β → β) → (∀γ. γ → γ)) → ∀δ. δ → δ
