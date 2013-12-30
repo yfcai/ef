@@ -36,3 +36,23 @@ three = to_ℤ (succ (succ (succ zero)))
 
 pred : Nat → Nat
 pred n = matchNat n ??? id
+
+. rant about overcapturing
+
+  inlineMatch : Nat → (MatchNat → MatchNat) → MatchNat
+  inlineMatch n = n const
+
+  TYPE ERROR IN PARAGRAPH
+  nats.ef:41
+  incompatible signature.
+  declared:  (∀ν. ν → (ν → ν) → ν) →
+    ((∀φ. φ → ((∀ν. ν → (ν → ν) → ν) → φ) → φ) →
+      ∀φ. φ → ((∀ν. ν → (ν → ν) → ν) → φ) → φ) →
+    ∀φ. φ → ((∀ν. ν → (ν → ν) → ν) → φ) → φ
+  actual:    (∀ν. ν → (ν → ν) → ν) →
+    ((∀α β. α → β → α) →
+      ∀α β. α → β → α) →
+    ∀α β. α → β → α
+  due to trying to unify rigid type variable:
+  β  ≡  (ν → (ν → ν) → ν) → α
+

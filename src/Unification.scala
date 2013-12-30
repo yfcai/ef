@@ -74,7 +74,7 @@ trait Unification extends Syntax with PrenexForm {
       case Success(mgs) => mgs
       case Failure(msg) => TypeError { msg }
     }
-    //println(mgs) // DEBUG
+
     /* sanity check: to move inside ⊑?
     val σ0_inst = PrenexForm(
       requantify(all_f ++ all_x, ex_f ++ ex_x, σ0 subst_α mgs)).normalize
