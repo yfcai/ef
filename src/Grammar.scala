@@ -232,11 +232,24 @@ trait ProtoAST extends Lexer with Trees {
 
     // tree
     def apply(toks: Seq[Token]): Tree = {
-      val (children, next) = horizontal(toks)
-      if (next.isEmpty)
-        ⊹(ProtoAST, children: _*)
-      else
-        throw Problem(next.head, "unmatched right parenthesis")
+      def theatre(candidate: Tree, next: Seq[Token]) =
+        if (next.isEmpty)
+          candidate
+        else
+          throw Problem(next.head, "unmatched right parenthesis")
+      if (toks.isEmpty || ! toks.head.isLeftParen) {
+        val (children, next) = horizontal(toks)
+        theatre(⊹(ProtoAST, children: _*), next)
+      }
+      else {
+        val (me, next) = vertical(toks)
+        if (next.isEmpty)
+          me
+        else {
+          val (children, rest) = horizontal(next)
+          theatre(⊹(ProtoAST, me +: children: _*), rest)
+        }
+      }
     }
 
     // tree (tree) tree (tree) tree
@@ -258,34 +271,55 @@ trait ProtoAST extends Lexer with Trees {
     // ( ( ( ( ( tree ) ) ) ) )
     // precondition: toks0.head.isLeftParen
     def vertical(toks0: Seq[Token]): (Tree, Seq[Token]) = {
+      // switch the following check off for performance
+      require(! toks0.isEmpty && toks0.head.isLeftParen)
+      def emptyProblem =
+        throw Problem(toks0.last, "expect right parenthesis after this")
+      def mkProtoAST(children: Seq[Tree]) =
+        ⊹(ProtoAST, children: _*)
       def theatre(next: Tree, rest: Seq[Token]) =
         if (rest.isEmpty)
-          throw Problem(toks0.last, "expect right parenthesis after this")
+          emptyProblem
         else if (rest.head.isRightParen)
           (next, rest.tail)
         else
           throw Problem(rest.head, "expect right parenthesis here")
       val toks = toks0.tail
-      if (toks.head.isRightParen) {
+      if (toks.isEmpty)
+        emptyProblem
+      else if (toks.head.isLeftParen) {
         val (next, rest) = vertical(toks)
-        theatre(next, rest)
+        if (rest.isEmpty || rest.head.isRightParen)
+          theatre(next, rest)
+        else {
+          val (children, realRest) = horizontal(rest)
+          theatre(mkProtoAST(next +: children), realRest)
+        }
       }
+      else if (toks.take(2).length == 2 &&
+               ! toks(0).isRightParen &&
+                 toks(1).isRightParen)
+        (∙(TokenAST, toks.head), toks.drop(2))
       else {
         val (children, rest) = horizontal(toks)
-        theatre(⊹(ProtoAST, children: _*), rest)
+        theatre(mkProtoAST(children), rest)
       }
     }
   }
 }
 
+
 object TestLexer extends ProtoAST {
   val keywords: Set[String] = Set("(", ")")
-  val hais = List(
-    "a (b c (d) ((((e f))) g) h)",
+  val trees = List(
+    "a () (b c (d) ((((e f))) g) h)",
+    "((((()))))",
+    "()(()())((()())(()()))",
+    "((((())))((",
     "(hi hi (hi hi (hi) hi) hi))(hi)")
 
   def main(args: Array[String]) {
-    hais foreach { hai =>
+     trees foreach { hai =>
       try {
         val t = ProtoAST(tokenize(hai))
         println(s"${t.print}\n")
@@ -298,151 +332,111 @@ object TestLexer extends ProtoAST {
   }
 }
 
-
-/* old fixities, not good
-trait Fixities extends Lexer {
+trait Fixities extends ProtoAST {
   trait Fixity {
-    def splits(tokens: Tokens): Iterator[Seq[Tokens]]
+    type Item = Tree
+    type Items = Seq[Tree]
+    type ItemGroups = Seq[Seq[Tree]]
 
-    object NoWay extends Iterator[Seq[Tokens]] {
-      def next = sys error s"Nope, got nothin'"
-      def hasNext = false
-    }
+    def splits(items: Items): Iterator[ItemGroups]
 
-    case class Singleton(tokens: Tokens) extends Iterator[Seq[Tokens]] {
-      var hasNext = true
-      def next: Seq[Tokens] =
-        if (hasNext) {
-          hasNext = false
-          Seq(tokens)
-        }
-        else sys error s"next of $this"
+    // helper for dealing with tokens
+    def hasBody(t: Tree, op: String): Boolean = t match {
+      case ∙(TokenAST, tok: Token) => tok.body == op
+      case _ => false
     }
   }
 
-  case object AllTokensTogether extends Fixity {
-    def splits(tokens: Tokens) = Singleton(tokens)
+  case object AllItemsTogether extends Fixity {
+    def splits(items: Items) = Iterator(Seq(items))
   }
 
   trait Juxtaposed extends Fixity
 
-  case object IndividualTokens extends Juxtaposed {
-    def splits(tokens: Tokens): Iterator[Seq[Tokens]] =
-      IndividualIterator(tokens)
-
-    case class IndividualIterator(tokens: Tokens)
-    extends Iterator[Seq[Tokens]] {
-      var hasNext = ! tokens.isEmpty
-      def next =
-        if (! hasNext)
-          sys error s"next of empty $this"
-        else {
-          hasNext = false
-          tokens map (x => Seq(x))
-        }
-    }
+  case object IndividualItems extends Juxtaposed {
+    def splits(items: Items): Iterator[ItemGroups] =
+      Iterator(items.map(x => Seq(x)))
   }
 
   case object Juxtaposition extends Juxtaposed {
-    def splits(tokens: Tokens): Iterator[Seq[Tokens]] =
-      Juxtapositor(tokens)
+    def splits(items: Items): Iterator[ItemGroups] =
+      if (items.length >= 2)
+        Iterator(Seq(items.init, Seq(items.last)))
+      else
+        Iterator.empty
+  }
 
-    case class Juxtapositor(tokens: Tokens) extends Iterator[Seq[Tokens]] {
-      var toSplitAt: Int = tokens.length - 1
-      def hasNext = toSplitAt > 0
-      def next = {
-        val result = tokens splitAt toSplitAt
-        toSplitAt -= 1
-        Seq(result._1, result._2)
-      }
+  case class Prefix(ops: String*) extends Fixity {
+    def splits(items: Items): Iterator[ItemGroups] =
+      if (items.isEmpty)
+        Iterator.empty
+      else if (hasBody(items.head, ops.head))
+        Infixr(ops.tail: _*) splits items.tail
+      else
+        Iterator.empty
+  }
+
+  case class Postfix(ops: String*) extends Fixity {
+    def splits(items: Items): Iterator[ItemGroups] =
+      if (items.isEmpty)
+        Iterator.empty
+      else if (hasBody(items.last, ops.last))
+        Infixl(ops.init: _*) splits items.init
+      else
+        Iterator.empty
+  }
+
+  case class LoneToken(forbidden: Set[String]) extends Fixity {
+    def splits(items: Items) = items match {
+      case Seq(∙(TokenAST, token: Token))
+          if ! (forbidden contains token.body) =>
+        Iterator(Seq(items))
+      case _ =>
+        Iterator.empty
     }
   }
 
-  case class Prefix(ops: Token*) extends Fixity {
-    def splits(tokens: Tokens): Iterator[Seq[Tokens]] =
-      if (tokens.isEmpty)
-        NoWay
-      else if (ops.head == tokens.head)
-        toInfix splits tokens.tail
-      else
-        NoWay
-
-    val toInfix: Infix = Infixr(ops.tail: _*)
+  case class Infixr(ops: String*) extends Infix {
+    def cloneMyself = Infixr.apply
+    def initialHeadPosition(items: Items) = 0
+    def nextHeadPosition(items: Items, headPosition: Int): Int =
+      items.indexWhere(x => hasBody(x, ops.head), headPosition + 1)
   }
 
-  case class Postfix(ops: Token*) extends Fixity {
-    def splits(tokens: Tokens): Iterator[Seq[Tokens]] =
-      if (tokens.isEmpty)
-        NoWay
-      else if (ops.last == tokens.last)
-        toInfix splits tokens.init
-      else
-        NoWay
-
-    val toInfix: Infix = Infixl(ops.init: _*)
-  }
-
-  case class Enclosing(ops: Token*) extends Fixity {
-    def splits(tokens: Tokens): Iterator[Seq[Tokens]] =
-      if (ops.head == tokens.head && ops.last == tokens.last)
-        toInfix splits tokens.tail.init
-      else
-        NoWay
-
-    // hm. not sure whether to use Infixr or Infixl
-    val toInfix: Infix = Infixr(ops.tail.init: _*)
-  }
-
-  case class LoneToken(forbidden: Set[Token]) extends Fixity {
-    def splits(tokens: Tokens) = tokens match {
-      case Seq(token) if ! (forbidden contains token) =>
-        Singleton(Seq(token))
-      case _ => NoWay
-    }
-  }
-
-  case class Infixr(ops: Token*) extends Infix {
-    def cloneMyself(ops: Seq[Token]) = Infixr(ops: _*)
-    def initialHeadPosition(tokens: Tokens) = 0
-    def nextHeadPosition(tokens: Tokens, headPosition: Int): Int =
-      tokens indexOf (ops.head, headPosition + 1)
-  }
-
-  case class Infixl(ops: Token*) extends Infix {
-    def cloneMyself(ops: Seq[Token]) = Infixl(ops: _*)
-    def initialHeadPosition(tokens: Tokens) = tokens.length - 1
-    def nextHeadPosition(tokens: Tokens, headPosition: Int): Int =
-      tokens lastIndexOf (ops.head, headPosition - 1)
+  case class Infixl(ops: String*) extends Infix {
+    def cloneMyself = Infixl.apply
+    def initialHeadPosition(items: Items) = items.length - 1
+    def nextHeadPosition(items: Items, headPosition: Int): Int =
+      items.lastIndexWhere(x => hasBody(x, ops.head), headPosition - 1)
   }
 
   trait Infix extends Fixity {
-    def ops: Seq[Token]
-    def cloneMyself(ops: Seq[Token]): Infix
-    def initialHeadPosition(tokens: Tokens): Int
-    def nextHeadPosition(tokens: Tokens, headPosition: Int): Int
+    def ops: Seq[String]
+    def cloneMyself: Seq[String] => Infix
+    def initialHeadPosition(items: Items): Int
+    def nextHeadPosition(items: Items, headPosition: Int): Int
 
-
-    def splits(tokens: Tokens): Iterator[Seq[Tokens]] =
-      if (tokens.isEmpty)
-        NoWay
+    def splits(items: Items): Iterator[ItemGroups] =
+      if (items.isEmpty)
+        Iterator.empty
       else if (ops.isEmpty)
-        Singleton(tokens)
+        Iterator(Seq(items))
       else
-        InfixIterator(tokens)
+        InfixIterator(items)
 
-    case class InfixIterator(tokens: Tokens) extends Iterator[Seq[Tokens]] {
-      var headPosition = initialHeadPosition(tokens)
+    case class InfixIterator(items: Items) extends Iterator[ItemGroups] {
+      var headPosition = initialHeadPosition(items)
 
       val suffix = cloneMyself(ops.tail)
 
-      var suffixIterator: Iterator[Seq[Tokens]] = NoWay
+      var suffixIterator: Iterator[ItemGroups] = Iterator.empty
 
-      var nextCandidate: Seq[Tokens] = null
+      var nextCandidate: ItemGroups = null
 
-      var thisPortion: Tokens = null
+      var thisPortion: Items = null
 
       // precondition: suffixIterator.hasNext && thisPortion != null
-      def resultFromSuffix(): Seq[Tokens] =
+      def resultFromSuffix(): ItemGroups =
         thisPortion +: suffixIterator.next
 
       def tryToFindNextCandidate() {
@@ -456,11 +450,11 @@ trait Fixities extends Lexer {
         // this iterator is already exhausted; do nothing
         if (headPosition < 0) return ()
         // find the next possible head
-        headPosition = nextHeadPosition(tokens, headPosition)
+        headPosition = nextHeadPosition(items, headPosition)
         // this iterator becomes exhausted; do nothing
         if (headPosition < 0) return ()
         // found next head. time to construct suffixIterator.
-        val (beforeHead, headAndMore) = tokens splitAt headPosition
+        val (beforeHead, headAndMore) = items splitAt headPosition
         thisPortion    = beforeHead
         suffixIterator = suffix splits headAndMore.tail
         if (suffixIterator.hasNext)
@@ -476,7 +470,7 @@ trait Fixities extends Lexer {
         ! nextCandidateNotFound
       }
 
-      def next: Seq[Tokens] = {
+      def next: ItemGroups = {
         tryToFindNextCandidate()
         if (nextCandidateNotFound) sys error s"next of empty $this"
         val result = nextCandidate
@@ -486,7 +480,7 @@ trait Fixities extends Lexer {
     }
   }
 }
-*/
+
 
 /*
 trait Grammar extends Fixities {
