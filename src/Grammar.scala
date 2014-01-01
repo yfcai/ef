@@ -459,134 +459,132 @@ trait Fixities extends ProtoAST {
 
 
 trait Operators extends Fixities {
-/*
-  // AST is decoupled from specific grammars
-  trait AST {
-    def tag: Operator
-
-    def unparse: String = this match {
-      case Branch(operator, children) =>
-        val tokens = children map (_.unparse)
-        val subops = operator toTryNext tokens
-        val parens = ((children map (_.tag), tokens).zipped, subops).zipped.
-          map({ case ((childOp, child), subOps) =>
-            if (subOps contains childOp)
-              child
-            else
-              s"($child)"
-          }).toSeq
-        pack(operator.fixity match {
-          case _: Juxtaposed =>
-            parens
-          case p: Prefix     =>
-            prefixLike (p.ops, parens)
-          case p: Postfix    =>
-            postfixLike(p.ops, parens)
-          case i: Infix      =>
-            parens.head +: prefixLike(i.ops, parens.tail)
-          case e: Enclosing  =>
-            e.ops.head +: postfixLike(e.ops.tail, parens)
-        })
-
-      case Leaf(_, seq) =>
-        pack(seq map pack)
-    }
-
-    // duplicates partial info in keyword. how to merge?
-    private
-    val leftParens  = Set("{", "[", "λ", "Λ", "∀", "∃")
-    private
-    val rightParens = Set("}", "]", ".")
-
-    private[this]
-    def pack(tokens: Seq[String]): String =
-      (tokens.head +: ((tokens, tokens.tail).zipped.flatMap {
-        case (before, after)
-            if (leftParens contains before)
-            || (rightParens contains after) => List(after)
-        case (_, after) =>
-          List(" ", after)
-      })).mkString
-
-    private[this]
-    def prefixLike(ops: Tokens, children: Tokens): Tokens =
-      (ops, children).zipped flatMap {
-        case (op, child) => List(op, child)
-      }
-
-    private[this]
-    def postfixLike(ops: Tokens, children: Tokens): Tokens =
-      prefixLike(children, ops)
-  }
-
-  case class Leaf(tag: Operator, get: Seq[Tokens]) extends AST
-  case class Branch(tag: Operator, children: List[AST]) extends AST
- */
-
-  trait Operator {
+  trait Operator extends Tag {
     def fixity: Fixity
-    def toTryNext: Seq[Tree] => Seq[Seq[Operator]]
+    def toTryNext: Seq[Any] => Seq[Seq[Operator]]
+
+    /** @param children
+      * is the sequence of proto-ASTs allotted to this node if it
+      * is a leaf, and is the sequence of children if it is not.
+      */
+    def cons(children: Seq[Tree]): Tree
 
     // extension point to introduce fast failures
     def precondition(items: Seq[Tree]): Boolean = true
 
     def parse(string: String): Option[Tree] = parse(ProtoAST(string))
 
-    def parse(proto: Seq[Tree]): Option[Tree] = ???
+    def parse(items: Seq[Tree]): Option[Tree] = {
+      if (precondition(items) == false)
+        return None
 
-  }
-
-/*
-  class Operator(
-    val fixity: Fixity,
-    val toTryNext: Tokens => Seq[Seq[Operator]])
-  {
-    def this(fixity: Fixity, tryNext: => Seq[Seq[Operator]]) =
-        this(fixity, _ => tryNext)
-
-    def precondition(tokens: Tokens): Boolean = true
-
-    def parse(string: String): Option[AST] = parse(tokenize(string))
-
-    def parse(tokens: Tokens): Option[AST] = {
-      if (! precondition(tokens)) return None
-      val splits = fixity splits tokens
-      val tryNext = toTryNext(tokens)
+      val splits = fixity splits items
+      val tryNext = toTryNext(items)
       if (tryNext.isEmpty) {
-        // nothing to try next, produce a leaf.
-        if (splits.hasNext)
-          Some(Leaf(this, splits.next))
+        // nothing to try next, produce a leaf
+        if (splits.hasNext) {
+          val x = splits.next match {
+            case Seq(x) => x
+            case _ =>
+              sys error s"leaf operator with nonunary fixity: $this"
+          }
+          Some(cons(x))
+        }
         else
           None
       }
       else {
         // got stuff to try next, produce a branch.
         while(splits.hasNext) {
-          val split = splits.next
-          // assertion to locate buggy operators
-          assert(split.length == tryNext.length)
-          val maybeChildren: Option[List[AST]] =
-            (tryNext, split).zipped.foldRight[Option[List[AST]]](
-              Some(Nil)
+         val split = splits.next
+         // assertion to locate buggy operators
+         if(split.length != tryNext.length)
+           sys error s"operator $this declares arity ${
+             split.length
+           } but has ${tryNext.length} children"
+          val maybeChildren: Option[List[Tree]] =
+            (tryNext, split).zipped.foldRight(
+              Some(Nil): Option[List[Tree]]
             ) {
               case ((_, _), None) => None
-              case ((parsersToTry, tokens), Some(bros)) =>
-                parsersToTry findFirst (_ parse tokens) map (_ :: bros)
+              case ((parsersToTry, items), Some(bros)) =>
+                parsersToTry findFirst (_ parse items) map (_ :: bros)
             }
           // if a feasible split is found, do not try other,
           // less preferable, splits.
           maybeChildren match {
             case None => ()
-            case Some(children) => return Some(Branch(this, children))
+            case Some(children) => return Some(cons(children))
           }
         }
-        // I can't parse it.
-        return None
+        // I can't parse it
+        None
       }
     }
-  }
- */
 
+    override def unparse(t: Tree): String = t match {
+      case ⊹(operator: Operator, children @ _*) =>
+        val tokens = children map (x => x.tag unparse x)
+        val subops = operator toTryNext tokens
+        val parens = ((children map (_.tag), tokens).zipped, subops).zipped.
+          map({
+            case ((childOp, child), subOps) =>
+              if (subOps contains childOp) child
+              else                     s"($child)"
+          }).toSeq
+        pack(operator.fixity match {
+          case _: Juxtaposed =>
+            parens
+          case p: Prefix     =>
+            prefixLike(p.ops, parens)
+          case p: Postfix    =>
+            postfixLike(p.ops, parens)
+          case i: Infix      =>
+            parens.head +: prefixLike(i.ops, parens.tail)
+        })
+      case leaf @ ∙(op: LeafOperator, _) =>
+        op unparseLeaf leaf
+      case _ =>
+        sys error s"dunno how to unparse:\n${t.print}"
+    }
+
+    // duplicates partial info in keyword. how to merge?
+    private
+    val leftParens  = Set('{', '[', 'λ', 'Λ', '∀', '∃')
+    private
+    val rightParens = Set('}', ']', '.')
+
+    private[this]
+    def pack(tokens: Seq[String]): String =
+      (tokens.head +: ((tokens, tokens.tail).zipped.flatMap {
+        case (before, after)
+            if before.length == 1 && (leftParens contains before.head)
+            || after .length == 1 && (rightParens contains after.head) =>
+          List(after)
+        case (_, after) =>
+          List(" ", after)
+      })).mkString
+
+    private[this]
+    def prefixLike(ops: Seq[String], children: Seq[String]): Seq[String] =
+      (ops, children).zipped flatMap {
+        case (op, child) => List(op, child)
+      }
+
+    private[this]
+    def postfixLike(ops: Seq[String], children: Seq[String]): Seq[String] =
+      prefixLike(children, ops)
+  }
+
+  trait LeafOperator extends Operator with LeafTag {
+    def fixity: Fixity
+    def genus: Genus
+    def man: Manifest[_]
+
+    def unparseLeaf(leaf: ∙[_]): String
+
+    override def toTryNext = _ => Seq.empty[Seq[Operator]]
+  }
 }
 
 /*

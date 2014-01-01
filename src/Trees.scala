@@ -13,6 +13,9 @@ trait Trees {
     // subgenera is optional. if tree is variadic, no subgenera
     // makes sense.
     def subgenera: Option[Seq[Genus]] = None
+
+    // extension point: pretty printer
+    def unparse(t: Tree): String = t.print
   }
 
   // tag for variadic untyped trees
@@ -184,6 +187,8 @@ trait Trees {
       case ∙(tag, get) =>
         ∙(tag, get)
     }
+
+    def unparse: String = tag unparse this
 
     def print: String = print(0, 2)
 

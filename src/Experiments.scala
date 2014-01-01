@@ -11,7 +11,7 @@ object Experiments {
 
   def main(args: Array[String]) = experiments foreach { experiment =>
     onTrial.trial
-    println("TRIAL OVER")
+    println("MAINTAINING ...")
     maintenance()
     println("MAINTENANCE SUCCESSFUL")
   }
@@ -24,25 +24,25 @@ trait Experiment {
   def trial(): Unit = print(run)
 
   def debug(): Unit = {
-    val actual = run
-    (actual.lines.toSeq, expected.lines.toSeq).zipped foreach {
+    val (actual, expect) = (run, expected)
+    (actual.lines.toSeq, expect.lines.toSeq).zipped foreach {
       case (lhs, rhs) =>
         println(lhs == rhs)
         println(lhs + "$")
         println(rhs + "$\n")
     }
     println(s"actual length = ${actual.length}")
-    println(s"expect length = ${expected.length}")
+    println(s"expect length = ${expect.length}")
   }
 
-  var stream = new collection.mutable.StringBuilder
+  val stream = new collection.mutable.StringBuilder
 
   def puts(s: String) = { put(s) ; stream += '\n' }
   def put(s: String) = stream ++= s
 
   def dump(): String = {
     val result = stream.toString
-    stream = new collection.mutable.StringBuilder
+    stream.clear()
     result
   }
 }
@@ -72,46 +72,45 @@ object ProtoASTExperiment extends Experiment with ProtoAST {
     dump()
   }
 
-  override val expected =
-    """|TopLevel
-       |  ∙(TokenAST, 0:a)
-       |  ProtoAST
-       |  ProtoAST
-       |    ∙(TokenAST, 6:b)
-       |    ∙(TokenAST, 8:c)
-       |    ∙(TokenAST, 11:d)
-       |    ProtoAST
-       |      ProtoAST
-       |        ∙(TokenAST, 18:e)
-       |        ∙(TokenAST, 20:f)
-       |      ∙(TokenAST, 25:g)
-       |    ∙(TokenAST, 28:h)
-       |
-       |TopLevel
-       |  ProtoAST
-       |
-       |TopLevel
-       |  ProtoAST
-       |  ProtoAST
-       |    ProtoAST
-       |    ProtoAST
-       |  ProtoAST
-       |    ProtoAST
-       |      ProtoAST
-       |      ProtoAST
-       |    ProtoAST
-       |      ProtoAST
-       |      ProtoAST
-       |
-       |#LINE:1
-       |((((())))((
-       |          ^
-       |expect right parenthesis after this
-       |
-       |#LINE:1
-       |(hi hi (hi hi (hi) hi) hi))(hi)
-       |                          ^
-       |unmatched right parenthesis
-       |
-       |""".stripMargin
+  override val expected = """TopLevel
+  ∙(TokenAST, 0:a)
+  ProtoAST
+  ProtoAST
+    ∙(TokenAST, 6:b)
+    ∙(TokenAST, 8:c)
+    ∙(TokenAST, 11:d)
+    ProtoAST
+      ProtoAST
+        ∙(TokenAST, 18:e)
+        ∙(TokenAST, 20:f)
+      ∙(TokenAST, 25:g)
+    ∙(TokenAST, 28:h)
+
+TopLevel
+  ProtoAST
+
+TopLevel
+  ProtoAST
+  ProtoAST
+    ProtoAST
+    ProtoAST
+  ProtoAST
+    ProtoAST
+      ProtoAST
+      ProtoAST
+    ProtoAST
+      ProtoAST
+      ProtoAST
+
+#LINE:1
+((((())))((
+          ^
+expect right parenthesis after this
+
+#LINE:1
+(hi hi (hi hi (hi) hi) hi))(hi)
+                          ^
+unmatched right parenthesis
+
+"""
 }
