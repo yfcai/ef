@@ -15,6 +15,9 @@ trait Trees {
     def subgenera: Option[Seq[Genus]] = None
   }
 
+  // tag for variadic untyped trees
+  trait UnclassifiedTag extends Tag with Genus { def genus = this }
+
   trait TreeF[T] {
     def tag: Tag
     def children: Seq[T]

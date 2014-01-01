@@ -227,28 +227,28 @@ trait ProtoAST extends Lexer with Trees {
     final val man = manifest[Token]
   }
 
-  case object ProtoAST extends Tag with Genus {
-    def genus = this
-
+  case object ProtoAST extends UnclassifiedTag {
     // tree
-    def apply(toks: Seq[Token]): Tree = {
-      def theatre(candidate: Tree, next: Seq[Token]) =
+    def apply(string: String): Seq[Tree] = apply(tokenize(string))
+
+    def apply(toks: Seq[Token]): Seq[Tree] = {
+      def theatre(candidate: Seq[Tree], next: Seq[Token]) =
         if (next.isEmpty)
           candidate
         else
           throw Problem(next.head, "unmatched right parenthesis")
-      if (toks.isEmpty || ! toks.head.isLeftParen) {
-        val (children, next) = horizontal(toks)
-        theatre(⊹(ProtoAST, children: _*), next)
-      }
-      else {
+      if (! toks.isEmpty && toks.head.isLeftParen) {
         val (me, next) = vertical(toks)
         if (next.isEmpty)
-          me
+          Seq(me)
         else {
           val (children, rest) = horizontal(next)
-          theatre(⊹(ProtoAST, me +: children: _*), rest)
+          theatre(me +: children, rest)
         }
+      }
+      else {
+        val (children, next) = horizontal(toks)
+        theatre(children, next)
       }
     }
 
@@ -303,30 +303,6 @@ trait ProtoAST extends Lexer with Trees {
       else {
         val (children, rest) = horizontal(toks)
         theatre(mkProtoAST(children), rest)
-      }
-    }
-  }
-}
-
-
-object TestLexer extends ProtoAST {
-  val keywords: Set[String] = Set("(", ")")
-  val trees = List(
-    "a () (b c (d) ((((e f))) g) h)",
-    "((((()))))",
-    "()(()())((()())(()()))",
-    "((((())))((",
-    "(hi hi (hi hi (hi) hi) hi))(hi)")
-
-  def main(args: Array[String]) {
-     trees foreach { hai =>
-      try {
-        val t = ProtoAST(tokenize(hai))
-        println(s"${t.print}\n")
-      }
-      catch {
-        case p: Problem =>
-          println(p.getMessage)
       }
     }
   }
@@ -482,8 +458,8 @@ trait Fixities extends ProtoAST {
 }
 
 
+trait Operators extends Fixities {
 /*
-trait Grammar extends Fixities {
   // AST is decoupled from specific grammars
   trait AST {
     def tag: Operator
@@ -545,7 +521,22 @@ trait Grammar extends Fixities {
 
   case class Leaf(tag: Operator, get: Seq[Tokens]) extends AST
   case class Branch(tag: Operator, children: List[AST]) extends AST
+ */
 
+  trait Operator {
+    def fixity: Fixity
+    def toTryNext: Seq[Tree] => Seq[Seq[Operator]]
+
+    // extension point to introduce fast failures
+    def precondition(items: Seq[Tree]): Boolean = true
+
+    def parse(string: String): Option[Tree] = parse(ProtoAST(string))
+
+    def parse(proto: Seq[Tree]): Option[Tree] = ???
+
+  }
+
+/*
   class Operator(
     val fixity: Fixity,
     val toTryNext: Tokens => Seq[Seq[Operator]])
@@ -594,8 +585,11 @@ trait Grammar extends Fixities {
       }
     }
   }
+ */
+
 }
 
+/*
 trait ExpressionGrammar extends Grammar {
   type Domain = String
 
