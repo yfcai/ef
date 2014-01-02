@@ -69,10 +69,13 @@ trait Trees {
   trait Binder extends Tag
   {
     def prison        : DeBruijn
+    def freeName      : FreeName
     def genus         : Genus
     def extraSubgenera: Seq[Genus] = Nil
     // in subclasses, extraSubgenera should always be a "def", not "val",
     // to avoid NullPointerException during initialization
+
+    require(prison.genus == freeName.genus)
 
     override final val subgenera =
       Some(§.genus +: genus +: extraSubgenera)
@@ -253,7 +256,10 @@ trait Trees {
           })
 
         case ∙(tag: DeBruijn, j: Int) =>
-          Seq(s"${put(tag)}, bound of ${env(j)}")
+          if (j >= env.length)
+            Seq(this.toString)
+          else
+            Seq(s"${put(tag)}, bound of ${env(j)}")
 
         case _ =>
           Seq(put(this))

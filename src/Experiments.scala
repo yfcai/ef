@@ -1,7 +1,9 @@
 object Experiments {
-  val onTrial = ShadowyExperiment
+  val onTrial = BoundedQuantificationExperiment
 
   val experiments = List(
+    BoundedQuantificationExperiment,
+    ShadowyExperiment,
     CollapsedBinderExperiment,
     AtomListExperiment,
     AscriptionExperiment,
@@ -243,9 +245,35 @@ object Experiments {
               ⊹(UniversalQuantification, §("α"),
                 ₌(∙(TypeVar, 1), ₌(∙(TypeVar, 2), ∙(TypeVar, 3))))))))
 
+    def run = { puts(t.unparse) ; dump }
+    override def expected = "∀α α₂ α₁ α₀ α. α₀ (α₁ α₂)\n"
+  }
+
+  object BoundedQuantificationExperiment extends SyntaxExperiment {
+    val s = "∀α ⊒ ∀α. α → α. List (∃β ⊒ α. β)"
+
     def run = {
+      val t = (Type parse s).get
       puts(t.unparse)
+      puts(t.print)
       dump
     }
+
+    override def expected =
+      """|∀α ⊒ ∀α. α → α. List (∃β ⊒ α. β)
+         |BoundedUniversal, binder of α
+         |  ∙(LiteralTag(java.lang.String), α)
+         |  TypeApplication
+         |    ∙(FreeTypeVar, List)
+         |    BoundedExistential, binder of β
+         |      ∙(LiteralTag(java.lang.String), β)
+         |      TypeVar, bound of β
+         |      TypeVar, bound of α
+         |  UniversalQuantification, binder of α
+         |    ∙(LiteralTag(java.lang.String), α)
+         |    FunctionArrow
+         |      TypeVar, bound of α
+         |      TypeVar, bound of α
+         |""".stripMargin
   }
 }

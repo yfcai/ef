@@ -221,6 +221,7 @@ trait Syntax extends ExpressionGrammar {
   object → extends BinaryFactory(FunctionArrow)
   object ∀ extends CollapsedBinderFactory(CollapsedUniversals)
   object ∃ extends CollapsedBinderFactory(CollapsedExistentials)
+  // write factories for bounded universals/existentials only if needed
 
   case object Term extends TopLevelGenus { def ops = termOps }
   object χ extends AtomicFactory(FreeVar)
@@ -275,6 +276,7 @@ trait Syntax extends ExpressionGrammar {
       extends Binder with DelegateOperator {
     def genus = Type
     def prison = TypeVar
+    def freeName = FreeTypeVar
     def delegate = CollapsedUniversals
   }
 
@@ -282,6 +284,7 @@ trait Syntax extends ExpressionGrammar {
       extends Binder with DelegateOperator {
     def genus = Type
     def prison = TypeVar
+    def freeName = FreeTypeVar
     def delegate = CollapsedExistentials
   }
 
@@ -331,15 +334,16 @@ trait Syntax extends ExpressionGrammar {
 */
 
   // common ground between bounded universals and existentials
-  trait BoundedQuantification extends Operator with Binder {
+  trait BoundedQuantification extends BinderOperator {
     def symbol: Seq[String]
-    def boundSymbol: Seq[String] = Seq("⊑")
+    def boundSymbol: Seq[String] = Seq("⊒")
 
+    // fail fast
     override def precondition(items: Seq[Tree]): Boolean = {
       val x = items.take(3)
       x.length == 3 &&
-        (symbol contains x.head) &&
-        (boundSymbol contains x.last)
+        fixity.hasBody(x.head, symbol) &&
+        fixity.hasBody(x.last, boundSymbol)
     }
 
     val fixity = Prefix(symbol, boundSymbol, ".")
@@ -347,6 +351,7 @@ trait Syntax extends ExpressionGrammar {
 
     def genus = Type
     def prison = TypeVar
+    def freeName = FreeTypeVar
     override def extraSubgenera = Seq(Type)
 
     def cons(children: Seq[Tree]): Tree = children match {
@@ -357,6 +362,8 @@ trait Syntax extends ExpressionGrammar {
 
   val typeOps: List[Operator] =
     List(
+      BoundedUniversal,
+      BoundedExistential,
       UniversalQuantification,
       ExistentialQuantification,
       FunctionArrow,

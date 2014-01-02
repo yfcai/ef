@@ -492,6 +492,7 @@ trait Operators extends Fixities {
       * is a leaf, and is the sequence of children if it is not.
       */
     def cons(children: Seq[Tree]): Tree
+    def decons(t: Tree): Seq[Tree] = t.children
 
     // extension point to introduce fast failures
     def precondition(items: Seq[Tree]): Boolean = true
@@ -547,7 +548,8 @@ trait Operators extends Fixities {
 
     override def unparse(t: Tree): String =
       t match {
-      case ⊹(operator: Operator, children @ _*) =>
+      case ⊹(operator: Operator, _*) =>
+        val children = decons(t)
         val tokens = children map (x => x.tag unparse x)
         val subops = operator.tryNext
         val parens = ((children map (_.tag), tokens).zipped, subops).zipped.
@@ -602,6 +604,15 @@ trait Operators extends Fixities {
         case (op: String, child) => List(child, op)
         case (op: Seq[_], child) => List(child, op.head.toString)
       }
+  }
+
+  // assume annotations are written before body in a binder
+  trait BinderOperator extends Operator with Binder {
+    override def decons(t: Tree): Seq[Tree] = {
+      val x = ∙(freeName, t.children.head.as[String])
+      val annotations = t.children.drop(2)
+      x +: (annotations :+ t(x))
+    }
   }
 
   trait LeafOperator extends Operator with LeafTag {
