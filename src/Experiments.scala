@@ -1,7 +1,8 @@
 object Experiments {
-  val onTrial = BoundedQuantificationExperiment
+  val onTrial = AbstractionsExperiment
 
   val experiments = List(
+    AbstractionsExperiment,
     BoundedQuantificationExperiment,
     ShadowyExperiment,
     CollapsedBinderExperiment,
@@ -274,6 +275,26 @@ object Experiments {
          |    FunctionArrow
          |      TypeVar, bound of α
          |      TypeVar, bound of α
+         |""".stripMargin
+  }
+
+  object AbstractionsExperiment extends SyntaxExperiment {
+    val s = "Λα β. λx : α → β . x"
+
+    def run = {
+      val t = Term.parse(s).get
+      puts(t.unparse)
+      val u = t(æ("ℤ"))(æ("ℚ"))
+      puts(u.unparse)
+      val v = u(χ("42"))
+      puts(v.unparse)
+      dump
+    }
+
+    override def expected =
+      """|Λα β. λx : α → β. x
+         |λx : ℤ → ℚ. x
+         |42
          |""".stripMargin
   }
 }

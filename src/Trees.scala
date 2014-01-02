@@ -201,6 +201,8 @@ trait Trees {
       case tag: Binder =>
         require(tag.bindingGenus == xdef.tag.genus)
         tag bodyOf this subst (0, xdef)
+      case _ =>
+        sys error s"expect binder, got: ${this.print}"
     }
 
     // substitution of bound variable

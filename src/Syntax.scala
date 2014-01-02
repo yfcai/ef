@@ -1,28 +1,3 @@
-/*
-trait Types extends Trees {
-  case object Type extends Genus
-  // æ
-}
-
-trait Terms extends Types {
-  // terms, no boilerplate
-  case object Term extends Genus
-  // try make them operators
-  /*
-  case object FreeVar extends FreeName(Term)
-  case object Var extends DeBruijn(Term)
-  case object Abs extends Binder(Var, Term, Term)
-  case object App extends Tag(Term, Term, Term)
-
-  // extrapolate BinderFactory after more examples
-  object λ {
-    def apply(x: String)(body: Tree): Tree =
-      ⊹(Abs, §(x), body.imprison(Var, x, 0))
-  }
-  object χ extends LeafFactory[String](FreeVar)
-   */
-}*/
-
 trait ExpressionGrammar extends Operators {
   // keywords (always a token by itself):
   val keywords = "( ) [ ] { } ∀ ∃ Λ λ .".words
@@ -216,7 +191,8 @@ trait Syntax extends ExpressionGrammar {
   object → extends BinaryFactory(FunctionArrow)
   object ∀ extends CollapsedBinderFactory(CollapsedUniversals)
   object ∃ extends CollapsedBinderFactory(CollapsedExistentials)
-  // write factories for bounded universals/existentials only if needed
+  // write factories for annotated binders only if necessary:
+  // bounded universals/existentials, annotated abstractions.
 
   case object Term extends TopLevelGenus { def ops = termOps }
   object χ extends AtomicFactory(FreeVar)
@@ -311,22 +287,34 @@ trait Syntax extends ExpressionGrammar {
 
   case object BoundedExistential extends BoundedQuantification
   { def symbol = existentialSymbol }
-/*
-  case object TypeAbstraction extends Operator(
-    Prefix("Λ", "."),
-    Seq(Seq(TypeParameterList), termOps)
-  )
 
-  case object TermAbstraction extends Operator(
-    Prefix("λ", ":", "."),
-    Seq(Seq(Atomic), typeOps, termOps)
-  )
+  case object TypeAbstraction extends Binder with DelegateOperator {
+    def genus = Term
+    def prison = TypeVar
+    def freeName = FreeTypeVar
+    def delegate = CollapsedTypeAbstractions
+  }
 
-  case object LetBinding extends Operator(
-    Prefix("let", "=", "in"),
-    Seq(Seq(Atomic), termOps, termOps)
-  )
-*/
+  case object CollapsedTypeAbstractions
+      extends CollapsedBinder with BinaryOperator {
+    val fixity = Prefix(Seq("Λ", """\Tabs"""), ".")
+    def opGenus = BinaryOpGenus(AtomList, Term, Term)
+    def lhs = Seq(AtomList)
+    def rhs = termOps
+    def binder = TypeAbstraction
+    def freeName = FreeTypeVar
+  }
+
+  case object AnnotatedAbstraction extends AnnotatedBinderOp {
+    def symbol = Seq("λ", """\abs""")
+    def annotationSymbol = Seq(":")
+
+    def genus = Term
+    def prison = Var
+    def freeName = FreeVar
+    override def extraSubgenera = Seq(Type)
+    lazy val tryNext = Seq(Seq(FreeVar), typeOps, termOps)
+  }
 
   // common ground between λs and bounded quantifications
   trait AnnotatedBinderOp extends BinderOperator {
@@ -343,8 +331,6 @@ trait Syntax extends ExpressionGrammar {
     }
 
     val fixity = Prefix(symbol, annotationSymbol, endSymbol)
-    lazy val tryNext = Seq(Seq(FreeTypeVar), typeOps, typeOps)
-
   }
 
   // common ground between bounded universals and existentials
@@ -356,6 +342,7 @@ trait Syntax extends ExpressionGrammar {
     def prison = TypeVar
     def freeName = FreeTypeVar
     override def extraSubgenera = Seq(Type)
+    lazy val tryNext = Seq(Seq(FreeTypeVar), typeOps, typeOps)
   }
 
   val typeOps: List[Operator] =
@@ -371,6 +358,8 @@ trait Syntax extends ExpressionGrammar {
 
   val termOps: List[Operator] =
     List(
+      TypeAbstraction,
+      AnnotatedAbstraction,
       Ascription,
       Instantiation,
       Application,
