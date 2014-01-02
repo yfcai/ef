@@ -607,11 +607,21 @@ trait Operators extends Fixities {
   }
 
   // assume annotations are written before body in a binder
+  // (I regret putting body ahead of annotations)
   trait BinderOperator extends Operator with Binder {
-    override def decons(t: Tree): Seq[Tree] = {
-      val x = ∙(freeName, t.children.head.as[String])
-      val annotations = t.children.drop(2)
-      x +: (annotations :+ t(x))
+    def cons(children: Seq[Tree]): Tree = {
+      val x = children.head match {
+        case x @ ∙(tag, _) if tag == freeName => x.as[String]
+      }
+      val body = children.last
+      val notes = children.tail.init
+      this.bind(x, body, notes: _*)
+    }
+
+    override def decons(t: Tree): Seq[Tree] = unbind(t).get match {
+      case (name, body, annotations) =>
+        val x = ∙(freeName, name)
+        x +: (annotations :+ body)
     }
   }
 

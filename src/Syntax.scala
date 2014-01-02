@@ -187,13 +187,8 @@ trait ExpressionGrammar extends Operators {
     def binds(xs: Seq[String], body: Tree): Tree =
       ⊹(this, ∙(AtomList, xs), body)
 
-    def unbind(t: Tree): Option[(String, Tree)] = t match {
-      case ⊹(tag, _*) if tag == binder =>
-        val name = binder nameOf t
-        Some((name, t(∙(freeName, name))))
-      case _ =>
-        None
-    }
+    def unbind(t: Tree): Option[(String, Tree)] =
+      binder.unbind(t) map { case (x, body, Seq()) => (x, body) }
 
     def unbinds(t: Tree): Option[(Seq[String], Tree)] = t match {
       case ⊹(tag, params @ ∙(AtomList, _), body) if tag == this =>
@@ -333,31 +328,34 @@ trait Syntax extends ExpressionGrammar {
   )
 */
 
-  // common ground between bounded universals and existentials
-  trait BoundedQuantification extends BinderOperator {
+  // common ground between λs and bounded quantifications
+  trait AnnotatedBinderOp extends BinderOperator {
     def symbol: Seq[String]
-    def boundSymbol: Seq[String] = Seq("⊒")
+    def annotationSymbol: Seq[String]
+    def endSymbol: Seq[String] = Seq(".")
 
     // fail fast
     override def precondition(items: Seq[Tree]): Boolean = {
       val x = items.take(3)
       x.length == 3 &&
         fixity.hasBody(x.head, symbol) &&
-        fixity.hasBody(x.last, boundSymbol)
+        fixity.hasBody(x.last, annotationSymbol)
     }
 
-    val fixity = Prefix(symbol, boundSymbol, ".")
+    val fixity = Prefix(symbol, annotationSymbol, endSymbol)
     lazy val tryNext = Seq(Seq(FreeTypeVar), typeOps, typeOps)
+
+  }
+
+  // common ground between bounded universals and existentials
+  trait BoundedQuantification extends AnnotatedBinderOp {
+    def symbol: Seq[String]
+    def annotationSymbol: Seq[String] = Seq("⊒")
 
     def genus = Type
     def prison = TypeVar
     def freeName = FreeTypeVar
     override def extraSubgenera = Seq(Type)
-
-    def cons(children: Seq[Tree]): Tree = children match {
-      case Seq(α @ ∙(FreeTypeVar, _), bound, body) =>
-        this.bind(α.as[String], body, bound)
-    }
   }
 
   val typeOps: List[Operator] =

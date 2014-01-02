@@ -84,12 +84,22 @@ trait Trees {
     def defaultNameOf(t: Tree): String = t.children.head match {
       case §(x) => x
     }
+    def annotationsOf(t: Tree): Seq[Tree] = t.children.drop(2)
 
     def bindingGenus: Genus = prison.genus
 
     // bind a free name
     def bind(x: String, body: Tree, annotations: Tree*): Tree =
       ⊹(this, §(x) +: body.imprison(prison, x, 0) +: annotations: _*)
+
+    // free a bound number
+    def unbind(t: Tree): Option[(String, Tree, Seq[Tree])] = t match {
+      case ⊹(tag, _*) if tag == this =>
+        val name = nameOf(t)
+        Some((name, t(∙(freeName, name)), annotationsOf(t)))
+      case _ =>
+        None
+    }
 
     def imprison(x: String, body: Tree): Tree =
       body.imprison(prison, x, 0)
