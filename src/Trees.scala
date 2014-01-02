@@ -48,6 +48,24 @@ trait Trees {
   trait FreeName extends LeafTag { final val man = manifest[String] }
   trait DeBruijn extends LeafTag { final val man = manifest[Int   ] }
 
+  /** subscript utilities */
+  object Subscript {
+    // Subscript.s
+    val s = "₀₁₂₃₄₅₆₇₈₉"
+
+    def is(c: Char): Boolean = s contains c
+
+    def remove(subscribedName: String): String = {
+      val j = subscribedName.lastIndexWhere(c => ! is(c))
+      if (j >= 0)
+        subscribedName.substring(0, j + 1)
+      else
+        subscribedName
+    }
+
+    def apply(i: Int): String = i.toString map (c => s(c - '0'))
+  }
+
   trait Binder extends Tag
   {
     def prison        : DeBruijn
@@ -66,7 +84,7 @@ trait Trees {
 
     def bindingGenus: Genus = prison.genus
 
-    // convert free name to numbers
+    // bind a free name
     def bind(x: String, body: Tree, annotations: Tree*): Tree =
       ⊹(this, §(x) +: body.imprison(prison, x, 0) +: annotations: _*)
 
@@ -80,13 +98,13 @@ trait Trees {
       val toAvoid = _toAvoid ++ t.freeNames ++
         crossedNames(bodyOf(t), 0).fold(Set.empty[String])(identity)
       val startingID  = -1
-      val defaultName = defaultNameOf(t)
+      val defaultName = Subscript.remove(defaultNameOf(t))
       var i = startingID
       var x = defaultName
       while (toAvoid contains x) {
         i = i + 1
         if (i == startingID) sys error "ran outta names"
-        x = defaultName + i
+        x = defaultName + Subscript(i)
       }
       x
     }

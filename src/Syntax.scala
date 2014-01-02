@@ -140,7 +140,7 @@ trait ExpressionGrammar extends Operators {
       ∙(this, children.map(_.as[Token].body): Seq[String])
 
     def unparseLeaf(leaf: ∙[_]): String =
-      leaf.as[List[_]] mkString "\n"
+      leaf.as[List[_]] mkString " "
 
     override def tryNext = Seq.empty[Seq[Operator]]
   }
@@ -285,9 +285,12 @@ trait Syntax extends ExpressionGrammar {
     def delegate = CollapsedExistentials
   }
 
+  val universalSymbol   = Seq("∀", """\all""")
+  val existentialSymbol = Seq("∃", """\ex""")
+
   case object CollapsedUniversals
       extends CollapsedBinder with BinaryOperator {
-    val fixity = Prefix(Seq("∀", """\all"""), ".")
+    val fixity = Prefix(universalSymbol, ".")
     def opGenus = BinaryOpGenus(AtomList, Type, Type)
     def lhs = Seq(AtomList)
     def rhs = typeOps
@@ -297,7 +300,7 @@ trait Syntax extends ExpressionGrammar {
 
   case object CollapsedExistentials
       extends CollapsedBinder with BinaryOperator {
-    val fixity = Prefix(Seq("∃", """\ex"""), ".")
+    val fixity = Prefix(existentialSymbol, ".")
     def opGenus = BinaryOpGenus(AtomList, Type, Type)
     def lhs = Seq(AtomList)
     def rhs = typeOps
@@ -305,17 +308,12 @@ trait Syntax extends ExpressionGrammar {
     def freeName = FreeTypeVar
   }
 
+  case object BoundedUniversal extends BoundedQuantification
+  { def symbol = universalSymbol }
+
+  case object BoundedExistential extends BoundedQuantification
+  { def symbol = existentialSymbol }
 /*
-  case object ExistentialQuantification extends Operator(
-    Prefix("∃", "."),
-    Seq(Seq(TypeParameterList), typeOps)
-  )
-
-  case object UniversalQuantification extends Operator(
-    Prefix("∀", "."),
-    Seq(Seq(TypeParameterList), typeOps)
-  )
-
   case object TypeAbstraction extends Operator(
     Prefix("Λ", "."),
     Seq(Seq(TypeParameterList), termOps)
@@ -331,6 +329,31 @@ trait Syntax extends ExpressionGrammar {
     Seq(Seq(Atomic), termOps, termOps)
   )
 */
+
+  // common ground between bounded universals and existentials
+  trait BoundedQuantification extends Operator with Binder {
+    def symbol: Seq[String]
+    def boundSymbol: Seq[String] = Seq("⊑")
+
+    override def precondition(items: Seq[Tree]): Boolean = {
+      val x = items.take(3)
+      x.length == 3 &&
+        (symbol contains x.head) &&
+        (boundSymbol contains x.last)
+    }
+
+    val fixity = Prefix(symbol, boundSymbol, ".")
+    lazy val tryNext = Seq(Seq(FreeTypeVar), typeOps, typeOps)
+
+    def genus = Type
+    def prison = TypeVar
+    override def extraSubgenera = Seq(Type)
+
+    def cons(children: Seq[Tree]): Tree = children match {
+      case Seq(α @ ∙(FreeTypeVar, _), bound, body) =>
+        this.bind(α.as[String], body, bound)
+    }
+  }
 
   val typeOps: List[Operator] =
     List(
@@ -348,16 +371,6 @@ trait Syntax extends ExpressionGrammar {
       Application,
       ParenthesizedTerm,
       FreeVar)
-    /*
-    List(
-      LetBinding        ,
-      TermAbstraction   ,
-      TypeAbstraction   ,
-      TypeAmnesia       ,
-      TypeInstantiation ,
-      TermApplication   ,
-      Atomic            )
-     */
 
   def downFrom(x: Operator, ops: List[Operator]): List[Operator] =
     ops match {

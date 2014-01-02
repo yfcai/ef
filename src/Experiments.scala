@@ -1,5 +1,5 @@
 object Experiments {
-  val onTrial = CollapsedBinderExperiment
+  val onTrial = ShadowyExperiment
 
   val experiments = List(
     CollapsedBinderExperiment,
@@ -232,5 +232,20 @@ object Experiments {
          |        TypeVar, bound of α
          |        TypeVar, bound of β
          |""".stripMargin
+  }
+
+  object ShadowyExperiment extends SyntaxExperiment {
+    val t =
+      ⊹(UniversalQuantification, §("α"),
+        ⊹(UniversalQuantification, §("α"),
+          ⊹(UniversalQuantification, §("α"),
+            ⊹(UniversalQuantification, §("α"),
+              ⊹(UniversalQuantification, §("α"),
+                ₌(∙(TypeVar, 1), ₌(∙(TypeVar, 2), ∙(TypeVar, 3))))))))
+
+    def run = {
+      puts(t.unparse)
+      dump
+    }
   }
 }
