@@ -29,9 +29,13 @@ trait Trees {
       case ∙:(tag, get) => ∙:(tag, get)
       case ⊹:(tag, children @ _*) => ⊹:(tag, children map f: _*)
     }
+
+    // unsafe
+    def as[R]: R = this match {
+      case ∙:(_, get) => get.asInstanceOf[R]
+    }
   }
-  case class ∙:[T, S: Manifest](tag: LeafTag, get: S) extends TreeF[T] {
-    require(tag.man == manifest[S])
+  case class ∙:[T, S](tag: LeafTag, get: S) extends TreeF[T] {
     def children = Nil
   }
   case class ⊹:[T](tag: Tag, children: T*) extends TreeF[T]
@@ -48,11 +52,12 @@ trait Trees {
   {
     def prison        : DeBruijn
     def genus         : Genus
-    def bodyGenus     : Genus
     def extraSubgenera: Seq[Genus] = Nil
+    // in subclasses, extraSubgenera should always be a "def", not "val",
+    // to avoid NullPointerException during initialization
 
     override final val subgenera =
-      Some(§.genus +: bodyGenus +: extraSubgenera)
+      Some(§.genus +: genus +: extraSubgenera)
 
     def        bodyOf(t: Tree): Tree   = t.children.tail.head
     def defaultNameOf(t: Tree): String = t.children.head match {
@@ -61,9 +66,18 @@ trait Trees {
 
     def bindingGenus: Genus = prison.genus
 
+    // convert free name to numbers
+    def bind(x: String, body: Tree, annotations: Tree*): Tree =
+      ⊹(this, §(x) +: body.imprison(prison, x, 0) +: annotations: _*)
+
+    def imprison(x: String, body: Tree): Tree =
+      body.imprison(prison, x, 0)
+
     // name discovery in a namespace
-    def nameOf(t: Tree): String = {
-      val toAvoid = t.freeNames ++
+    def nameOf(t: Tree): String = nameOf(t, Set.empty)
+
+    def nameOf(t: Tree, _toAvoid: Set[String]): String = {
+      val toAvoid = _toAvoid ++ t.freeNames ++
         crossedNames(bodyOf(t), 0).fold(Set.empty[String])(identity)
       val startingID  = -1
       val defaultName = defaultNameOf(t)
@@ -109,6 +123,11 @@ trait Trees {
   // branches and leafs, worthy of boilerplates
   class ∙[S: Manifest](tag: LeafTag, get: S)
       extends ∙:[Tree, S](tag, get) with Tree {
+    if (tag.man != manifest[S])
+      sys error s"""|incongruent manifests in leaves.
+        |declared: ${tag.man}
+        |actual  : ${manifest[S]}
+        |""".stripMargin
     override def toString = s"∙($tag, $get)"
   }
   class ⊹(tag: Tag, children: Tree*)
@@ -136,8 +155,12 @@ trait Trees {
 
   trait Tree extends TreeF[Tree] {
     // dynamic type safety, may disable for performance
-    if (tag.subgenera != None)
-      require(children.map(_.tag.genus) == tag.subgenera.get)
+    if (tag.subgenera != None &&
+        children.map(_.tag.genus) != tag.subgenera.get)
+      sys error s"""|subgenera mismatch
+        |${tag.subgenera.get.toString}
+        |${this.print}
+        |""".stripMargin
 
     def fold[S](f: TreeF[S] => S): S = f(this map (_ fold f))
 
@@ -158,8 +181,8 @@ trait Trees {
       case ∙(tag: DeBruijn, j: Int) if i == j =>
         require(xdef.tag.genus == tag.genus)
         xdef.shift(i, 0)
-      case ∙(tag, get) =>
-        ∙(tag, get)
+      case otherwise =>
+        otherwise
     }
 
     // put a free variable in prison, give it numbers
@@ -172,8 +195,8 @@ trait Trees {
         case ∙(tag: FreeName, get) if get == x =>
           require(tag.genus == prison.genus) // shan't bind typevar by λ
           ∙(prison, i)
-        case ∙(tag, get) =>
-          ∙(tag, get)
+        case otherwise =>
+          otherwise
       }
 
     // d-place shift of this above cutoff c
@@ -184,8 +207,8 @@ trait Trees {
         ⊹(tag, children map (_.shift( d, c)): _*)
       case ∙(tag: DeBruijn, j: Int) if j >= c =>
         ∙(tag, j + d)
-      case ∙(tag, get) =>
-        ∙(tag, get)
+      case otherwise =>
+        otherwise
     }
 
     def unparse: String = tag unparse this
@@ -253,7 +276,7 @@ trait Trees {
     def genus: Genus = tag.genus
     def apply(x: T): ∙[T] = ∙(tag, x)
     def unapply(x: ∙[_]): Option[T] = x match {
-      case ∙(tag, y) if tag == this.tag => Some(y.asInstanceOf[T])
+      case y: ∙[_] if tag == y.tag => Some(y.as[T])
       case _ => None
     }
   }
@@ -263,4 +286,17 @@ trait Trees {
 
   // string literals
   object § extends LiteralFactory[String]
+
+  abstract class BinaryFactory(val tag: Tag) {
+    def apply(x: Tree, y: Tree) = ⊹(tag, x, y)
+    def unapply(t: ⊹): Option[(Tree, Tree)] = t match {
+      case ⊹(tag, children @ _*) if tag == this.tag =>
+        if (children.length == 2)
+          Some((children(0), children(1)))
+        else
+          sys error s"""extractor contract violation, expect twins, has
+            |$children""".stripMargin
+      case _ => None
+    }
+  }
 }

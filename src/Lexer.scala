@@ -317,8 +317,11 @@ trait Fixities extends ProtoAST {
     def splits(items: Items): Iterator[ItemGroups]
 
     // helper for dealing with tokens
-    def hasBody(t: Tree, op: String): Boolean = t match {
-      case ∙(TokenAST, tok: Token) => tok.body == op
+    def hasBody(t: Tree, op: Any): Boolean = t match {
+      case ∙(TokenAST, tok: Token) => op match {
+        case op: String => tok.body == op
+        case ops: Seq[_] => ops contains tok.body
+      }
       case _ => false
     }
   }
@@ -329,9 +332,9 @@ trait Fixities extends ProtoAST {
 
   trait Juxtaposed extends Fixity
 
-  case object IndividualItems extends Juxtaposed {
+  case object CompositeItem extends Juxtaposed {
     def splits(items: Items): Iterator[ItemGroups] =
-      Iterator(items.map(x => Seq(x)))
+      Iterator(Seq(items))
   }
 
   case object Juxtaposition extends Juxtaposed {
@@ -342,7 +345,7 @@ trait Fixities extends ProtoAST {
         Iterator.empty
   }
 
-  case class Prefix(ops: String*) extends Fixity {
+  case class Prefix(ops: Any*) extends Fixity {
     def splits(items: Items): Iterator[ItemGroups] =
       if (items.isEmpty)
         Iterator.empty
@@ -352,7 +355,7 @@ trait Fixities extends ProtoAST {
         Iterator.empty
   }
 
-  case class Postfix(ops: String*) extends Fixity {
+  case class Postfix(ops: Any*) extends Fixity {
     def splits(items: Items): Iterator[ItemGroups] =
       if (items.isEmpty)
         Iterator.empty
@@ -372,14 +375,23 @@ trait Fixities extends ProtoAST {
     }
   }
 
-  case class Infixr(ops: String*) extends Infix {
+  case object LoneTree extends Fixity {
+    def splits(items: Items) = items match {
+      case Seq(t: ⊹) =>
+        Iterator(Seq(items))
+      case _ =>
+        Iterator.empty
+    }
+  }
+
+  case class Infixr(ops: Any*) extends Infix {
     def cloneMyself = Infixr.apply
     def initialHeadPosition(items: Items) = 0
     def nextHeadPosition(items: Items, headPosition: Int): Int =
       items.indexWhere(x => hasBody(x, ops.head), headPosition + 1)
   }
 
-  case class Infixl(ops: String*) extends Infix {
+  case class Infixl(ops: Any*) extends Infix {
     def cloneMyself = Infixl.apply
     def initialHeadPosition(items: Items) = items.length - 1
     def nextHeadPosition(items: Items, headPosition: Int): Int =
@@ -387,8 +399,8 @@ trait Fixities extends ProtoAST {
   }
 
   trait Infix extends Fixity {
-    def ops: Seq[String]
-    def cloneMyself: Seq[String] => Infix
+    def ops: Seq[Any]
+    def cloneMyself: Seq[Any] => Infix
     def initialHeadPosition(items: Items): Int
     def nextHeadPosition(items: Items, headPosition: Int): Int
 
@@ -459,9 +471,21 @@ trait Fixities extends ProtoAST {
 
 
 trait Operators extends Fixities {
+  trait DelegateOperator extends Operator {
+    def delegate: Operator
+    def genus: Genus
+
+    def fixity = delegate.fixity
+    def tryNext = delegate.tryNext
+    def cons(children: Seq[Tree]) = delegate.cons(children)
+    override def parse(items: Seq[Tree]) = delegate.parse(items)
+    override def unparse(t: Tree) = delegate.unparse(t)
+  }
+
   trait Operator extends Tag {
     def fixity: Fixity
-    def toTryNext: Seq[Any] => Seq[Seq[Operator]]
+    def tryNext: Seq[Seq[Operator]]
+    def genus: Genus
 
     /** @param children
       * is the sequence of proto-ASTs allotted to this node if it
@@ -479,7 +503,6 @@ trait Operators extends Fixities {
         return None
 
       val splits = fixity splits items
-      val tryNext = toTryNext(items)
       if (tryNext.isEmpty) {
         // nothing to try next, produce a leaf
         if (splits.hasNext) {
@@ -522,10 +545,11 @@ trait Operators extends Fixities {
       }
     }
 
-    override def unparse(t: Tree): String = t match {
+    override def unparse(t: Tree): String =
+      t match {
       case ⊹(operator: Operator, children @ _*) =>
         val tokens = children map (x => x.tag unparse x)
-        val subops = operator toTryNext tokens
+        val subops = operator.tryNext
         val parens = ((children map (_.tag), tokens).zipped, subops).zipped.
           map({
             case ((childOp, child), subOps) =>
@@ -566,14 +590,18 @@ trait Operators extends Fixities {
       })).mkString
 
     private[this]
-    def prefixLike(ops: Seq[String], children: Seq[String]): Seq[String] =
+    def prefixLike(ops: Seq[Any], children: Seq[String]): Seq[String] =
       (ops, children).zipped flatMap {
-        case (op, child) => List(op, child)
+        case (op: String, child) => List(op, child)
+        case (op: Seq[_], child) => List(op.head.toString, child)
       }
 
     private[this]
-    def postfixLike(ops: Seq[String], children: Seq[String]): Seq[String] =
-      prefixLike(children, ops)
+    def postfixLike(ops: Seq[Any], children: Seq[String]): Seq[String] =
+      (ops, children).zipped flatMap {
+        case (op: String, child) => List(child, op)
+        case (op: Seq[_], child) => List(child, op.head.toString)
+      }
   }
 
   trait LeafOperator extends Operator with LeafTag {
@@ -581,8 +609,9 @@ trait Operators extends Fixities {
     def genus: Genus
     def man: Manifest[_]
 
+    def cons(children: Seq[Tree]): Tree
     def unparseLeaf(leaf: ∙[_]): String
 
-    override def toTryNext = _ => Seq.empty[Seq[Operator]]
+    override def tryNext = Seq.empty[Seq[Operator]]
   }
 }

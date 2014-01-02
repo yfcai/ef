@@ -23,7 +23,7 @@ trait Terms extends Types {
    */
 }*/
 
-trait Syntax extends Operators {
+trait ExpressionGrammar extends Operators {
   // keywords (always a token by itself):
   val keywords = "( ) [ ] { } ∀ ∃ Λ λ .".words
 
@@ -34,53 +34,278 @@ trait Syntax extends Operators {
     def words: Set[String] = Set(s split " ": _*)
   }
 
+  trait TopLevelGenus extends Genus with Operator {
+    def ops: Seq[Operator]
+
+    def genus = this
+    def fixity = CompositeItem
+    override def parse(items: Seq[Tree]): Option[Tree] =
+      ops findFirst (_ parse items)
+    override def tryNext = Seq.empty[Seq[Operator]]
+    override def cons(children: Seq[Tree]) =
+      sys error s"cons of top-level genus $this"
+  }
+
+  trait Atomic extends LeafOperator with FreeName {
+    def genus: Genus
+
+    val fixity = LoneToken(forbidden)
+
+    def cons(children: Seq[Tree]): Tree = children match {
+      case Seq(∙(TokenAST, token: Token)) =>
+        ∙(this, token.body)
+      case _ =>
+        sys error s"constructing atomic $this from $children"
+    }
+
+    def unparseLeaf(leaf: ∙[_]): String = leaf.as[String]
+  }
+
+  abstract class AtomicFactory(tag: Atomic) extends LeafFactory[String](tag)
+
+  trait Parenthetic extends Operator {
+    def genus: TopLevelGenus
+
+    val fixity = LoneTree
+    override def parse(items: Seq[Tree]): Option[Tree] = items match {
+      case Seq(⊹(ProtoAST, children @ _*)) =>
+        genus parse children
+      case _ =>
+        None
+    }
+
+    override def tryNext = Seq.empty[Seq[Operator]]
+    override def cons(children: Seq[Tree]) =
+      sys error s"cons of parenthetic $this"
+  }
+
+  case class BinaryOpGenus(lhs: Genus, rhs: Genus, result: Genus)
+
+  // self-referential discipline
+  // 1. superclass may define val
+  // 2. subclass must provide def in general
+  // 3. subclass may provide val if field isn't used to initialize
+  //    superclass
+  trait BinaryOperator extends Operator {
+    def opGenus: BinaryOpGenus
+    def fixity: Fixity
+    def lhs: Seq[Operator]
+    def rhs: Seq[Operator]
+
+    val genus = opGenus.result
+    override val subgenera = Some(Seq(opGenus.lhs, opGenus.rhs))
+    lazy val tryNext = Seq(lhs, rhs)
+    def cons(t: Seq[Tree]): Tree = t match {
+      case Seq(lhs, rhs) => ⊹(this, lhs, rhs)
+    }
+  }
+
+  trait Juxtapositional extends BinaryOperator {
+    def elementGenus: Genus
+    def lhs: Seq[Operator]
+    def rhs: Seq[Operator]
+
+    def opGenus = BinaryOpGenus(
+      elementGenus, elementGenus, elementGenus)
+    def fixity = Juxtaposition
+  }
+
+  trait Invocative extends BinaryOperator {
+    def opGenus: BinaryOpGenus
+    def ops: (String, String)
+    def lhs: Seq[Operator]
+    def rhs: Seq[Operator]
+
+    val fixity = Postfix(ops._1, ops._2)
+  }
+
+  case object AtomList extends Genus with LeafOperator {
+    def fixity = CompositeItem
+    def genus = this
+    def man = manifest[Seq[String]]
+
+    override def precondition(items: Seq[Tree]): Boolean = {
+      if (items.isEmpty)
+        return false
+      val areTokens = items foreach {
+        case x @ ∙(TokenAST, _) if ! forbidden.contains(x.as[String]) =>
+          ()
+        case _ =>
+          return false
+      }
+      true
+    }
+
+    def cons(children: Seq[Tree]): Tree =
+      ∙(this, children.map(_.as[Token].body): Seq[String])
+
+    def unparseLeaf(leaf: ∙[_]): String =
+      leaf.as[List[_]] mkString "\n"
+
+    override def tryNext = Seq.empty[Seq[Operator]]
+  }
+
+  // should be part of name binding language, shouldn't it?
+  trait CollapsedBinder extends Operator {
+    def binder: Binder
+    def freeName: FreeName
+
+    override def subgenera: Option[Seq[Genus]] =
+      Some(Seq(AtomList, binder.genus))
+
+    if (! binder.extraSubgenera.isEmpty)
+      sys error s"can't collapse binders with extra annotations: $this"
+    if (binder.prison.genus != freeName.genus)
+      sys error s"can't collapse binder $binder incongruent with $freeName"
+
+    override def parse(items: Seq[Tree]): Option[Tree] =
+      super.parse(items).map(expand)
+
+    override def unparse(t: Tree): String =
+      super.unparse(collapse(t))
+
+    def collapse(t: Tree): Tree = unbind(t).fold(t) {
+      case (name, body) =>
+        val collapsedBody = collapse(body)
+        unbinds(collapsedBody).fold(binds(Seq(name), collapsedBody)) {
+          case (names, body) => binds(name +: names, body)
+        }
+    }
+
+    def expand(t: Tree): Tree = t match {
+      case ⊹(tag, params @ ∙(AtomList, _), body) if tag == this =>
+        params.as[Seq[String]].foldRight(body) {
+          case (x, body) => bind(x, body)
+        }
+      case otherwise =>
+        otherwise
+    }
+
+    def bind(x: String, body: Tree): Tree =
+      binder.bind(x, body)
+
+    def binds(xs: Seq[String], body: Tree): Tree =
+      ⊹(this, ∙(AtomList, xs), body)
+
+    def unbind(t: Tree): Option[(String, Tree)] = t match {
+      case ⊹(tag, _*) if tag == binder =>
+        val name = binder nameOf t
+        Some((name, t(∙(freeName, name))))
+      case _ =>
+        None
+    }
+
+    def unbinds(t: Tree): Option[(Seq[String], Tree)] = t match {
+      case ⊹(tag, params @ ∙(AtomList, _), body) if tag == this =>
+        Some((params.as[Seq[String]], body))
+      case _ =>
+        None
+    }
+  }
+
+  abstract class CollapsedBinderFactory(tag: CollapsedBinder) {
+    def apply(x: String, body: Tree): Tree =
+      tag.bind(x, body)
+
+    def apply(xs: String*)(body: => Tree): Tree =
+      tag.expand(tag.binds(xs, body))
+
+    def unapply(t: ⊹): Option[(String, Tree)] = tag unbind t
+  }
+}
+
+trait Syntax extends ExpressionGrammar {
+  case object Type extends TopLevelGenus { def ops = typeOps }
+  object æ extends AtomicFactory(FreeTypeVar)
+  object ₌ extends BinaryFactory(TypeApplication)
+  object → extends BinaryFactory(FunctionArrow)
+  object ∀ extends CollapsedBinderFactory(CollapsedUniversals)
+  object ∃ extends CollapsedBinderFactory(CollapsedExistentials)
+
+  case object Term extends TopLevelGenus { def ops = termOps }
+  object χ extends AtomicFactory(FreeVar)
+  object ₋ extends BinaryFactory(Application)
+  object □ extends BinaryFactory(Instantiation)
+  object Å extends BinaryFactory(Ascription)
+
+  case object FreeTypeVar extends Atomic   { def genus = Type }
+  case object FreeVar     extends Atomic   { def genus = Term }
+  case object TypeVar     extends DeBruijn { def genus = Type }
+  case object Var         extends DeBruijn { def genus = Term }
+
+  case object ParenthesizedType extends Parenthetic { def genus = Type }
+  case object ParenthesizedTerm extends Parenthetic { def genus = Term }
+
+  case object TypeApplication extends Juxtapositional {
+    def elementGenus = Type
+    def lhs = downFrom(TypeApplication, typeOps)
+    def rhs = downFrom(ParenthesizedType, typeOps)
+  }
+
+  case object Application extends Juxtapositional {
+    def elementGenus = Term
+    def lhs = downFrom(Instantiation, termOps)
+    def rhs = downFrom(ParenthesizedTerm, termOps)
+  }
+
+  case object Instantiation extends Invocative {
+    def opGenus = BinaryOpGenus(Term, Type, Term)
+    def ops = ("[", "]")
+    def lhs = downFrom(Instantiation, termOps)
+    def rhs = typeOps
+  }
+
+  case object FunctionArrow extends BinaryOperator {
+    def opGenus = BinaryOpGenus(Type, Type, Type)
+    def lhs: Seq[Operator] = downBelow(FunctionArrow, typeOps)
+    def rhs: Seq[Operator] = typeOps
+
+    val fixity = Infixr(Seq("→", "->"))
+  }
+
+  case object Ascription extends BinaryOperator {
+    def opGenus = BinaryOpGenus(Term, Type, Term)
+    def lhs: Seq[Operator] = downFrom(Ascription, termOps)
+    def rhs: Seq[Operator] = typeOps
+
+    val fixity = Infixl(":")
+  }
+
+  case object UniversalQuantification
+      extends Binder with DelegateOperator {
+    def genus = Type
+    def prison = TypeVar
+    def delegate = CollapsedUniversals
+  }
+
+  case object ExistentialQuantification
+      extends Binder with DelegateOperator {
+    def genus = Type
+    def prison = TypeVar
+    def delegate = CollapsedExistentials
+  }
+
+  case object CollapsedUniversals
+      extends CollapsedBinder with BinaryOperator {
+    val fixity = Prefix(Seq("∀", """\all"""), ".")
+    def opGenus = BinaryOpGenus(AtomList, Type, Type)
+    def lhs = Seq(AtomList)
+    def rhs = typeOps
+    def binder = UniversalQuantification
+    def freeName = FreeTypeVar
+  }
+
+  case object CollapsedExistentials
+      extends CollapsedBinder with BinaryOperator {
+    val fixity = Prefix(Seq("∃", """\ex"""), ".")
+    def opGenus = BinaryOpGenus(AtomList, Type, Type)
+    def lhs = Seq(AtomList)
+    def rhs = typeOps
+    def binder = ExistentialQuantification
+    def freeName = FreeTypeVar
+  }
+
 /*
-  case object Atomic extends Operator(LoneToken(forbidden), Nil)
-
-  // ... super constructor cannot be passed a self reference
-  // unless parameter is declared by-name ... (facepalm)
-  def functorApplicationSelfReference = FunctorApplication
-
-  case object FunctorApplication extends Operator(
-    Juxtaposition,
-    Seq(downFrom(functorApplicationSelfReference, typeOps),
-        downFrom(TypeParenthetic, typeOps))
-  )
-
-  case object TermApplication extends Operator(
-    Juxtaposition,
-    Seq(downFrom(TypeInstantiation, termOps),
-        downFrom(TermParenthetic  , termOps))
-  )
-
-  case object TypeAmnesia extends Operator(
-    Infixl(":"),
-    Seq(downFrom(TypeInstantiation, termOps),
-        typeOps)
-  )
-
-  def typeInstantiationSelfReference  = TypeInstantiation
-
-  case object TypeInstantiation extends Operator(
-    Postfix("[", "]"),
-    Seq(downFrom(typeInstantiationSelfReference, termOps), typeOps)
-  )
-
-  def functionArrowSelfReference = FunctionArrow
-
-  case object FunctionArrow extends Operator(
-    Infixr("→"),
-    // allowing all type expressions to appear on rhs of arrow
-    Seq(downBelow(functionArrowSelfReference, typeOps), typeOps)
-  )
-
-  def typeParameterListSelfReference = TypeParameterList
-
-  case object TypeParameterList extends Operator(
-    IndividualTokens,
-    _ map (_ => Seq(Atomic))
-  )
-
   case object ExistentialQuantification extends Operator(
     Prefix("∃", "."),
     Seq(Seq(TypeParameterList), typeOps)
@@ -108,18 +333,21 @@ trait Syntax extends Operators {
 */
 
   val typeOps: List[Operator] =
-    List()
-    /*
     List(
-      UniversalQuantification   ,
-      ExistentialQuantification ,
-      FunctionArrow             ,
-      FunctorApplication        ,
-      Atomic                    )
-     */
+      UniversalQuantification,
+      ExistentialQuantification,
+      FunctionArrow,
+      TypeApplication,
+      ParenthesizedType,
+      FreeTypeVar)
 
   val termOps: List[Operator] =
-    List()
+    List(
+      Ascription,
+      Instantiation,
+      Application,
+      ParenthesizedTerm,
+      FreeVar)
     /*
     List(
       LetBinding        ,
