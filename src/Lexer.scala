@@ -184,8 +184,8 @@ trait Lexer {
       if (lines.isEmpty) sys error s"next of $this"
       var startOfNextParagraph =
         lines indexWhere (
-          x => x.isParagraphComment || !x.isLineComment && !x.head.isSpace,
-          1)
+          x => !(x.head.isSpace || x.isLineComment || x.isParagraphComment)
+          ,1)
       if (startOfNextParagraph < 0) startOfNextParagraph = lines.length
       val (thisParagraph, theRest) = lines splitAt startOfNextParagraph
       val thisLineNumber = nextLineNumber
