@@ -147,8 +147,8 @@ trait ExpressionGrammar extends Operators {
     def collapse(t: Tree): Tree = binder.unbind(t).fold(t) {
       case (name, Seq(body)) =>
         val collapsedBody = collapse(body)
-        unbind(collapsedBody).fold(bind(Seq(name), collapsedBody)) {
-          case (names, body) => bind(name +: names, body)
+        unbind(collapsedBody).fold(bind(Seq(name.get), collapsedBody)) {
+          case (names, body) => bind(name.get +: names, body)
         }
     }
 
@@ -179,7 +179,8 @@ trait ExpressionGrammar extends Operators {
     def apply(xs: String*)(body: => Tree): Tree =
       tag.expand(tag.bind(xs, body))
 
-    def unapplySeq(t: ⊹): Option[(String, Seq[Tree])] = tag.binder.unbind(t)
+    def unapplySeq(t: ⊹): Option[(∙[String], Seq[Tree])] =
+      tag.binder.unbind(t)
   }
 }
 

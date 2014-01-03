@@ -13,7 +13,7 @@ trait Modules extends Syntax {
         case (t @ ⊹(binder: Binder, _*), toks) =>
           sanityCheck(t, toks.head)
           val (x, Seq(body)) = binder.unbind(t).get
-          (⊹(this, binder.free(x), body), toks)
+          (⊹(this, x, body), toks)
         case otherwise =>
           otherwise
       }

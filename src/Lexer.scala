@@ -627,7 +627,7 @@ trait Operators extends Fixities {
       this.bind(children.head.as[String], children.tail: _*)
 
     override def decons(t: Tree): Seq[Tree] =
-      unbind(t).get match { case (x, bodies) => ∙(freeName, x) +: bodies }
+      unbind(t).get match { case (x, bodies) => x +: bodies }
   }
 
   trait LeafOperator extends Operator with LeafTag {

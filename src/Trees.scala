@@ -95,10 +95,10 @@ trait Trees {
     }
 
     // free a bound number
-    def unbind(t: Tree): Option[(String, Seq[Tree])] = t match {
+    def unbind(t: Tree): Option[(∙[String], Seq[Tree])] = t match {
       case ⊹(tag, _*) if tag == this =>
-        val name = nameOf(t)
-        Some((name, annotationsOf(t) :+ t(free(name))))
+        val x = free(nameOf(t))
+        Some((x, annotationsOf(t) :+ t(x)))
       case _ =>
         None
     }
@@ -106,7 +106,7 @@ trait Trees {
     // count the number of bound occurrences in this tree
     def count(t: Tree): Int = { val x = free(nameOf(t)) ; t(x) count x }
 
-    def free(x: String): Tree = ∙(freeName, x)
+    def free(x: String): ∙[String] = ∙(freeName, x)
 
     def imprison(x: String, body: Tree): Tree =
       body.imprison(prison, x, 0)
@@ -165,6 +165,8 @@ trait Trees {
       sys error s"""|incongruent manifests in leaves.
         |declared: ${tag.man}
         |actual  : ${manifest[S]}
+        |in
+        |$this
         |""".stripMargin
     override def toString = s"∙($tag, $get)"
   }
