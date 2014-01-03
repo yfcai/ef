@@ -29,13 +29,13 @@ matchNat = λn : Nat.
 . USAGE
 
 to_ℤ : Nat → ℤ
-to_ℤ n = n 0 (+ 1)
+to_ℤ = λn : Nat. n 0 (+ 1)
 
 . TODO: execute in racket to find out if this is 3
 three = to_ℤ (succ (succ (succ zero)))
 
 pred : Nat → Nat
-pred n = matchNat n ??? id
+pred = λn : Nat. matchNat n ??? id
 
 . rant about overcapturing
 
