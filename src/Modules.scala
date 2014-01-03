@@ -1,25 +1,7 @@
 // parse file, produce AST
 trait Modules extends Syntax {
-  abstract class Definitional(genus: TopLevelGenus)
-      extends CollapsedBinder(genus) {
-    def fixity: Fixity
-    def binder: Binder
-    def sanityCheck(t: Tree, tok: Token): Unit
-
-    override def subgenera: Option[Seq[Genus]] = None
-
-    override def parse(items: Seq[Tree]): Option[(Tree, List[Token])] =
-      super.parse(items).map {
-        case (t @ ⊹(binder: Binder, _*), toks) =>
-          sanityCheck(t, toks.head)
-          val (x, Seq(body)) = binder.unbind(t).get
-          (⊹(this, x, body), toks)
-        case otherwise =>
-          otherwise
-      }
-  }
-
-  case object TypeSynonym extends Definitional(Type) {
+  case object TypeSynonym
+      extends CollapsedBinder(Type) with Definitional {
     val fixity = Prefix("type", "=")
     def binder = UniversalQuantification
 
@@ -28,17 +10,64 @@ trait Modules extends Syntax {
         throw Problem(tok, "recursive type synonym")
   }
 
-/*
-  class DefinitionOperator(
-    definingSymbol: String, rhs: Operator
-  ) extends Operator (
-    Infixr(definingSymbol),
-    Seq(Seq(Atomic), Seq(rhs))
-  ) {
-    override def precondition(tokens: Tokens) =
-      (tokens isDefinedAt 1) && tokens(1) == definingSymbol
+  case object Definition extends UnaryDefinitional {
+    def defSymbol = "="
+    def opGenus = BinaryOpGenus(Term, Term, Term)
+    def lhs = Seq(FreeVar)
+    def rhs = Term.ops
   }
 
+  case object Signature extends UnaryDefinitional {
+    def defSymbol = ":"
+    def opGenus = BinaryOpGenus(Term, Type, Term)
+    def lhs = Seq(FreeVar)
+    def rhs = Type.ops
+  }
+
+  trait Definitional extends BinaryOperator {
+    def sanityCheck(t: Tree, tok: Token): Unit
+
+    override def subgenera: Option[Seq[Genus]] = None
+
+    override def parse(items: Seq[Tree]): Option[(Tree, List[Token])] =
+      super.parse(items).map({
+        case result @ (t, toks) => sanityCheck(t, toks.head) ; result
+      }).map {
+        case (t @ ⊹(binder: Binder, _*), toks) =>
+          val (x, Seq(body)) = binder.unbind(t).get
+          (⊹(this, x, body), toks)
+        case otherwise =>
+          otherwise
+      }
+
+    // can be used to deconstruct trees
+    // inverse of post processing after "parse"
+    def unapply(t: Tree): Option[(∙[String], Tree)] = t match {
+      case ⊹(tag, x, body) if tag == this =>
+        Some((x.asInstanceOf[∙[String]], body))
+      case _ => None
+    }
+  }
+
+  abstract class UnaryDefinitional extends Definitional {
+    def defSymbol: String
+    def opGenus: BinaryOpGenus
+    def lhs: Seq[Operator]
+    def rhs: Seq[Operator]
+
+    final val fixity: Fixity = Infixr(defSymbol)
+
+    override def precondition(items: Seq[Tree]) =
+      items.take(2).length == 2 && fixity.hasBody(items(1), defSymbol)
+
+    def sanityCheck(t: Tree, tok: Token): Unit = t match {
+      case ⊹(_, x, xdef) =>
+        if (xdef.count(x) != 0)
+          throw Problem(tok, "recursive definition")
+    }
+  }
+
+/*
   case object ParagraphExpr extends DummyOperator(paragraphOps) {
     def fromFileWithLines(path: String): Iterator[(AST, Int)] =
       (Paragraphs fromFile path) map {
@@ -63,43 +92,6 @@ trait Modules extends Syntax {
         case Some(ast) =>
           ast
       }
-  }
-
-  case object ParagraphComment
-  extends Operator(AllTokensTogether, Nil) {
-    override def precondition(tokens: Tokens) =
-      tokens.startsWith(Seq(".", "rant"))
-  }
-
-  case object TypeSynonym extends Operator (
-    Prefix("type", "="),
-    Seq(Seq(TypeParameterList), Seq(TypeExpr))
-  )
-
-  case object TypeSignature
-  extends DefinitionOperator(":", TypeExpr)
-
-  case object TermDefinition
-  extends DefinitionOperator("=", TermExpr)
-
-  // can't set TermParameterList = TypeParameterList
-  // because we want to make tag.toString distinct
-  // so as not to confuse humans
-  case object TermParameterList extends Operator(
-    IndividualTokens,
-    _ map (_ => Seq(Atomic))
-  )
-
-  // we'd like to try TypedFUnctionDefinition last
-  // because it fails more slowly than others
-  case object TypedFUnctionDefinition extends Operator (
-    Infixr("="),
-    Seq(Seq(TermParameterList), Seq(TermExpr))
-  ) {
-    // if "=" comes immediately after a name,
-    // then TermDefinition should take care of it.
-    override def precondition(tokens: Tokens) =
-      (tokens indexOf "=") > 1
   }
 
   val paragraphOps: List[Operator] =

@@ -3,6 +3,7 @@ object Experiments {
     DeclarationsExperiment
 
   val experiments = List[Experiment](
+    DeclarationsExperiment,
     SourceLocationExperiment,
     AbstractionsExperiment,
     BoundedQuantificationExperiment,
@@ -386,13 +387,45 @@ object Experiments {
     val either = "type Either α β = ∀γ. (α → γ) → (β → γ) → γ"
 
     val recListBody = "either Unit (α → List α → List α)"
-    val recList = "type List α = $recListBody"
+    val recList = s"type List α = $recListBody"
+
+    val id = "id = λx : α. x"
+    val fix = "fix = λf : α → α. f (fix f)"
+
+    val auto = "auto : (∀α. α → α) → (∀α. α → α)"
+
+    def expectProblem(x: Operator, s: String): Unit =
+      try { x.parse(s) }
+      catch { case p: Problem => puts(p.getMessage) }
+
+    def expectSuccess(x: Definitional, s: String, format: String): Unit =
+      x.unapply(x.parse(s).get).get match {
+        case (x, body) => puts(format.format(x.get, body.unparse))
+      }
 
     def run = {
-      val et = TypeSynonym.parse(either).get
-      println(et.unparse)
-      println(et.print)
+      expectSuccess(TypeSynonym, either, "type %s = %s")
+      expectProblem(TypeSynonym, recList)
+      expectSuccess(Definition, id, "%s = %s")
+      expectProblem(Definition, fix)
+      expectSuccess(Signature, auto, "%s : %s")
       dump
     }
+
+    override def expected =
+      """|type Either = ∀α β γ. (α → γ) → (β → γ) → γ
+         |#LINE:1
+         |type List α = either Unit (α → List α → List α)
+         |^
+         |recursive type synonym
+         |
+         |id = λx : α. x
+         |#LINE:1
+         |fix = λf : α → α. f (fix f)
+         |^
+         |recursive definition
+         |
+         |auto : (∀α. α → α) → ∀α. α → α
+         |""".stripMargin
   }
 }

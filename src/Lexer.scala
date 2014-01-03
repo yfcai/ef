@@ -47,7 +47,7 @@ trait Lexer {
 
   def tokenize(p: Paragraph): Seq[Token] = new TokenIterator(p).toSeq
 
-  def tokenize(s: String): Seq[Token] = tokenize(Paragraph(s))
+  final def tokenize(s: String): Seq[Token] = tokenize(Paragraph(s))
 
   class TokenIterator(
     paragraph: Paragraph,
