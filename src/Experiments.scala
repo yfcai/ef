@@ -1,6 +1,6 @@
 object Experiments {
   val onTrial: Experiment =
-    SourceLocationExperiment
+    CollapsedBinderExperiment
 
   val experiments = List[Experiment](
     SourceLocationExperiment,

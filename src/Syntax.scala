@@ -67,7 +67,7 @@ trait ExpressionGrammar extends Operators {
     def rhs: Seq[Operator]
 
     val genus = opGenus.result
-    override val subgenera = Some(Seq(opGenus.lhs, opGenus.rhs))
+    override def subgenera = Some(Seq(opGenus.lhs, opGenus.rhs))
     lazy val tryNext = Seq(lhs, rhs)
     def cons(t: Seq[Tree]): Tree = t match {
       case Seq(lhs, rhs) => ⊹(this, lhs, rhs)
@@ -120,14 +120,20 @@ trait ExpressionGrammar extends Operators {
   }
 
   // should be part of name binding language, shouldn't it?
-  trait CollapsedBinder extends Operator {
+  // @param genus has to be class parameter because "val genus"
+  // is taken in trait BinaryOperator and it doesn't make sense
+  // to declare something like "genus0".
+  abstract class CollapsedBinder(_genus: TopLevelGenus)
+      extends BinaryOperator {
     def binder: Binder
 
+    def opGenus = BinaryOpGenus(AtomList, _genus, _genus)
+    def lhs = Seq(AtomList)
+    def rhs = _genus.ops // can override if want some other precedence
     def freeName: FreeName = binder.freeName
 
-    override def subgenera: Option[Seq[Genus]] =
-      Some(Seq(AtomList, binder.genus))
-
+    if (binder.genus != _genus)
+      sys error s"$this can't collapse binder $binder to ${_genus}"
     if (! binder.extraSubgenera.isEmpty)
       sys error s"can't collapse binders with extra annotations: $this"
 
@@ -254,21 +260,13 @@ trait Syntax extends ExpressionGrammar {
   val universalSymbol   = Seq("∀", """\all""")
   val existentialSymbol = Seq("∃", """\ex""")
 
-  case object CollapsedUniversals
-      extends CollapsedBinder with BinaryOperator {
+  case object CollapsedUniversals extends CollapsedBinder(Type) {
     val fixity = Prefix(universalSymbol, ".")
-    def opGenus = BinaryOpGenus(AtomList, Type, Type)
-    def lhs = Seq(AtomList)
-    def rhs = typeOps
     def binder = UniversalQuantification
   }
 
-  case object CollapsedExistentials
-      extends CollapsedBinder with BinaryOperator {
+  case object CollapsedExistentials extends CollapsedBinder(Type) {
     val fixity = Prefix(existentialSymbol, ".")
-    def opGenus = BinaryOpGenus(AtomList, Type, Type)
-    def lhs = Seq(AtomList)
-    def rhs = typeOps
     def binder = ExistentialQuantification
   }
 
@@ -285,12 +283,8 @@ trait Syntax extends ExpressionGrammar {
     def delegate = CollapsedTypeAbstractions
   }
 
-  case object CollapsedTypeAbstractions
-      extends CollapsedBinder with BinaryOperator {
+  case object CollapsedTypeAbstractions extends CollapsedBinder(Term) {
     val fixity = Prefix(Seq("Λ", """\Tabs"""), ".")
-    def opGenus = BinaryOpGenus(AtomList, Term, Term)
-    def lhs = Seq(AtomList)
-    def rhs = termOps
     def binder = TypeAbstraction
   }
 
