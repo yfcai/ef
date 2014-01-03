@@ -1,6 +1,6 @@
-/*
 // parse file, produce AST
-trait ParagraphGrammar extends ExpressionGrammar with Paragraphs {
+trait Modules extends Syntax {
+/*
   class DummyOperator(parsersToTry: Seq[Operator])
   extends Operator(AllTokensTogether, Seq(parsersToTry)) {
     override def parse(tokens: Tokens): Option[AST] =
@@ -91,8 +91,10 @@ trait ParagraphGrammar extends ExpressionGrammar with Paragraphs {
       TypeSignature,
       TermDefinition,
       TypedFUnctionDefinition)
+ */
 }
 
+/*
 trait ASTConversions extends ExpressionGrammar with Terms {
   implicit class ConversionsFromTypeToOperator(τ: Type) {
     def toAST: AST = τ match {
