@@ -179,14 +179,13 @@ trait Lexer {
 
   case class Paragraphs(file: String, _lines: Iterator[String])
   extends Iterator[Paragraph] {
-    def hasNext: Boolean = ! lines.isEmpty
+    def hasNext: Boolean = {
+      lines = removeEmptyLines(lines)._2
+      ! lines.isEmpty
+    }
     def next: Paragraph = {
-      if (lines.isEmpty) sys error s"next of $this"
-      var startOfNextParagraph =
-        lines indexWhere (
-          x => !(x.head.isSpace || x.isLineComment || x.isParagraphComment)
-          ,1)
-      if (startOfNextParagraph < 0) startOfNextParagraph = lines.length
+      if (! hasNext) sys error s"next of $this"
+      var startOfNextParagraph = nextParagraph(lines)
       val (thisParagraph, theRest) = lines splitAt startOfNextParagraph
       val thisLineNumber = nextLineNumber
       lines = theRest
@@ -201,6 +200,19 @@ trait Lexer {
     var lines: Stream[String] = null
     var nextLineNumber = Paragraph.firstLine
 
+    def nextParagraph(lines: Stream[String]): Int = {
+      val next = lines indexWhere (
+        // x.head.isSpace must come last;
+        // .isLineComment rules out empty strings
+        x => x.isParagraphComment || !(x.isLineComment || x.head.isSpace),
+        1)
+      if (next < 0)
+        lines.length
+      else
+        next
+    }
+
+
     {
       val (int, stream) = removeEmptyLines(_lines.toStream)
       lines = stream
@@ -213,6 +225,11 @@ trait Lexer {
       while(! result.isEmpty && result.head.isLineComment) {
         result = result.tail
         emptyLines += 1
+      }
+      while(! result.isEmpty && result.head.isParagraphComment) {
+        val next = nextParagraph(result)
+        result = result.drop(next)
+        emptyLines += next
       }
       (emptyLines, result)
     }
@@ -525,9 +542,9 @@ trait Operators extends Fixities {
           val split = splits.next
           // assertion to locate buggy operators
           if(split.length != tryNext.length)
-            sys error s"operator $this declares arity ${
+            sys error s"""operator $this declares arity ${
               split.length
-            } but has ${tryNext.length} children"
+            } but has ${tryNext.length} children"""
           val maybeChildren =
             (tryNext, split).zipped.foldRight(
               Some(Nil): Option[List[(Tree, List[Token])]]

@@ -1,8 +1,9 @@
 object Experiments {
   val onTrial: Experiment =
-    DeclarationsExperiment
+    FileParsingExperiment
 
   val experiments = List[Experiment](
+    FileParsingExperiment,
     DeclarationsExperiment,
     SourceLocationExperiment,
     AbstractionsExperiment,
@@ -398,17 +399,17 @@ object Experiments {
       try { x.parse(s) }
       catch { case p: Problem => puts(p.getMessage) }
 
-    def expectSuccess(x: Definitional, s: String, format: String): Unit =
-      x.unapply(x.parse(s).get).get match {
-        case (x, body) => puts(format.format(x.get, body.unparse))
+    def expectSuccess(op: Definitional, s: String): Unit =
+      op.unapply(op.parse(s).get).get match {
+        case (x, body) => puts(op.unparse(x, body))
       }
 
     def run = {
-      expectSuccess(TypeSynonym, either, "type %s = %s")
+      expectSuccess(TypeSynonym, either)
       expectProblem(TypeSynonym, recList)
-      expectSuccess(Definition, id, "%s = %s")
+      expectSuccess(Definition, id)
       expectProblem(Definition, fix)
-      expectSuccess(Signature, auto, "%s : %s")
+      expectSuccess(Signature, auto)
       dump
     }
 
@@ -427,5 +428,22 @@ object Experiments {
          |
          |auto : (∀α. α → α) → ∀α. α → α
          |""".stripMargin
+  }
+
+  object FileParsingExperiment extends ModulesExperiment {
+    def thisFile = new Throwable().getStackTrace().head.getFileName
+    val nats = thisFile.substring(0, thisFile.lastIndexOf('/') + 1) +
+      "../examples/nats.ef"
+
+    def run = {
+      val module = Module.fromFile(nats)
+      puts(module.unparse)
+      dump
+    }
+
+    // expectation does nothing,
+    // but if this experiment is put on maintenance list,
+    // we will catch exceptions.
+    override def expected = run
   }
 }
