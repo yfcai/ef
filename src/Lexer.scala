@@ -1,8 +1,8 @@
 trait Lexer {
-  case class Problem(token: Token, message: String)
+  case class Problem(token: Token, message: String, lines: Int = 3)
       extends Exception(
     s"""|${token.fileLine}
-        |${token.residentLines(3)}
+        |${token.residentLines(lines)}
         |$message
         |""".stripMargin)
 
@@ -497,9 +497,11 @@ trait Operators extends Fixities {
     // extension point to introduce fast failures
     def precondition(items: Seq[Tree]): Boolean = true
 
-    def parse(string: String): Option[Tree] = parse(ProtoAST(string))
+    def parse(string: String): Option[Tree] =
+      parse(ProtoAST(string)).map(_._1)
 
-    def parse(items: Seq[Tree]): Option[Tree] = {
+    // @return None or Some((AST, first token of construct in preorder))
+    def parse(items: Seq[Tree]): Option[(Tree, List[Token])] = {
       if (precondition(items) == false)
         return None
 
@@ -512,7 +514,7 @@ trait Operators extends Fixities {
             case _ =>
               sys error s"leaf operator with nonunary fixity: $this"
           }
-          Some(cons(x))
+          Some((cons(x), List(getFirstToken(items))))
         }
         else
           None
@@ -526,24 +528,36 @@ trait Operators extends Fixities {
            sys error s"operator $this declares arity ${
              split.length
            } but has ${tryNext.length} children"
-          val maybeChildren: Option[List[Tree]] =
+          val maybeChildren =
             (tryNext, split).zipped.foldRight(
-              Some(Nil): Option[List[Tree]]
+              Some(Nil): Option[List[(Tree, List[Token])]]
             ) {
               case ((_, _), None) => None
               case ((parsersToTry, items), Some(bros)) =>
-                parsersToTry findFirst (_ parse items) map (_ :: bros)
+                parsersToTry.findFirst(_ parse items).map(_ :: bros)
             }
           // if a feasible split is found, do not try other,
           // less preferable, splits.
           maybeChildren match {
             case None => ()
-            case Some(children) => return Some(cons(children))
+            case Some(children) => return Some((
+              cons(children.map(_._1)),
+              getFirstToken(items) :: children.flatMap(_._2)
+            ))
           }
         }
         // I can't parse it
         None
       }
+    }
+
+    def getFirstToken(ts: Seq[Tree]): Token =
+      ts.findFirst(getFirstToken).get
+
+    def getFirstToken(t: Tree): Option[Token] = t match {
+      case x @ ∙(TokenAST, _) => Some(x.as[Token])
+      case x @ ⊹(_, children @ _*) => children.findFirst(getFirstToken)
+      case _ => None
     }
 
     override def unparse(t: Tree): String =
@@ -606,23 +620,12 @@ trait Operators extends Fixities {
       }
   }
 
-  // assume annotations are written before body in a binder
-  // (I regret putting body ahead of annotations)
   trait BinderOperator extends Operator with Binder {
-    def cons(children: Seq[Tree]): Tree = {
-      val x = children.head match {
-        case x @ ∙(tag, _) if tag == freeName => x.as[String]
-      }
-      val body = children.last
-      val notes = children.tail.init
-      this.bind(x, body, notes: _*)
-    }
+    def cons(children: Seq[Tree]): Tree =
+      this.bind(children.head.as[String], children.tail: _*)
 
-    override def decons(t: Tree): Seq[Tree] = unbind(t).get match {
-      case (name, body, annotations) =>
-        val x = ∙(freeName, name)
-        x +: (annotations :+ body)
-    }
+    override def decons(t: Tree): Seq[Tree] =
+      unbind(t).get match { case (x, bodies) => ∙(freeName, x) +: bodies }
   }
 
   trait LeafOperator extends Operator with LeafTag {

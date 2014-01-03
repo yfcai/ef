@@ -1,7 +1,9 @@
 object Experiments {
-  val onTrial = AbstractionsExperiment
+  val onTrial: Experiment =
+    SourceLocationExperiment
 
-  val experiments = List(
+  val experiments = List[Experiment](
+    SourceLocationExperiment,
     AbstractionsExperiment,
     BoundedQuantificationExperiment,
     ShadowyExperiment,
@@ -11,7 +13,7 @@ object Experiments {
     FunctionArrowExperiment,
     ApplicationExperiment,
     SelfReferenceExperiment,
-    ProtoASTExperiment)
+    ProtoASTExperiment).reverse
 
   def maintenance() = experiments foreach { ex =>
     if (ex.run != ex.expected) sys error s"failed: $ex"
@@ -264,17 +266,17 @@ object Experiments {
       """|∀α ⊒ ∀α. α → α. List (∃β ⊒ α. β)
          |BoundedUniversal, binder of α
          |  ∙(LiteralTag(java.lang.String), α)
-         |  TypeApplication
-         |    ∙(FreeTypeVar, List)
-         |    BoundedExistential, binder of β
-         |      ∙(LiteralTag(java.lang.String), β)
-         |      TypeVar, bound of β
-         |      TypeVar, bound of α
          |  UniversalQuantification, binder of α
          |    ∙(LiteralTag(java.lang.String), α)
          |    FunctionArrow
          |      TypeVar, bound of α
          |      TypeVar, bound of α
+         |  TypeApplication
+         |    ∙(FreeTypeVar, List)
+         |    BoundedExistential, binder of β
+         |      ∙(LiteralTag(java.lang.String), β)
+         |      TypeVar, bound of α
+         |      TypeVar, bound of β
          |""".stripMargin
   }
 
@@ -295,6 +297,87 @@ object Experiments {
       """|Λα β. λx : α → β. x
          |λx : ℤ → ℚ. x
          |42
+         |""".stripMargin
+  }
+
+  object SourceLocationExperiment extends SyntaxExperiment {
+    val s = """∀α ⊒ ∀α. α → α. List (∃β ⊒ α. β)"""
+
+    def run = {
+      val (t, toks) = Type.parse(ProtoAST(s)).get
+      (t.preorder.toSeq, toks).zipped.foreach {
+        case (t, tok) =>
+          puts(Problem(tok, t.tag.toString, 1).getMessage)
+      }
+      dump
+    }
+
+    override def expected =
+      """|#LINE:1
+         |∀α ⊒ ∀α. α → α. List (∃β ⊒ α. β)
+         |^
+         |BoundedUniversal
+         |
+         |#LINE:1
+         |∀α ⊒ ∀α. α → α. List (∃β ⊒ α. β)
+         | ^
+         |LiteralTag(java.lang.String)
+         |
+         |#LINE:1
+         |∀α ⊒ ∀α. α → α. List (∃β ⊒ α. β)
+         |     ^
+         |UniversalQuantification
+         |
+         |#LINE:1
+         |∀α ⊒ ∀α. α → α. List (∃β ⊒ α. β)
+         |      ^
+         |LiteralTag(java.lang.String)
+         |
+         |#LINE:1
+         |∀α ⊒ ∀α. α → α. List (∃β ⊒ α. β)
+         |         ^
+         |FunctionArrow
+         |
+         |#LINE:1
+         |∀α ⊒ ∀α. α → α. List (∃β ⊒ α. β)
+         |         ^
+         |TypeVar
+         |
+         |#LINE:1
+         |∀α ⊒ ∀α. α → α. List (∃β ⊒ α. β)
+         |             ^
+         |TypeVar
+         |
+         |#LINE:1
+         |∀α ⊒ ∀α. α → α. List (∃β ⊒ α. β)
+         |                ^
+         |TypeApplication
+         |
+         |#LINE:1
+         |∀α ⊒ ∀α. α → α. List (∃β ⊒ α. β)
+         |                ^
+         |FreeTypeVar
+         |
+         |#LINE:1
+         |∀α ⊒ ∀α. α → α. List (∃β ⊒ α. β)
+         |                      ^
+         |BoundedExistential
+         |
+         |#LINE:1
+         |∀α ⊒ ∀α. α → α. List (∃β ⊒ α. β)
+         |                       ^
+         |LiteralTag(java.lang.String)
+         |
+         |#LINE:1
+         |∀α ⊒ ∀α. α → α. List (∃β ⊒ α. β)
+         |                           ^
+         |TypeVar
+         |
+         |#LINE:1
+         |∀α ⊒ ∀α. α → α. List (∃β ⊒ α. β)
+         |                              ^
+         |TypeVar
+         |
          |""".stripMargin
   }
 }

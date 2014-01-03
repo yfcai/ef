@@ -75,28 +75,31 @@ trait Trees {
     // in subclasses, extraSubgenera should always be a "def", not "val",
     // to avoid NullPointerException during initialization
 
-    require(prison.genus == freeName.genus)
+    if (prison.genus != freeName.genus)
+      sys error s"""|binder $this changes prisoners' identity from
+        |${freeName.genus} to ${prison.genus}
+        |""".stripMargin
 
     override final val subgenera =
-      Some(§.genus +: genus +: extraSubgenera)
+      Some(§.genus +: (extraSubgenera :+ genus))
 
-    def        bodyOf(t: Tree): Tree   = t.children.tail.head
-    def defaultNameOf(t: Tree): String = t.children.head match {
-      case §(x) => x
-    }
-    def annotationsOf(t: Tree): Seq[Tree] = t.children.drop(2)
+    def        bodyOf(t: Tree): Tree   = t.children.last
+    def defaultNameOf(t: Tree): String = t.children.head.as[String]
+    def annotationsOf(t: Tree): Seq[Tree] = t.children.tail.init
 
     def bindingGenus: Genus = prison.genus
 
     // bind a free name
-    def bind(x: String, body: Tree, annotations: Tree*): Tree =
-      ⊹(this, §(x) +: body.imprison(prison, x, 0) +: annotations: _*)
+    def bind(x: String, trees: Tree*): Tree = {
+      val (annotations, b) = trees.splitAt(trees.length - 1)
+      ⊹(this, §(x) +: (annotations :+ b.head.imprison(prison, x, 0)): _*)
+    }
 
     // free a bound number
-    def unbind(t: Tree): Option[(String, Tree, Seq[Tree])] = t match {
+    def unbind(t: Tree): Option[(String, Seq[Tree])] = t match {
       case ⊹(tag, _*) if tag == this =>
         val name = nameOf(t)
-        Some((name, t(∙(freeName, name)), annotationsOf(t)))
+        Some((name, annotationsOf(t) :+ t(∙(freeName, name))))
       case _ =>
         None
     }
@@ -298,6 +301,13 @@ trait Trees {
         Set(get)
       case _ =>
         Set.empty
+    }
+
+    // traversals
+    def preorder: Iterator[Tree] = this match {
+      case ∙(_, _) => Iterator(this)
+      case ⊹(_, children @ _*) => Iterator(this) ++
+        children.flatMap(_.preorder) // ++ is call-by-name for iterators
     }
   }
 

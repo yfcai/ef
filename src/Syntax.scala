@@ -14,8 +14,7 @@ trait ExpressionGrammar extends Operators {
 
     def genus = this
     def fixity = CompositeItem
-    override def parse(items: Seq[Tree]): Option[Tree] =
-      ops findFirst (_ parse items)
+    override def parse(items: Seq[Tree]) = ops findFirst (_ parse items)
     override def tryNext = Seq.empty[Seq[Operator]]
     override def cons(children: Seq[Tree]) =
       sys error s"cons of top-level genus $this"
@@ -42,7 +41,7 @@ trait ExpressionGrammar extends Operators {
     def genus: TopLevelGenus
 
     val fixity = LoneTree
-    override def parse(items: Seq[Tree]): Option[Tree] = items match {
+    override def parse(items: Seq[Tree]) = items match {
       case Seq(⊹(ProtoAST, children @ _*)) =>
         genus parse children
       case _ =>
@@ -123,49 +122,42 @@ trait ExpressionGrammar extends Operators {
   // should be part of name binding language, shouldn't it?
   trait CollapsedBinder extends Operator {
     def binder: Binder
-    def freeName: FreeName
+
+    def freeName: FreeName = binder.freeName
 
     override def subgenera: Option[Seq[Genus]] =
       Some(Seq(AtomList, binder.genus))
 
     if (! binder.extraSubgenera.isEmpty)
       sys error s"can't collapse binders with extra annotations: $this"
-    if (binder.prison.genus != freeName.genus)
-      sys error s"can't collapse binder $binder incongruent with $freeName"
 
-    override def parse(items: Seq[Tree]): Option[Tree] =
-      super.parse(items).map(expand)
+    override def parse(items: Seq[Tree]) =
+      super.parse(items).map { case (t, toks) => (expand(t), toks) }
 
     override def unparse(t: Tree): String =
       super.unparse(collapse(t))
 
-    def collapse(t: Tree): Tree = unbind(t).fold(t) {
-      case (name, body) =>
+    def collapse(t: Tree): Tree = binder.unbind(t).fold(t) {
+      case (name, Seq(body)) =>
         val collapsedBody = collapse(body)
-        unbinds(collapsedBody).fold(binds(Seq(name), collapsedBody)) {
-          case (names, body) => binds(name +: names, body)
+        unbind(collapsedBody).fold(bind(Seq(name), collapsedBody)) {
+          case (names, body) => bind(name +: names, body)
         }
     }
 
     def expand(t: Tree): Tree = t match {
       case ⊹(tag, params @ ∙(AtomList, _), body) if tag == this =>
         params.as[Seq[String]].foldRight(body) {
-          case (x, body) => bind(x, body)
+          case (x, body) => binder.bind(x, body)
         }
       case otherwise =>
         otherwise
     }
 
-    def bind(x: String, body: Tree): Tree =
-      binder.bind(x, body)
-
-    def binds(xs: Seq[String], body: Tree): Tree =
+    def bind(xs: Seq[String], body: Tree): Tree =
       ⊹(this, ∙(AtomList, xs), body)
 
-    def unbind(t: Tree): Option[(String, Tree)] =
-      binder.unbind(t) map { case (x, body, Seq()) => (x, body) }
-
-    def unbinds(t: Tree): Option[(Seq[String], Tree)] = t match {
+    def unbind(t: Tree): Option[(Seq[String], Tree)] = t match {
       case ⊹(tag, params @ ∙(AtomList, _), body) if tag == this =>
         Some((params.as[Seq[String]], body))
       case _ =>
@@ -175,12 +167,12 @@ trait ExpressionGrammar extends Operators {
 
   abstract class CollapsedBinderFactory(tag: CollapsedBinder) {
     def apply(x: String, body: Tree): Tree =
-      tag.bind(x, body)
+      tag.binder.bind(x, body)
 
     def apply(xs: String*)(body: => Tree): Tree =
-      tag.expand(tag.binds(xs, body))
+      tag.expand(tag.bind(xs, body))
 
-    def unapply(t: ⊹): Option[(String, Tree)] = tag unbind t
+    def unapplySeq(t: ⊹): Option[(String, Seq[Tree])] = tag.binder.unbind(t)
   }
 }
 
@@ -269,7 +261,6 @@ trait Syntax extends ExpressionGrammar {
     def lhs = Seq(AtomList)
     def rhs = typeOps
     def binder = UniversalQuantification
-    def freeName = FreeTypeVar
   }
 
   case object CollapsedExistentials
@@ -279,7 +270,6 @@ trait Syntax extends ExpressionGrammar {
     def lhs = Seq(AtomList)
     def rhs = typeOps
     def binder = ExistentialQuantification
-    def freeName = FreeTypeVar
   }
 
   case object BoundedUniversal extends BoundedQuantification
@@ -302,7 +292,6 @@ trait Syntax extends ExpressionGrammar {
     def lhs = Seq(AtomList)
     def rhs = termOps
     def binder = TypeAbstraction
-    def freeName = FreeTypeVar
   }
 
   case object AnnotatedAbstraction extends AnnotatedBinderOp {
