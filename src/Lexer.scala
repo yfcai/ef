@@ -497,7 +497,7 @@ trait Operators extends Fixities {
     // extension point to introduce fast failures
     def precondition(items: Seq[Tree]): Boolean = true
 
-    def parse(string: String): Option[Tree] =
+    final def parse(string: String): Option[Tree] =
       parse(ProtoAST(string)).map(_._1)
 
     // @return None or Some((AST, first token of construct in preorder))
@@ -522,12 +522,12 @@ trait Operators extends Fixities {
       else {
         // got stuff to try next, produce a branch.
         while(splits.hasNext) {
-         val split = splits.next
-         // assertion to locate buggy operators
-         if(split.length != tryNext.length)
-           sys error s"operator $this declares arity ${
-             split.length
-           } but has ${tryNext.length} children"
+          val split = splits.next
+          // assertion to locate buggy operators
+          if(split.length != tryNext.length)
+            sys error s"operator $this declares arity ${
+              split.length
+            } but has ${tryNext.length} children"
           val maybeChildren =
             (tryNext, split).zipped.foldRight(
               Some(Nil): Option[List[(Tree, List[Token])]]
@@ -568,9 +568,11 @@ trait Operators extends Fixities {
         val subops = operator.tryNext
         val parens = ((children map (_.tag), tokens).zipped, subops).zipped.
           map({
-            case ((childOp, child), subOps) =>
-              if (subOps contains childOp) child
-              else                     s"($child)"
+            case ((childOp, child), subOps) => childOp match {
+              case _: LeafTag => child
+              case _ if (subOps contains childOp) => child
+              case _ => s"($child)"
+            }
           }).toSeq
         pack(operator.fixity match {
           case _: Juxtaposed =>

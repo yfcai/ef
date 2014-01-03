@@ -1,6 +1,6 @@
 object Experiments {
   val onTrial: Experiment =
-    CollapsedBinderExperiment
+    DeclarationsExperiment
 
   val experiments = List[Experiment](
     SourceLocationExperiment,
@@ -55,6 +55,13 @@ object Experiments {
       result
     }
   }
+
+  trait SyntaxExperiment extends Experiment with Syntax {
+    def normalize(x: Operator, s: String) =
+      s"${x.parse(s).get.unparse}\n"
+  }
+
+  trait ModulesExperiment extends SyntaxExperiment with Modules
 
   object ProtoASTExperiment extends Experiment with ProtoAST {
     val keywords: Set[String] = Set("(", ")")
@@ -137,12 +144,6 @@ object Experiments {
          |BinaryOpGenus(Term,Term,Term)
          |BinaryOpGenus(Term,Type,Term)
          |""".stripMargin
-  }
-
-
-  trait SyntaxExperiment extends Experiment with Syntax {
-    def normalize(x: Operator, s: String) =
-      s"${x.parse(s).get.unparse}\n"
   }
 
   object ApplicationExperiment extends SyntaxExperiment {
@@ -379,5 +380,19 @@ object Experiments {
          |TypeVar
          |
          |""".stripMargin
+  }
+
+  object DeclarationsExperiment extends ModulesExperiment {
+    val either = "type Either α β = ∀γ. (α → γ) → (β → γ) → γ"
+
+    val recListBody = "either Unit (α → List α → List α)"
+    val recList = "type List α = $recListBody"
+
+    def run = {
+      val et = TypeSynonym.parse(either).get
+      println(et.unparse)
+      println(et.print)
+      dump
+    }
   }
 }

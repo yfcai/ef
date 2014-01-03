@@ -1,14 +1,34 @@
 // parse file, produce AST
 trait Modules extends Syntax {
-/*
-  class DummyOperator(parsersToTry: Seq[Operator])
-  extends Operator(AllTokensTogether, Seq(parsersToTry)) {
-    override def parse(tokens: Tokens): Option[AST] =
-      super.parse(tokens) map {
-        case Branch(_, List(realAST)) => realAST
+  abstract class Definitional(genus: TopLevelGenus)
+      extends CollapsedBinder(genus) {
+    def fixity: Fixity
+    def binder: Binder
+    def sanityCheck(t: Tree, tok: Token): Unit
+
+    override def subgenera: Option[Seq[Genus]] = None
+
+    override def parse(items: Seq[Tree]): Option[(Tree, List[Token])] =
+      super.parse(items).map {
+        case (t @ ⊹(binder: Binder, _*), toks) =>
+          sanityCheck(t, toks.head)
+          val (x, Seq(body)) = binder.unbind(t).get
+          (⊹(this, binder.free(x), body), toks)
+        case otherwise =>
+          otherwise
       }
   }
 
+  case object TypeSynonym extends Definitional(Type) {
+    val fixity = Prefix("type", "=")
+    def binder = UniversalQuantification
+
+    def sanityCheck(t: Tree, tok: Token) =
+      if (binder.count(t) != 0)
+        throw Problem(tok, "recursive type synonym")
+  }
+
+/*
   class DefinitionOperator(
     definingSymbol: String, rhs: Operator
   ) extends Operator (
@@ -19,8 +39,6 @@ trait Modules extends Syntax {
       (tokens isDefinedAt 1) && tokens(1) == definingSymbol
   }
 
-  case object TypeExpr      extends DummyOperator(typeOps)
-  case object TermExpr      extends DummyOperator(termOps)
   case object ParagraphExpr extends DummyOperator(paragraphOps) {
     def fromFileWithLines(path: String): Iterator[(AST, Int)] =
       (Paragraphs fromFile path) map {

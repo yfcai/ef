@@ -67,7 +67,8 @@ trait ExpressionGrammar extends Operators {
     def rhs: Seq[Operator]
 
     val genus = opGenus.result
-    override def subgenera = Some(Seq(opGenus.lhs, opGenus.rhs))
+    override def subgenera: Option[Seq[Genus]] =
+      Some(Seq(opGenus.lhs, opGenus.rhs))
     lazy val tryNext = Seq(lhs, rhs)
     def cons(t: Seq[Tree]): Tree = t match {
       case Seq(lhs, rhs) => ⊹(this, lhs, rhs)

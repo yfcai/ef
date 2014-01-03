@@ -66,8 +66,7 @@ trait Trees {
     def apply(i: Int): String = i.toString map (c => s(c - '0'))
   }
 
-  trait Binder extends Tag
-  {
+  trait Binder extends Tag {
     def prison        : DeBruijn
     def freeName      : FreeName
     def genus         : Genus
@@ -99,10 +98,15 @@ trait Trees {
     def unbind(t: Tree): Option[(String, Seq[Tree])] = t match {
       case ⊹(tag, _*) if tag == this =>
         val name = nameOf(t)
-        Some((name, annotationsOf(t) :+ t(∙(freeName, name))))
+        Some((name, annotationsOf(t) :+ t(free(name))))
       case _ =>
         None
     }
+
+    // count the number of bound occurrences in this tree
+    def count(t: Tree): Int = { val x = free(nameOf(t)) ; t(x) count x }
+
+    def free(x: String): Tree = ∙(freeName, x)
 
     def imprison(x: String, body: Tree): Tree =
       body.imprison(prison, x, 0)
@@ -309,12 +313,18 @@ trait Trees {
       case ⊹(_, children @ _*) => Iterator(this) ++
         children.flatMap(_.preorder) // ++ is call-by-name for iterators
     }
+
+    // count number of occurrences of something
+    def count(x: Tree): Int = count(_ == x)
+    def count(f: Tree => Boolean): Int = preorder.count(f)
   }
 
   // literals
   case class LiteralGenus[T](man: Manifest[T]) extends Genus
   case class LiteralTag[T](man: Manifest[T]) extends LeafTag {
     final val genus = LiteralGenus(man)
+
+    override def unparse(t: Tree) = t.as[T].toString
   }
 
   abstract class LeafFactory[T: Manifest](val tag: LeafTag) {
