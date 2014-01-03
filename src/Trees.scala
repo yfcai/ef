@@ -319,6 +319,22 @@ trait Trees {
     // count number of occurrences of something
     def count(x: Tree): Int = count(_ == x)
     def count(f: Tree => Boolean): Int = preorder.count(f)
+
+    // α-equivalence
+    def ≈ (that: Tree): Boolean = (this, that) match {
+      case (⊹(tag1: Binder, sub1 @ _*), ⊹(tag2: Binder, sub2 @ _*)) =>
+        tag1 == tag2 &&
+          // not comparing default names on purpose
+          None == (sub1.tail, sub2.tail).zipped.find({
+            case (lhs, rhs) => ! (lhs ≈ rhs)
+          })
+      case (⊹(tag1, sub1 @ _*), ⊹(tag2, sub2 @ _*)) =>
+        tag1 == tag2 &&
+          None == (sub1, sub2).zipped.find({
+            case (lhs, rhs) => ! (lhs ≈ rhs)
+          })
+      case _ => this == that
+    }
   }
 
   // literals
