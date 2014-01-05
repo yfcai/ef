@@ -95,13 +95,46 @@ trait Trees {
     }
 
     // free a bound number
-    def unbind(t: Tree): Option[(∙[String], Seq[Tree])] = t match {
-      case ⊹(tag, _*) if tag == this =>
-        val x = free(nameOf(t))
-        Some((x, annotationsOf(t) :+ t(x)))
-      case _ =>
-        None
-    }
+    def unbind(t: Tree): Option[(∙[String], Seq[Tree])] =
+      unbind(t, Set.empty)
+
+    def unbind(t: Tree, toAvoid: Set[String]):
+        Option[(∙[String], Seq[Tree])] =
+      t match {
+        case ⊹(tag, _*) if tag == this =>
+          val x = free(nameOf(t, toAvoid))
+          Some((x, annotationsOf(t) :+ t(x)))
+        case _ =>
+          None
+      }
+
+    // bind list of names
+    // sadly, due to erasure, we can't offer an overloaded version
+    // acting on list of names for annotation-free binders.
+    def binds(xs: Seq[String], body: Tree): Tree =
+      bindAll(xs map (x => (x, Nil)), body)
+
+    def bindAll(xs: Seq[(String, Seq[Tree])], body: Tree): Tree =
+      if (xs.isEmpty)
+        body
+      else {
+        val (x, notes) = xs.head
+        bind(x, notes :+ bindAll(xs.tail, body): _*)
+      }
+
+    // unbind until impossible, coming up with list of distinct names
+    def unbindAll(t: Tree): (List[(String, Seq[Tree])], Tree) =
+      unbindAll(t, Set.empty)
+
+    def unbindAll(t: Tree, toAvoid: Set[String]):
+        (List[(String, Seq[Tree])], Tree) =
+      unbind(t, toAvoid) match {
+        case Some((x, body)) =>
+          val (xs, realBody) = unbindAll(body.last, toAvoid + x.get)
+          ((x.get, body.init) :: xs, realBody)
+        case None =>
+          (Nil, t)
+      }
 
     // count the number of bound occurrences in this tree
     def count(t: Tree): Int = { val x = free(nameOf(t)) ; t(x) count x }
@@ -191,6 +224,17 @@ trait Trees {
       case ∙:(tag, get) => ∙(tag, get)
       case ⊹:(tag, children @ _*) => ⊹(tag, children: _*)
     }
+  }
+
+  case class BinderSpec(tag: Binder, x: String, annotations: Seq[Tree]) {
+    def annotation: Tree = annotations match {
+      case Seq(note) => note
+    }
+  }
+
+  object BinderSpec {
+    def apply(tag: Binder, x: String, annotation: Tree): BinderSpec =
+      BinderSpec(tag, x, Seq(annotation))
   }
 
   trait Tree extends TreeF[Tree] {
@@ -335,6 +379,33 @@ trait Trees {
           })
       case _ => this == that
     }
+
+    // interactions with binders
+
+    // to be bound by lots of binders
+    def boundBy(xs: List[BinderSpec]): Tree =
+      xs.foldRight(this) {
+        case (BinderSpec(binder, x, notes), body) =>
+          binder.bind(x, notes :+ body: _*)
+      }
+
+    // unbind lots of binders
+    def unbindAll(toAvoid: Set[String], ofWhom: Binder*):
+        (List[BinderSpec], Tree) =
+      unbindAll(toAvoid, ofWhom contains _)
+
+    def unbindAll(toAvoid: Set[String], predicate: Binder => Boolean):
+        (List[BinderSpec], Tree) =
+      this match {
+        case ⊹(tag: Binder, children @ _*) if predicate(tag) =>
+          val (prefix, body) =
+            tag.unbindAll(this, toAvoid)
+          val (others, realBody) =
+            body.unbindAll(toAvoid ++ prefix.map(_._1), predicate)
+          (prefix.map(p => BinderSpec(tag, p._1, p._2)) ++ others, realBody)
+        case _ =>
+          (Nil, this)
+      }
   }
 
   // literals

@@ -1,6 +1,6 @@
 object Experiments {
   val onTrial: Experiment =
-    FileParsingExperiment
+    MLFExperiment
 
   val experiments = List[Experiment](
     FileParsingExperiment,
@@ -445,5 +445,13 @@ object Experiments {
     // but if this experiment is put on maintenance list,
     // we will catch exceptions.
     override def expected = run
+  }
+
+  object MLFExperiment extends Experiment with MLF {
+    def run = {
+      puts(⊥().print)
+      puts(unify(Map.empty, æ("α"), æ("α")))
+      dump
+    }
   }
 }

@@ -278,6 +278,12 @@ trait Syntax extends ExpressionGrammar {
   case object BoundedExistential extends BoundedQuantification
   { def symbol = existentialSymbol }
 
+
+  case object RigidUniversal extends BoundedQuantification {
+    def symbol = universalSymbol
+    override def annotationSymbol: Seq[String] = Seq("=")
+  }
+
   case object TypeAbstraction extends Binder with DelegateOperator {
     def genus = Term
     def prison = TypeVar
@@ -332,6 +338,7 @@ trait Syntax extends ExpressionGrammar {
 
   val typeOps: List[Operator] =
     List(
+      RigidUniversal,
       BoundedUniversal,
       BoundedExistential,
       UniversalQuantification,
