@@ -64,6 +64,19 @@ trait Trees {
     }
 
     def apply(i: Int): String = i.toString map (c => s(c - '0'))
+
+    def newName(default: String, toAvoid: Set[String]): String = {
+      val startingID  = -1
+      val defaultName = remove(default)
+      var i = startingID
+      var x = defaultName
+      while (toAvoid contains x) {
+        i = i + 1
+        if (i == startingID) sys error "ran outta names"
+        x = defaultName + apply(i)
+      }
+      x
+    }
   }
 
   trait Binder extends Tag {
@@ -147,20 +160,11 @@ trait Trees {
     // name discovery in a namespace
     def nameOf(t: Tree): String = nameOf(t, Set.empty)
 
-    def nameOf(t: Tree, _toAvoid: Set[String]): String = {
-      val toAvoid = _toAvoid ++ t.freeNames ++
-        crossedNames(bodyOf(t), 0).fold(Set.empty[String])(identity)
-      val startingID  = -1
-      val defaultName = Subscript.remove(defaultNameOf(t))
-      var i = startingID
-      var x = defaultName
-      while (toAvoid contains x) {
-        i = i + 1
-        if (i == startingID) sys error "ran outta names"
-        x = defaultName + Subscript(i)
-      }
-      x
-    }
+    def nameOf(t: Tree, _toAvoid: Set[String]): String =
+      Subscript.newName(
+        defaultNameOf(t),
+        _toAvoid ++ t.freeNames ++
+          crossedNames(bodyOf(t), 0).fold(Set.empty[String])(identity))
 
     // names of binders crossing a back-reference path
     // with the same prison
@@ -339,7 +343,7 @@ trait Trees {
     }
 
     // collect free names with tag equal to mine
-    def freeNames: Set[String] = fold[Set[String]] {
+    lazy val freeNames: Set[String] = fold[Set[String]] {
       case ∙:(tag: FreeName, get: String) if tag.genus == this.tag.genus =>
         Set(get)
       case ∙:(tag, get) =>
@@ -349,7 +353,7 @@ trait Trees {
     }
 
     // collect all free names
-    def allFreeNames: Set[String] = fold(allFreeNamesAlgebra)
+    lazy val allFreeNames: Set[String] = fold(allFreeNamesAlgebra)
 
     def allFreeNamesAlgebra: TreeF[Set[String]] => Set[String] = {
       case ⊹:(tag, children @ _*) =>

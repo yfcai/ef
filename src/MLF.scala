@@ -2,9 +2,7 @@
   * Didier Le Botlan and Didier Rémy.
   * ML^F: Raising ML to the power of System F.
   */
-trait MLF {
-  val syntax: Syntax
-  import syntax._
+trait MLF extends Syntax {
 
   case class UnificationError(msg: String) extends Exception(msg)
   private def error(msg: String) = throw UnificationError(msg)
@@ -288,6 +286,9 @@ trait MLF {
   def reattach(prefix: Seq[BinderSpec], body: Tree): Tree =
     prefix.foldRight(body)(reattachment)
 
+  def reattach(prefix: BinderPrefix, body: Tree): Tree =
+    reattach(linearizePrefix(prefix), body)
+
   def reattachFlexible(prefix: Seq[BinderSpec], body: Tree): Tree =
     prefix.foldRight(body)(reattachFlexibility)
 
@@ -321,13 +322,17 @@ trait MLF {
   // assume τ has monotype body, else it won't work.
   def normalize(τ: Tree): Tree = {
       val (prefix, body) = detachPrefix(τ, Set.empty)
-      normalize(prefix.map(_._2), body)
+      normalize(prefix.map(x => x)(collection.breakOut):
+          BinderPrefix, body)
     }
 
   def normalize(prefix: Seq[BinderSpec], body: Tree): Tree =
-    reattachUniversal(linearizePrefix(
-      prefix.map(spec => (spec.x, spec)
-      )(collection.breakOut)).map({
+    normalize(prefix.map(spec => (spec.x, spec))(collection.breakOut):
+        BinderPrefix, body)
+
+  def normalize(prefix: BinderPrefix, body: Tree): Tree =
+    reattachUniversal(
+      linearizePrefix(prefix).map({
         case BinderSpec(tag, α, annotations) =>
           BinderSpec(tag, α, annotations.map(normalize))
       }), body)
