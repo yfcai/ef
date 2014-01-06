@@ -1,8 +1,9 @@
 object Experiments {
   val onTrial: Experiment =
-    CStyleConditionalExperiment
+    SourceLocationExperiment
 
   val experiments = List[Experiment](
+    CStyleConditionalExperiment,
     MLFExperiment,
     FileParsingExperiment,
     DeclarationsExperiment,
@@ -355,7 +356,7 @@ object Experiments {
          |
          |#LINE:1
          |∀α ⊒ ∀α. α → α. List (∃β ⊒ α. β)
-         |         ^
+         |           ^
          |FunctionArrow
          |
          |#LINE:1
@@ -440,7 +441,7 @@ object Experiments {
          |id = λx : α. x
          |#LINE:1
          |fix = λf : α → α. f (fix f)
-         |^
+         |    ^
          |recursive definition
          |
          |auto : (∀α. α → α) → ∀α. α → α

@@ -559,13 +559,21 @@ trait Operators extends Fixities {
             case None => ()
             case Some(children) => return Some((
               cons(children.map(_._1)),
-              getFirstToken(items) :: children.flatMap(_._2)
+              chooseToken(fixity, split, items) :: children.flatMap(_._2)
             ))
           }
         }
         // I can't parse it
         None
       }
+    }
+
+    def chooseToken(fixity: Fixity, split: Seq[Seq[Tree]], items: Seq[Tree]):
+        Token = (fixity, split) match {
+      case (Infixl(_), Seq(_, _)) | (Infixr(_), Seq(_, _)) =>
+        getFirstToken(items.drop(split.head.length))
+      case _ =>
+        getFirstToken(items)
     }
 
     def getFirstToken(ts: Seq[Tree]): Token =
