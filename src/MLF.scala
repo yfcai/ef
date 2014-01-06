@@ -20,21 +20,9 @@ trait MLF {
       case ∙(⊥, ⊥) => true
       case _ => false
     }
+
+    override def unparse(t: Tree): String = "⊥"
   }
-
-  type BinderPrefix = Map[String, BinderSpec]
-
-  def pretty(spec: BinderSpec): String = {
-    val (α, τ) = (spec.x, spec.annotation)
-    s"""$α ${
-      if (spec.tag == BoundedUniversal)    "⊒"
-      else if (spec.tag == RigidUniversal) "="
-      else error(s"unrecognized tag $τ")
-    } ${if (⊥.is(τ)) "⊥" else τ.unparse}"""
-  }
-
-  def pretty(Q: BinderPrefix): String =
-    linearizePrefix(Q).map(pretty).mkString("\n")
 
   trait Status[+T]
   case class Success[+T](get: T) extends Status[T]
@@ -299,30 +287,5 @@ trait MLF {
       case _ =>
         err("missed case")
     }
-  }
-
-  def topologicalOrder(Q: BinderPrefix): Map[String, Int] = {
-    val graph = Q map { case (α, spec) => (α, spec.annotation.freeNames) }
-    var distance = -1
-    var toVisit  = graph.keySet
-    var result   = Map.empty[String, Int]
-    while (! toVisit.isEmpty) {
-      val frontier = toVisit.filter {
-        α => graph(α).find(toVisit contains _) == None
-      }
-      if (frontier.isEmpty)
-        error(s"cycle detected in prefix\n${pretty(Q)}")
-      distance = distance +  1
-      toVisit  = toVisit  -- frontier
-      result   = result   ++ frontier.map(α => (α, distance))
-    }
-    result
-  }
-
-  // sort by topological order first and then by lexicographical order
-  def linearizePrefix(Q: BinderPrefix): Seq[BinderSpec] = {
-    val topo = topologicalOrder(Q)
-    Q.map({ case (α, τ) => (τ, (topo(α), α)) }).toList.
-      sortBy(_._2).map(_._1)
   }
 }

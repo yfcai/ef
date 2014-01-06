@@ -1,12 +1,13 @@
 object Experiments {
   val onTrial: Experiment =
-    MLFExperiment
+    CStyleConditionalExperiment
 
   val experiments = List[Experiment](
     MLFExperiment,
     FileParsingExperiment,
     DeclarationsExperiment,
     SourceLocationExperiment,
+    CStyleConditionalExperiment,
     AbstractionsExperiment,
     BoundedQuantificationExperiment,
     ShadowyExperiment,
@@ -301,6 +302,21 @@ object Experiments {
       """|Λα β. λx : α → β. x
          |λx : ℤ → ℚ. x
          |42
+         |""".stripMargin
+  }
+
+  object CStyleConditionalExperiment extends SyntaxExperiment {
+    val s = "a ? b : c ? d : e"
+
+    def run = s"${Term.parse(s).get.print}\n"
+    override def expected =
+      """CStyleConditional
+         |  ∙(FreeVar, a)
+         |  ∙(FreeVar, b)
+         |  CStyleConditional
+         |    ∙(FreeVar, c)
+         |    ∙(FreeVar, d)
+         |    ∙(FreeVar, e)
          |""".stripMargin
   }
 

@@ -336,6 +336,18 @@ trait Syntax extends ExpressionGrammar {
     lazy val tryNext = Seq(Seq(FreeTypeVar), typeOps, typeOps)
   }
 
+  case object CStyleConditional extends Operator {
+    final val fixity = Infixr("?", ":")
+    lazy val tryNext =
+      Seq(downBelow(this, termOps),
+          downBelow(this, termOps),
+          downFrom (this, termOps))
+
+    def genus = Term
+    override def subgenera = Some(Seq(Term, Term, Term))
+    def cons(children: Seq[Tree]): Tree = ⊹(this, children: _*)
+  }
+
   val typeOps: List[Operator] =
     List(
       RigidUniversal,
@@ -352,6 +364,7 @@ trait Syntax extends ExpressionGrammar {
     List(
       TypeAbstraction,
       AnnotatedAbstraction,
+      CStyleConditional,
       Ascription,
       Instantiation,
       Application,
@@ -370,4 +383,45 @@ trait Syntax extends ExpressionGrammar {
       case Nil | _ :: Nil => sys error s"nothing below $x in $ops"
       case x :: tail => tail
     }
+
+  // BINDERPREFIX
+
+  type BinderPrefix = Map[String, BinderSpec]
+
+  def pretty(spec: BinderSpec): String = {
+    val (α, τ) = (spec.x, spec.annotation)
+    s"""$α ${
+      if (spec.tag == BoundedUniversal)    "⊒"
+      else if (spec.tag == RigidUniversal) "="
+      else sys error(s"unrecognized tag $τ")
+    } ${τ.unparse}"""
+  }
+
+  def pretty(Q: BinderPrefix): String =
+    linearizePrefix(Q).map(pretty).mkString("\n")
+
+  def topologicalOrder(Q: BinderPrefix): Map[String, Int] = {
+    val graph = Q map { case (α, spec) => (α, spec.annotation.freeNames) }
+    var distance = -1
+    var toVisit  = graph.keySet
+    var result   = Map.empty[String, Int]
+    while (! toVisit.isEmpty) {
+      val frontier = toVisit.filter {
+        α => graph(α).find(toVisit contains _) == None
+      }
+      if (frontier.isEmpty)
+        sys error s"cycle detected in prefix\n${pretty(Q)}"
+      distance = distance +  1
+      toVisit  = toVisit  -- frontier
+      result   = result   ++ frontier.map(α => (α, distance))
+    }
+    result
+  }
+
+  // sort by topological order first and then by lexicographical order
+  def linearizePrefix(Q: BinderPrefix): Seq[BinderSpec] = {
+    val topo = topologicalOrder(Q)
+    Q.map({ case (α, τ) => (τ, (topo(α), α)) }).toList.
+      sortBy(_._2).map(_._1)
+  }
 }
