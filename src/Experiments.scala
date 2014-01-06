@@ -326,9 +326,9 @@ object Experiments {
 
     def run = {
       val (t, toks) = Type.parse(ProtoAST(s)).get
-      (t.preorder.toSeq, toks).zipped.foreach {
-        case (t, tok) =>
-          puts(Problem(tok, t.tag.toString, 1).getMessage)
+      withTokens(t, toks).fold[Unit] {
+        case (tf, tok) =>
+          puts(Problem(tok, tf.tag.toString, 1).getMessage)
       }
       dump
     }
@@ -336,28 +336,13 @@ object Experiments {
     override def expected =
       """|#LINE:1
          |∀α ⊒ ∀α. α → α. List (∃β ⊒ α. β)
-         |^
-         |BoundedUniversal
-         |
-         |#LINE:1
-         |∀α ⊒ ∀α. α → α. List (∃β ⊒ α. β)
          | ^
          |LiteralTag(java.lang.String)
          |
          |#LINE:1
          |∀α ⊒ ∀α. α → α. List (∃β ⊒ α. β)
-         |     ^
-         |UniversalQuantification
-         |
-         |#LINE:1
-         |∀α ⊒ ∀α. α → α. List (∃β ⊒ α. β)
          |      ^
          |LiteralTag(java.lang.String)
-         |
-         |#LINE:1
-         |∀α ⊒ ∀α. α → α. List (∃β ⊒ α. β)
-         |           ^
-         |FunctionArrow
          |
          |#LINE:1
          |∀α ⊒ ∀α. α → α. List (∃β ⊒ α. β)
@@ -371,18 +356,18 @@ object Experiments {
          |
          |#LINE:1
          |∀α ⊒ ∀α. α → α. List (∃β ⊒ α. β)
-         |                ^
-         |TypeApplication
+         |           ^
+         |FunctionArrow
+         |
+         |#LINE:1
+         |∀α ⊒ ∀α. α → α. List (∃β ⊒ α. β)
+         |     ^
+         |UniversalQuantification
          |
          |#LINE:1
          |∀α ⊒ ∀α. α → α. List (∃β ⊒ α. β)
          |                ^
          |FreeTypeVar
-         |
-         |#LINE:1
-         |∀α ⊒ ∀α. α → α. List (∃β ⊒ α. β)
-         |                      ^
-         |BoundedExistential
          |
          |#LINE:1
          |∀α ⊒ ∀α. α → α. List (∃β ⊒ α. β)
@@ -398,6 +383,21 @@ object Experiments {
          |∀α ⊒ ∀α. α → α. List (∃β ⊒ α. β)
          |                              ^
          |TypeVar
+         |
+         |#LINE:1
+         |∀α ⊒ ∀α. α → α. List (∃β ⊒ α. β)
+         |                      ^
+         |BoundedExistential
+         |
+         |#LINE:1
+         |∀α ⊒ ∀α. α → α. List (∃β ⊒ α. β)
+         |                ^
+         |TypeApplication
+         |
+         |#LINE:1
+         |∀α ⊒ ∀α. α → α. List (∃β ⊒ α. β)
+         |^
+         |BoundedUniversal
          |
          |""".stripMargin
   }

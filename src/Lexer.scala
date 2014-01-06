@@ -665,4 +665,29 @@ trait Operators extends Fixities {
 
     override def tryNext = Seq.empty[Seq[Operator]]
   }
+
+  trait FoldableWithTokens {
+    def fold[T](f: (TreeF[T], Token) => T): T
+  }
+
+  def withTokens(t: Tree, toks: Seq[Token]):
+      FoldableWithTokens = new FoldableWithTokens {
+    def fold[T](f: (TreeF[T], Token) => T): T = foldWithTokens(t, toks, f)
+  }
+
+  def foldWithTokens[T]
+      (t: Tree, _toks: Seq[Token], f: (TreeF[T], Token) => T): T = {
+    var toks = _toks
+    def loop(t: Tree): T = {
+      val tok = toks.head
+      toks = toks.tail
+      t match {
+        case ∙(tag, get) =>
+          f(∙:(tag, get), tok)
+        case ⊹(tag, children @ _*) =>
+          f(⊹:(tag, children.map(loop): _*), tok)
+      }
+    }
+    loop(t)
+  }
 }
