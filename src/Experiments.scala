@@ -3,6 +3,7 @@ object Experiments {
     MLFExperiment
 
   val experiments = List[Experiment](
+    MLFExperiment,
     FileParsingExperiment,
     DeclarationsExperiment,
     SourceLocationExperiment,
@@ -48,7 +49,7 @@ object Experiments {
 
     val stream = new collection.mutable.StringBuilder
 
-    def puts(s: Any) = { put(s) ; stream += '\n' }
+    def puts(s: Any = "") = { put(s) ; stream += '\n' }
     def put(s: Any) = stream ++= s.toString
 
     def dump(): String = {
@@ -447,11 +448,96 @@ object Experiments {
     override def expected = run
   }
 
-  object MLFExperiment extends Experiment with MLF {
+  object MLFExperiment extends Experiment with MLF with Syntax {
+    val syntax = this
+    import BinderSpecSugar._
+
+    def A(xs: String): BinderPrefix =
+      Map(xs.map(_.toString ⊒ ⊥()): _*)
+
+    val testCases = List[(BinderPrefix, String, String)](
+      // ∀α β. α → β with ∀γ δ. γ → δ
+      (A("αβγδ"), "α → β", "γ → δ"),
+      // choose id
+      (A("αβ"), "α", "β → β"),
+      // choose id id
+      (A("βγ") + ("α" ≡ "β → β"), "α", "γ → γ"),
+      // selfapp id
+      (A("γ") + ("α" ≡ "∀β. β → β"), "α", "γ → γ"),
+      // revapp id
+      (A("αβγ"), "α", "γ → γ"),
+      // revapp id poly
+      (A("βγδ") + ("α" ≡ "γ → γ") + ("ε" ≡ "δ → δ"), "α", "ε")
+    )
+
     def run = {
-      puts(⊥().print)
-      puts(unify(Map.empty, æ("α"), æ("α")))
+      testCases.foreach {
+        case (prefix, left, right) =>
+          val (lhs, rhs) = (Type.parse(left).get, Type.parse(right).get)
+          puts(s"unify ${lhs.unparse} and ${rhs.unparse}")
+          puts(s"under prefix ${pretty(prefix).lines.mkString(", ")}")
+          puts(s"yields")
+          puts(unify(prefix, lhs, rhs) match {
+            case Failure(msg) => s"Failure\n  $msg"
+            case Success(mgp) => s"Success\n" +
+              pretty(mgp).lines.map("  " + _).mkString("\n")
+          })
+          puts()
+      }
       dump
     }
+
+    override def expected =
+      """|unify α → β and γ → δ
+         |under prefix α ⊒ ⊥, β ⊒ ⊥, γ ⊒ ⊥, δ ⊒ ⊥
+         |yields
+         |Success
+         |  α ⊒ ⊥
+         |  β ⊒ ⊥
+         |  γ = α
+         |  δ = β
+         |
+         |unify α and β → β
+         |under prefix α ⊒ ⊥, β ⊒ ⊥
+         |yields
+         |Success
+         |  β ⊒ ⊥
+         |  α = β → β
+         |
+         |unify α and γ → γ
+         |under prefix β ⊒ ⊥, γ ⊒ ⊥, α = β → β
+         |yields
+         |Success
+         |  γ ⊒ ⊥
+         |  β = γ
+         |  α = β → β
+         |
+         |unify α and γ → γ
+         |under prefix α = ∀β. β → β, γ ⊒ ⊥
+         |yields
+         |Success
+         |  γ ⊒ ⊥
+         |  β = γ
+         |  α = β → β
+         |
+         |unify α and γ → γ
+         |under prefix α ⊒ ⊥, β ⊒ ⊥, γ ⊒ ⊥
+         |yields
+         |Success
+         |  β ⊒ ⊥
+         |  γ ⊒ ⊥
+         |  α = γ → γ
+         |
+         |unify α and ε
+         |under prefix β ⊒ ⊥, γ ⊒ ⊥, δ ⊒ ⊥, α = γ → γ, ε = δ → δ
+         |yields
+         |Success
+         |  β ⊒ ⊥
+         |  γ ⊒ ⊥
+         |  α = γ → γ
+         |  δ = γ
+         |  ε = δ → δ
+         |
+         |""".stripMargin
   }
 }

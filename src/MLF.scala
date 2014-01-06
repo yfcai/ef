@@ -2,7 +2,10 @@
   * Didier Le Botlan and Didier Rémy.
   * ML^F: Raising ML to the power of System F.
   */
-trait MLF extends Syntax {
+trait MLF {
+  val syntax: Syntax
+  import syntax._
+
   case class UnificationError(msg: String) extends Exception(msg)
   private def error(msg: String) = throw UnificationError(msg)
 
@@ -21,21 +24,32 @@ trait MLF extends Syntax {
 
   type BinderPrefix = Map[String, BinderSpec]
 
-  def pretty(τ: BinderSpec): String = {
-    val α = τ.x
+  def pretty(spec: BinderSpec): String = {
+    val (α, τ) = (spec.x, spec.annotation)
     s"""$α ${
-      if (τ.tag == BoundedUniversal)    "⊒"
-      else if (τ.tag == RigidUniversal) "="
+      if (spec.tag == BoundedUniversal)    "⊒"
+      else if (spec.tag == RigidUniversal) "="
       else error(s"unrecognized tag $τ")
-    } ${τ.annotation.unparse}"""
+    } ${if (⊥.is(τ)) "⊥" else τ.unparse}"""
   }
 
   def pretty(Q: BinderPrefix): String =
-    Q.map({ case (α, τ) => pretty(τ) }).mkString("\n")
+    linearizePrefix(Q).map(pretty).mkString("\n")
 
   trait Status[+T]
   case class Success[+T](get: T) extends Status[T]
   case class Failure[+T](message: String) extends Status[T]
+
+  object BinderSpecSugar {
+    implicit class StringToBound(α: String) {
+      def ≡(s: String): (String, BinderSpec) = ≡(Type.parse(s).get)
+      def ⊒(s: String): (String, BinderSpec) = ⊒(Type.parse(s).get)
+      def ≡(τ: Tree): (String, BinderSpec) =
+        (α, BinderSpec(RigidUniversal, α, τ))
+      def ⊒(τ: Tree): (String, BinderSpec) =
+        (α, BinderSpec(BoundedUniversal, α, τ))
+    }
+  }
 
   /** @param prefix
     *        MLF Prefix. All universals must have a rigid or
@@ -93,10 +107,7 @@ trait MLF extends Syntax {
       case _ => true
     }
 
-    implicit class StringToBound(α: String) {
-      def ≡(τ: Tree) = (α, BinderSpec(RigidUniversal, α, τ))
-      def ⊒(τ: Tree) = (α, BinderSpec(BoundedUniversal, α, τ))
-    }
+    import BinderSpecSugar._
 
     def unbindAll(σ: Tree, toAvoid: Set[String]) =
       σ.unbindAll(toAvoid,
