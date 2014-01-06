@@ -24,10 +24,6 @@ trait MLF {
     override def unparse(t: Tree): String = "⊥"
   }
 
-  trait Status[+T]
-  case class Success[+T](get: T) extends Status[T]
-  case class Failure[+T](message: String) extends Status[T]
-
   object BinderSpecSugar {
     implicit class StringToBound(α: String) {
       def ≡(s: String): (String, BinderSpec) = ≡(Type.parse(s).get)
@@ -73,33 +69,12 @@ trait MLF {
     def isMono(α: String): Boolean =
       prefix.contains(α) && isMonoType(prefix(α).annotation)
 
-
-    def mkPrefix(list: Seq[BinderSpec]):
-        Seq[(String, BinderSpec)] =
-      list.map {
-        case BinderSpec(UniversalQuantification, α, Seq()) =>
-          (α, BinderSpec(BoundedUniversal, α, ⊥()))
-
-        case flexible @ BinderSpec(BoundedUniversal, α, _) =>
-          (α, flexible)
-
-        case rigid @ BinderSpec(RigidUniversal, α, _) =>
-          (α, rigid)
-
-        case otherwise =>
-          error(s"unexpected binder $otherwise in prefix\n$list")
-      }
-
     def notInDom(τ: Tree): Boolean = τ match {
       case æ(β) => ! prefix.contains(β)
       case _ => true
     }
 
     import BinderSpecSugar._
-
-    def unbindAll(σ: Tree, toAvoid: Set[String]) =
-      σ.unbindAll(toAvoid,
-        UniversalQuantification, BoundedUniversal, RigidUniversal)
 
     // unification starts
 
@@ -157,7 +132,7 @@ trait MLF {
 
         // line 5.3: let ∀(Q')τ' be σ with dom(Q), dom(Q') disjoint.
 
-        val unbound = unbindAll(σ, prefix.keySet)
+        val unbound = detachAll(σ, prefix.keySet)
         val Q1 = mkPrefix(unbound._1)
         val τ1 = unbound._2
 
@@ -219,10 +194,10 @@ trait MLF {
 
         // line 6.6: let ∀(Q₁)τ₁ be σ₁ and ∀(Q₂)τ₂ be τ₂
         //           with dom(Q), dom(Q₁), dom(Q₂) disjoint.
-        val unbound1 = unbindAll(σ1, prefix.keySet)
+        val unbound1 = detachAll(σ1, prefix.keySet)
         val Q1       = mkPrefix(unbound1._1)
         val τ1       = unbound1._2
-        val unbound2 = unbindAll(σ2, prefix.keySet ++ Q1.map(_._2.x))
+        val unbound2 = detachAll(σ2, prefix.keySet ++ Q1.map(_._2.x))
         val Q2       = mkPrefix(unbound2._1)
         val τ2       = unbound2._2
 
@@ -250,31 +225,26 @@ trait MLF {
         //
         // which reduces to equivalence checking on prefixes.
         // which is not trivial and not syntax-directed.
-        // we do a conservative approximation by rejecting
-        // all prefixes with different assignments for now.
-        def prefixMismatch(Q1: Seq[(String, BinderSpec)], Q0: BinderPrefix):
-            Option[BinderSpec] = {
-          Q1.find({
-            case (α, spec) =>
-              ! Q0.contains(α) || spec.annotation != Q0(α).annotation
-          }).map(_._2)
-        }
+        // we attempt an equivalence test by normalization,
+        // but haven't reasoned out its correctness yet.
 
-        def rigidityViolation(
-          spec: BinderSpec, Q1: Seq[(String, BinderSpec)], Q0: BinderPrefix):
+        def rigidityViolation(prefix: Seq[BinderSpec], τ1: Tree, τ2: Tree):
             Option[String] = {
-          if (spec.annotation != RigidUniversal)
-            return None
-          val (α, σ) = (spec.x, spec.annotation)
-          prefixMismatch(Q1, Q0).map { badSpec =>
-            s"mismatch in rigid $α = ${σ.unparse}\n" +
-            s"due to ${pretty(badSpec)}"
-            s"with unification result\n${pretty(Q0)}"
-          }
+          if (equiv(reattach(prefix, τ1), reattach(prefix, σ2)))
+            None
+          else
+            Some(
+              s"case 6.9/6.A: not equivalent:\n" +
+                s"     σ = ${τ1.unparse}\nand\n" +
+                s"∀(Q')τ = ${τ2.unparse}" +
+                s"where Q' =\n${pretty(prefix)}")
         }
 
-        rigidityViolation(spec1, Q1, Q0).map { s => return failure(s) }
-        rigidityViolation(spec2, Q2, Q0).map { s => return failure(s) }
+        val Q3L = linearizePrefix(Q3)
+        rigidityViolation(Q3L, σ1, reattach(QP, τ1)).map(
+          s => return failure(s))
+        rigidityViolation(Q3L, σ2, reattach(QP, τ2)).map(
+          s => return failure(s))
 
         // line 6.B: let σ₃ be ∀(Q')τ₁
         val σ3 = τ1 boundBy QP
@@ -288,4 +258,80 @@ trait MLF {
         err("missed case")
     }
   }
+
+  def mkPrefix(list: Seq[BinderSpec]): Seq[(String, BinderSpec)] =
+    list.map {
+      case BinderSpec(UniversalQuantification, α, Seq()) =>
+        (α, BinderSpec(BoundedUniversal, α, ⊥()))
+
+      case flexible @ BinderSpec(BoundedUniversal, α, _) =>
+        (α, flexible)
+
+      case rigid @ BinderSpec(RigidUniversal, α, _) =>
+        (α, rigid)
+
+      case otherwise =>
+        error(s"unexpected binder $otherwise in prefix\n$list")
+    }
+
+  def detachAll(σ: Tree, toAvoid: Set[String]) =
+    σ.unbindAll(toAvoid,
+      UniversalQuantification, BoundedUniversal, RigidUniversal)
+
+  def detachPrefix(τ: Tree, toAvoid: Set[String]):
+      (Seq[(String, BinderSpec)], Tree) = {
+    val unbound = detachAll(τ, toAvoid)
+    (mkPrefix(unbound._1), unbound._2)
+  }
+
+  // quantify parsimoniously, leave rigid quantifiers in place
+  def reattach(prefix: Seq[BinderSpec], body: Tree): Tree =
+    prefix.foldRight(body)(reattachment)
+
+  def reattachFlexible(prefix: Seq[BinderSpec], body: Tree): Tree =
+    prefix.foldRight(body)(reattachFlexibility)
+
+  def reattachUniversal(prefix: Seq[BinderSpec], body: Tree): Tree =
+    prefix.foldRight(body)(reattachUniversality)
+
+  val reattachment: (BinderSpec, Tree) => Tree = {
+    case (spec, body) if ! body.freeNames.contains(spec.x) =>
+      body
+    case (spec, body) =>
+      spec.tag.bind(spec.x, spec.annotations :+ body: _*)
+  }
+
+  val reattachFlexibility: (BinderSpec, Tree) => Tree = {
+    case (BinderSpec(RigidUniversal, α, Seq(τ)), body) =>
+      body.subst(æ(α), τ)
+    case (spec, body) =>
+      reattachment(spec, body)
+  }
+
+  val reattachUniversality: (BinderSpec, Tree) => Tree = {
+    case (BinderSpec(BoundedUniversal, α, Seq(⊥())), body)
+        if body.freeNames.contains(α) =>
+      UniversalQuantification.bind(α, body)
+    case (BinderSpec(BoundedUniversal, α, Seq(τ)), body) =>
+      body.subst(æ(α), τ)
+    case (spec, body) =>
+      reattachFlexibility(spec, body)
+  }
+
+  // assume τ has monotype body, else it won't work.
+  def normalize(τ: Tree): Tree = {
+      val (prefix, body) = detachPrefix(τ, Set.empty)
+      normalize(prefix.map(_._2), body)
+    }
+
+  def normalize(prefix: Seq[BinderSpec], body: Tree): Tree =
+    reattachUniversal(linearizePrefix(
+      prefix.map(spec => (spec.x, spec)
+      )(collection.breakOut)).map({
+        case BinderSpec(tag, α, annotations) =>
+          BinderSpec(tag, α, annotations.map(normalize))
+      }), body)
+
+  def equiv(τ1: Tree, τ2: Tree): Boolean =
+    normalize(τ1) α_equiv normalize(τ2)
 }

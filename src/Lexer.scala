@@ -570,7 +570,7 @@ trait Operators extends Fixities {
 
     def chooseToken(fixity: Fixity, split: Seq[Seq[Tree]], items: Seq[Tree]):
         Token = (fixity, split) match {
-      case (Infixl(_), Seq(_, _)) | (Infixr(_), Seq(_, _)) =>
+      case (Infixl(_*), Seq(_*)) | (Infixr(_*), Seq(_*)) =>
         getFirstToken(items.drop(split.head.length))
       case _ =>
         getFirstToken(items)

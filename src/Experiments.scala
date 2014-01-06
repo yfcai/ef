@@ -1,8 +1,9 @@
 object Experiments {
   val onTrial: Experiment =
-    SourceLocationExperiment
+    MLFExperiment
 
   val experiments = List[Experiment](
+    AlphaEquivExperiment,
     CStyleConditionalExperiment,
     MLFExperiment,
     FileParsingExperiment,
@@ -472,32 +473,38 @@ object Experiments {
     def A(xs: String): BinderPrefix =
       Map(xs.map(_.toString ⊒ ⊥()): _*)
 
-    val testCases = List[(BinderPrefix, String, String)](
+    val testCases = List[(BinderPrefix, String, String, String)](
       // ∀α β. α → β with ∀γ δ. γ → δ
-      (A("αβγδ"), "α → β", "γ → δ"),
+      (A("αβγδ"), "α → β", "γ → δ", "α → β"),
       // choose id
-      (A("αβ"), "α", "β → β"),
+      (A("αβ"), "α", "β → β", "α → α"),
       // choose id id
-      (A("βγ") + ("α" ≡ "β → β"), "α", "γ → γ"),
+      (A("βγ") + ("α" ≡ "β → β"), "α", "γ → γ", "α"),
       // selfapp id
-      (A("γ") + ("α" ≡ "∀β. β → β"), "α", "γ → γ"),
+      (A("γ") + ("α" ≡ "∀β. β → β"), "α", "γ → γ", "α"),
       // revapp id
-      (A("αβγ"), "α", "γ → γ"),
+      (A("αβγ"), "α", "γ → γ", "(α → β) → β"),
       // revapp id poly
-      (A("βγδ") + ("α" ≡ "γ → γ") + ("ε" ≡ "δ → δ"), "α", "ε")
+      (A("βγδ") + ("α" ≡ "γ → γ") + ("ε" ≡ "δ → δ"),
+        "α → β", "ε → ℤ", "β")
     )
 
     def run = {
       testCases.foreach {
-        case (prefix, left, right) =>
+        case (prefix, left, right, target) =>
           val (lhs, rhs) = (Type.parse(left).get, Type.parse(right).get)
+          val τ = Type.parse(target).get
           puts(s"unify ${lhs.unparse} and ${rhs.unparse}")
           puts(s"under prefix ${pretty(prefix).lines.mkString(", ")}")
-          puts(s"yields")
+          put (s"yields")
           puts(unify(prefix, lhs, rhs) match {
-            case Failure(msg) => s"Failure\n  $msg"
-            case Success(mgp) => s"Success\n" +
-              pretty(mgp).lines.map("  " + _).mkString("\n")
+            case Failure(msg) =>
+              s"\nFailure\n  $msg"
+            case Success(mgp) =>
+              s""" ${
+                normalize(linearizePrefix(mgp), τ).unparse
+              }\nSuccess\n${
+                pretty(mgp).lines.map("  " + _).mkString("\n")}"""
           })
           puts()
       }
@@ -507,7 +514,7 @@ object Experiments {
     override def expected =
       """|unify α → β and γ → δ
          |under prefix α ⊒ ⊥, β ⊒ ⊥, γ ⊒ ⊥, δ ⊒ ⊥
-         |yields
+         |yields ∀α β. α → β
          |Success
          |  α ⊒ ⊥
          |  β ⊒ ⊥
@@ -516,14 +523,14 @@ object Experiments {
          |
          |unify α and β → β
          |under prefix α ⊒ ⊥, β ⊒ ⊥
-         |yields
+         |yields ∀β. (β → β) → β → β
          |Success
          |  β ⊒ ⊥
          |  α = β → β
          |
          |unify α and γ → γ
          |under prefix β ⊒ ⊥, γ ⊒ ⊥, α = β → β
-         |yields
+         |yields ∀γ. γ → γ
          |Success
          |  γ ⊒ ⊥
          |  β = γ
@@ -531,7 +538,7 @@ object Experiments {
          |
          |unify α and γ → γ
          |under prefix α = ∀β. β → β, γ ⊒ ⊥
-         |yields
+         |yields ∀γ. γ → γ
          |Success
          |  γ ⊒ ⊥
          |  β = γ
@@ -539,22 +546,35 @@ object Experiments {
          |
          |unify α and γ → γ
          |under prefix α ⊒ ⊥, β ⊒ ⊥, γ ⊒ ⊥
-         |yields
+         |yields ∀β γ. ((γ → γ) → β) → β
          |Success
          |  β ⊒ ⊥
          |  γ ⊒ ⊥
          |  α = γ → γ
          |
-         |unify α and ε
+         |unify α → β and ε → ℤ
          |under prefix β ⊒ ⊥, γ ⊒ ⊥, δ ⊒ ⊥, α = γ → γ, ε = δ → δ
-         |yields
+         |yields ℤ
          |Success
-         |  β ⊒ ⊥
+         |  β = ℤ
          |  γ ⊒ ⊥
          |  α = γ → γ
          |  δ = γ
          |  ε = δ → δ
          |
          |""".stripMargin
+  }
+
+  object AlphaEquivExperiment extends SyntaxExperiment {
+    val s = "∀α ⊒ ∀β. β → β. α → α"
+    val t = "∀γ ⊒ ∀δ. δ → δ. γ → γ"
+
+    def run = {
+      val (σ, τ) = (Type.parse(s).get, Type.parse(t).get)
+      puts(σ α_equiv τ)
+      dump
+    }
+
+    override def expected = "true\n"
   }
 }

@@ -221,7 +221,7 @@ trait Trees {
 
   object Tree extends (TreeF[Tree] => Tree) {
     def apply(x: TreeF[Tree]): Tree = x match {
-      case ∙:(tag, get) => ∙(tag, get)
+      case ∙:(tag, get) => new ∙(tag, get)(tag.man.asInstanceOf[Manifest[Any]])
       case ⊹:(tag, children @ _*) => ⊹(tag, children: _*)
     }
   }
@@ -269,6 +269,13 @@ trait Trees {
         xdef.shift(i, 0)
       case otherwise =>
         otherwise
+    }
+
+    // substitution of free variable
+    def subst(x: ∙[String], xdef: Tree): Tree = fold[Tree] {
+      case ∙:(tag, get) if x.tag == tag && x.get == get =>
+        xdef
+      case otherwise => Tree(otherwise)
     }
 
     // put a free variable in prison, give it numbers
@@ -365,17 +372,17 @@ trait Trees {
     def count(f: Tree => Boolean): Int = preorder.count(f)
 
     // α-equivalence
-    def ≈ (that: Tree): Boolean = (this, that) match {
+    def α_equiv (that: Tree): Boolean = (this, that) match {
       case (⊹(tag1: Binder, sub1 @ _*), ⊹(tag2: Binder, sub2 @ _*)) =>
         tag1 == tag2 &&
           // not comparing default names on purpose
           None == (sub1.tail, sub2.tail).zipped.find({
-            case (lhs, rhs) => ! (lhs ≈ rhs)
+            case (lhs, rhs) => ! (lhs α_equiv rhs)
           })
       case (⊹(tag1, sub1 @ _*), ⊹(tag2, sub2 @ _*)) =>
         tag1 == tag2 &&
           None == (sub1, sub2).zipped.find({
-            case (lhs, rhs) => ! (lhs ≈ rhs)
+            case (lhs, rhs) => ! (lhs α_equiv rhs)
           })
       case _ => this == that
     }

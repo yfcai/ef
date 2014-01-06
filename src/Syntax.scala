@@ -398,7 +398,10 @@ trait Syntax extends ExpressionGrammar {
   }
 
   def pretty(Q: BinderPrefix): String =
-    linearizePrefix(Q).map(pretty).mkString("\n")
+    pretty(linearizePrefix(Q))
+
+  def pretty(Q: Seq[BinderSpec]): String =
+    Q.map(pretty).mkString("\n")
 
   def topologicalOrder(Q: BinderPrefix): Map[String, Int] = {
     val graph = Q map { case (α, spec) => (α, spec.annotation.freeNames) }
@@ -424,4 +427,8 @@ trait Syntax extends ExpressionGrammar {
     Q.map({ case (α, τ) => (τ, (topo(α), α)) }).toList.
       sortBy(_._2).map(_._1)
   }
+
+  trait Status[+T]
+  case class Success[+T](get: T) extends Status[T]
+  case class Failure[+T](message: String) extends Status[T]
 }
