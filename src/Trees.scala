@@ -383,7 +383,7 @@ trait Trees {
     // interactions with binders
 
     // to be bound by lots of binders
-    def boundBy(xs: List[BinderSpec]): Tree =
+    def boundBy(xs: Seq[BinderSpec]): Tree =
       xs.foldRight(this) {
         case (BinderSpec(binder, x, notes), body) =>
           binder.bind(x, notes :+ body: _*)
