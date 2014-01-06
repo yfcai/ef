@@ -21,15 +21,17 @@ trait MLF extends Syntax {
 
   type BinderPrefix = Map[String, BinderSpec]
 
+  def pretty(τ: BinderSpec): String = {
+    val α = τ.x
+    s"""$α ${
+      if (τ.tag == BoundedUniversal)    "⊒"
+      else if (τ.tag == RigidUniversal) "="
+      else error(s"unrecognized tag $τ")
+    } ${τ.annotation.unparse}"""
+  }
+
   def pretty(Q: BinderPrefix): String =
-    Q.map({
-      case (α, τ) =>
-        s"""$α ${
-          if (τ.tag == BoundedUniversal)    "⊒"
-          else if (τ.tag == RigidUniversal) "="
-          else error(s"unrecognized tag in prefix\n$Q")
-        } ${τ.annotation.unparse}"""
-    }).mkString("\n")
+    Q.map({ case (α, τ) => pretty(τ) }).mkString("\n")
 
   trait Status[+T]
   case class Success[+T](get: T) extends Status[T]
@@ -239,12 +241,41 @@ trait MLF extends Syntax {
         // case 6.A: if ♢₂ is = and (Q₃) ¬ (σ₂ E ∀(Q')τ₂) then fail
 
         // notice that σi and τi have identical bodies.
-        // this simplifies sharing check a great deal:
         //
         // val σ1P = τ1 boundBy linearize(Q1)
         // val σ2P = τ2 boundBy linearize(Q2)
         //
-        // TODO: too hard, do it later
+        // this simplifies sharing check a great deal:
+        // the only applicable rule of the sharing relation
+        // is EQ-CONTEXT-L.
+        //
+        // which reduces to equivalence checking on prefixes.
+        // which is not trivial and not syntax-directed.
+        // we do a conservative approximation by rejecting
+        // all prefixes with different assignments for now.
+        def prefixMismatch(Q1: Seq[(String, BinderSpec)], Q0: BinderPrefix):
+            Option[BinderSpec] = {
+          Q1.find({
+            case (α, spec) =>
+              ! Q0.contains(α) || spec.annotation != Q0(α).annotation
+          }).map(_._2)
+        }
+
+        def rigidityViolation(
+          spec: BinderSpec, Q1: Seq[(String, BinderSpec)], Q0: BinderPrefix):
+            Option[String] = {
+          if (spec.annotation != RigidUniversal)
+            return None
+          val (α, σ) = (spec.x, spec.annotation)
+          prefixMismatch(Q1, Q0).map { badSpec =>
+            s"mismatch in rigid $α = ${σ.unparse}\n" +
+            s"due to ${pretty(badSpec)}"
+            s"with unification result\n${pretty(Q0)}"
+          }
+        }
+
+        rigidityViolation(spec1, Q1, Q0).map { s => return failure(s) }
+        rigidityViolation(spec2, Q2, Q0).map { s => return failure(s) }
 
         // line 6.B: let σ₃ be ∀(Q')τ₁
         val σ3 = τ1 boundBy QP
