@@ -33,6 +33,11 @@ trait MLF extends Syntax {
     }
   }
 
+  def isPolyType(τ: Tree): Boolean =
+    τ.tag.isInstanceOf[Binder] || ⊥.is(τ)
+
+  def isMonoType(τ: Tree): Boolean = ! isPolyType(τ)
+
   /** @param prefix
     *        MLF Prefix. All universals must have a rigid or
     *        flexible bound. There must be no existentials.
@@ -56,11 +61,6 @@ trait MLF extends Syntax {
         |under the prefix
         |${pretty(prefix)}
         |""".stripMargin
-
-    def isPolyType(τ: Tree): Boolean =
-      τ.tag.isInstanceOf[Binder] || ⊥.is(τ)
-
-    def isMonoType(τ: Tree): Boolean = ! isPolyType(τ)
 
     def isPoly(α: String): Boolean =
       prefix.contains(α) && isPolyType(prefix(α).annotation)
@@ -339,4 +339,51 @@ trait MLF extends Syntax {
 
   def equiv(τ1: Tree, τ2: Tree): Boolean =
     normalize(τ1) α_equiv normalize(τ2)
+
+  // make sure a type has only monotypes in its body
+  // make sure that all bounds have only monotypes in their bodies
+  def ensureMonotypeBody(τ: Tree): Tree = {
+    import BinderSpecSugar._
+    def loop(τ: Tree, toAvoid: Set[String]):
+        (List[BinderSpec], Tree, Set[String]) = τ match {
+      case ⊹(binder: Binder, _*) =>
+        val (∙(_, β), children) = binder.unbind(τ).get
+        val (newSpecs, newChildren, newThingsToAvoid) =
+          children.foldLeft[(List[BinderSpec], List[Tree], Set[String])](
+            (Nil, Nil, τ.freeNames + β)
+          )({
+            case ((specs0, others, toAvoid0), child0) =>
+              val (specs, child, toAvoid) = loop(child0, toAvoid0)
+              (specs ++ specs0, child :: others, toAvoid)
+          })
+        val spec = BinderSpec(binder, β, newChildren.init)
+        (spec :: newSpecs, newChildren.last, newThingsToAvoid)
+
+      // function arrow, functor application et co.
+      case ⊹(tag, children @ _*) =>
+        val (newSpecs, newChildren, newThingsToAvoid) =
+          children.foldLeft[(List[BinderSpec], List[Tree], Set[String])](
+            (Nil, Nil, τ.freeNames)
+          )({
+            case ((specs0, children, toAvoid0),
+                  child0 @ ⊹(binder: Binder, bodies @ _*)) =>
+              val β = Subscript.
+                newName(binder.defaultNameOf(child0), toAvoid0)
+              val (specs, child, toAvoid) = loop(child0, toAvoid0 + β)
+              val spec = BinderSpec(RigidUniversal, β, child)
+              (spec :: (specs ++ specs0), æ(β) :: children, toAvoid)
+
+            case ((specs0, others, toAvoid0), child0) =>
+              val (specs, child, toAvoid) = loop(child0, toAvoid0)
+              (specs ++ specs0, child :: others, toAvoid)
+          })
+        (newSpecs, ⊹(tag, newChildren: _*), newThingsToAvoid)
+
+      case _ =>
+        (Nil, τ, toAvoid)
+    }
+
+    val (specs, monobody, _) = loop(τ, τ.freeNames)
+    monobody.boundBy(specs)
+  }
 }

@@ -1,10 +1,13 @@
 trait Gamma extends Syntax {
+  private val ℤ = "ℤ"
+  private val Bool = "Bool"
+
   final val intsAndBools = {
-    val int        = æ("ℤ")
-    val bool       = æ("Bool")
+    val int        = æ(ℤ)
+    val bool       = æ(Bool)
     val intLiteral = """(-)?\d+"""
-    val intBinOp   = Type.parse("ℤ → ℤ → ℤ").get
-    val absurdity  = Type.parse("∀a̧. a̧").get
+    val intBinOp   = Type(s"$ℤ → $ℤ → $ℤ")
+    val absurdity  = Type("∀a̧. a̧")
     val result: PartialFunction[String, Tree] = {
       case "+" | "-" | "*" | "/" | "%" =>
         intBinOp
@@ -18,16 +21,32 @@ trait Gamma extends Syntax {
     result
   }
 
+  final val intAndBoolTypes = Set(ℤ, Bool)
+
+  case class TokenTracker(var tokens: Seq[Token]) {
+    def next: Token = {
+      val tok = tokens.head
+      tokens = tokens.tail
+      tok
+    }
+  }
+
   trait Γ {
     def prefix: BinderPrefix
     def vars: Map[String, Tree]
+
+    def global: PartialFunction[String, Tree] = intsAndBools
+    def globalTypes: Set[String] = intAndBoolTypes
+
+    /* what type should "infer" be? different type systems
+       may prefer different results. design it later. for
+       now, this is an archive of what typing a conditional
+       may look like.
 
     // intersection type
     def intersect(lhs: Tree, rhs: Tree): Status[Tree]
     // greater generality
     def canBe(moreGeneral: Tree, lessGeneral: Tree): Boolean
-
-    def global: PartialFunction[String, Tree] = intsAndBools
 
     def infer(t: Tree, toks: Seq[Token]): Tree =
       infer(t, toks.head, TokenTracker(toks.tail))
@@ -37,7 +56,7 @@ trait Gamma extends Syntax {
         val condType = infer(condition, toks.next, toks)
         val thenType = infer(thenBranch, toks.next, toks)
         val elseType = infer(elseBranch, toks.next, toks)
-        if (! canBe(condType, æ("Bool")))
+        if (! canBe(condType, æ(Bool)))
           throw Problem(tok,
             "expect Bool in condition, got ${condType.unparse}")
         intersect(thenType, elseType) match {
@@ -55,20 +74,14 @@ trait Gamma extends Syntax {
       case _ =>
         throw Problem(tok, "don't know how to infer the type of ${t.tag}")
     }
-
-    case class TokenTracker(var tokens: Seq[Token]) {
-      def next: Token = {
-        val tok = tokens.head
-        tokens = tokens.tail
-        tok
-      }
-    }
+     */
   }
 }
 
 trait GammaMLF extends Gamma with MLF {
   import BinderSpecSugar._
 
+  // assume all synonyms have been resolved
   case class Γ_MLF(prefix: BinderPrefix, vars: Map[String, Tree]) extends Γ {
 
     def canBe(moreGeneral: Tree, lessGeneral: Tree): Boolean = {
@@ -87,11 +100,23 @@ trait GammaMLF extends Gamma with MLF {
       Q.map(mgq => reattach(mgq, æ(α)))
     }
 
-    override
-    def infer(t: Tree, tok: Token, toks: TokenTracker): Tree = t match {
-      // TODO: algorithm W^F
-      case _ =>
-        super.infer(t, tok, toks)
-    }
+    // algorithm W^F
+    // stilted interface to remind of the correct usage of TokenTracker
+    def infer(t: Tree, tok: Token, toks: TokenTracker):
+        (BinderPrefix, Tree) =
+      t match {
+        case χ(x) =>
+          (prefix, vars(x))
+
+        case λ(x, σ0, t) =>
+          val σ = ensureMonotypeBody(σ0)
+          val toQuantify = σ.freeNames -- globalTypes -- prefix.keySet
+          val q1 = prefix ++ toQuantify.map(_ ⊒ ⊥())
+          val (q2, τ) = Γ_MLF(q1, vars.updated(x, σ)).
+            infer(t, toks.next, toks)
+
+          ???
+
+      }
   }
 }

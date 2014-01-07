@@ -1,8 +1,9 @@
 object Experiments {
   val onTrial: Experiment =
-    MLFExperiment
+    AnnotatedBinderExperiment
 
   val experiments = List[Experiment](
+    AnnotatedBinderExperiment,
     AlphaEquivExperiment,
     CStyleConditionalExperiment,
     MLFExperiment,
@@ -576,5 +577,24 @@ object Experiments {
     }
 
     override def expected = "true\n"
+  }
+
+  object AnnotatedBinderExperiment extends SyntaxExperiment {
+    val t = λ("f", Type("α → β"), λ("x", Type("α"), Term("f x")))
+    def run = {
+      puts(s"t = ${t.unparse}")
+      t match {
+        case λ(f, α → β, λ(x, α0, f0 ₋ x0)) =>
+          puts(s"t deconstructed to " +
+            s"λ($f, ${α.unparse} → ${β.unparse}, " +
+            s"λ($x, ${α0.unparse}, ${f0.unparse} ${x0.unparse}))")
+      }
+      dump
+    }
+
+    override def expected =
+      """|t = λf : α → β. λx : α. f x
+         |t deconstructed to λ(f, α → β, λ(x, α, f x))
+         |""".stripMargin
   }
 }

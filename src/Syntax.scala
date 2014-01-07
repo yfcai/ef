@@ -12,6 +12,8 @@ trait ExpressionGrammar extends Operators {
   trait TopLevelGenus extends Genus with Operator {
     def ops: Seq[Operator]
 
+    def apply(s: String): Tree = this.parse(s).get
+
     def genus = this
     def fixity = CompositeItem
     override def parse(items: Seq[Tree]) = ops findFirst (_ parse items)
@@ -182,6 +184,34 @@ trait ExpressionGrammar extends Operators {
     def unapplySeq(t: ⊹): Option[(∙[String], Seq[Tree])] =
       tag.binder.unbind(t)
   }
+
+
+  // common ground between λs and bounded quantifications
+  trait AnnotatedBinderOp extends BinderOperator {
+    def symbol: Seq[String]
+    def annotationSymbol: Seq[String]
+    def endSymbol: Seq[String] = Seq(".")
+
+    // fail fast
+    override def precondition(items: Seq[Tree]): Boolean = {
+      val x = items.take(3)
+      x.length == 3 &&
+        fixity.hasBody(x.head, symbol) &&
+        fixity.hasBody(x.last, annotationSymbol)
+    }
+
+    val fixity = Prefix(symbol, annotationSymbol, endSymbol)
+  }
+
+  abstract class AnnotatedBinderFactory(tag: AnnotatedBinderOp) {
+    def apply(x: String, annotation: Tree, body: Tree): Tree =
+      tag.bind(x, annotation, body)
+
+    def unapply(t: Tree): Option[(String, Tree, Tree)] =
+      tag.unbind(t).map {
+        case (∙(_, x), Seq(annotation, body)) => (x, annotation, body)
+      }
+  }
 }
 
 trait Syntax extends ExpressionGrammar {
@@ -191,14 +221,17 @@ trait Syntax extends ExpressionGrammar {
   object → extends BinaryFactory(FunctionArrow)
   object ∀ extends CollapsedBinderFactory(CollapsedUniversals)
   object ∃ extends CollapsedBinderFactory(CollapsedExistentials)
-  // write factories for annotated binders only if necessary:
-  // bounded universals/existentials, annotated abstractions.
+
+  object ∀≡ extends AnnotatedBinderFactory(RigidUniversal)
+  object ∀⊒ extends AnnotatedBinderFactory(BoundedUniversal)
+  object ∃⊒ extends AnnotatedBinderFactory(BoundedExistential)
 
   case object Term extends TopLevelGenus { def ops = termOps }
   object χ extends AtomicFactory(FreeVar)
   object ₋ extends BinaryFactory(Application)
   object □ extends BinaryFactory(Instantiation)
   object Å extends BinaryFactory(Ascription)
+  object λ extends AnnotatedBinderFactory(AnnotatedAbstraction)
 
   case object FreeTypeVar extends Atomic   { def genus = Type }
   case object FreeVar     extends Atomic   { def genus = Term }
@@ -305,23 +338,6 @@ trait Syntax extends ExpressionGrammar {
     def freeName = FreeVar
     override def extraSubgenera = Seq(Type)
     lazy val tryNext = Seq(Seq(FreeVar), typeOps, termOps)
-  }
-
-  // common ground between λs and bounded quantifications
-  trait AnnotatedBinderOp extends BinderOperator {
-    def symbol: Seq[String]
-    def annotationSymbol: Seq[String]
-    def endSymbol: Seq[String] = Seq(".")
-
-    // fail fast
-    override def precondition(items: Seq[Tree]): Boolean = {
-      val x = items.take(3)
-      x.length == 3 &&
-        fixity.hasBody(x.head, symbol) &&
-        fixity.hasBody(x.last, annotationSymbol)
-    }
-
-    val fixity = Prefix(symbol, annotationSymbol, endSymbol)
   }
 
   // common ground between bounded universals and existentials
