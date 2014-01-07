@@ -1,4 +1,6 @@
 object Experiments {
+  val debug = false
+
   val onTrial: Experiment =
     AnnotatedBinderExperiment
 
@@ -27,10 +29,11 @@ object Experiments {
   }
 
   def main(args: Array[String]) = {
-    onTrial.trial
+    if (debug) onTrial.debug
     println("MAINTAINING ...")
     maintenance()
     println("MAINTENANCE SUCCESSFUL")
+    if (! debug) onTrial.trial
   }
 
   trait Experiment {
@@ -261,7 +264,7 @@ object Experiments {
   }
 
   object BoundedQuantificationExperiment extends SyntaxExperiment {
-    val s = "∀α ⊒ ∀α. α → α. List (∃β ⊒ α. β)"
+    val s = "∀α ⊒ (∀α. α → α). List (∃β ⊒ α. β)"
 
     def run = {
       val t = (Type parse s).get
@@ -271,7 +274,7 @@ object Experiments {
     }
 
     override def expected =
-      """|∀α ⊒ ∀α. α → α. List (∃β ⊒ α. β)
+      """|∀α ⊒ (∀α. α → α). List (∃β ⊒ α. β)
          |BoundedUniversal, binder of α
          |  ∙(LiteralTag(java.lang.String), α)
          |  UniversalQuantification, binder of α
@@ -514,54 +517,54 @@ object Experiments {
 
     override def expected =
       """|unify α → β and γ → δ
-         |under prefix α ⊒ ⊥, β ⊒ ⊥, γ ⊒ ⊥, δ ⊒ ⊥
+         |under prefix ∀α ⊒ ⊥, ∀β ⊒ ⊥, ∀γ ⊒ ⊥, ∀δ ⊒ ⊥
          |yields ∀α β. α → β
          |Success
-         |  α ⊒ ⊥
-         |  β ⊒ ⊥
-         |  γ = α
-         |  δ = β
+         |  ∀α ⊒ ⊥
+         |  ∀β ⊒ ⊥
+         |  ∀γ = α
+         |  ∀δ = β
          |
          |unify α and β → β
-         |under prefix α ⊒ ⊥, β ⊒ ⊥
+         |under prefix ∀α ⊒ ⊥, ∀β ⊒ ⊥
          |yields ∀β. (β → β) → β → β
          |Success
-         |  β ⊒ ⊥
-         |  α = β → β
+         |  ∀β ⊒ ⊥
+         |  ∀α = β → β
          |
          |unify α and γ → γ
-         |under prefix β ⊒ ⊥, γ ⊒ ⊥, α = β → β
+         |under prefix ∀β ⊒ ⊥, ∀γ ⊒ ⊥, ∀α = β → β
          |yields ∀γ. γ → γ
          |Success
-         |  γ ⊒ ⊥
-         |  β = γ
-         |  α = β → β
+         |  ∀γ ⊒ ⊥
+         |  ∀β = γ
+         |  ∀α = β → β
          |
          |unify α and γ → γ
-         |under prefix α = ∀β. β → β, γ ⊒ ⊥
+         |under prefix ∀α = ∀β. β → β, ∀γ ⊒ ⊥
          |yields ∀γ. γ → γ
          |Success
-         |  γ ⊒ ⊥
-         |  β = γ
-         |  α = β → β
+         |  ∀γ ⊒ ⊥
+         |  ∀β = γ
+         |  ∀α = β → β
          |
          |unify α and γ → γ
-         |under prefix α ⊒ ⊥, β ⊒ ⊥, γ ⊒ ⊥
+         |under prefix ∀α ⊒ ⊥, ∀β ⊒ ⊥, ∀γ ⊒ ⊥
          |yields ∀β γ. ((γ → γ) → β) → β
          |Success
-         |  β ⊒ ⊥
-         |  γ ⊒ ⊥
-         |  α = γ → γ
+         |  ∀β ⊒ ⊥
+         |  ∀γ ⊒ ⊥
+         |  ∀α = γ → γ
          |
          |unify α → β and ε → ℤ
-         |under prefix β ⊒ ⊥, γ ⊒ ⊥, δ ⊒ ⊥, α = γ → γ, ε = δ → δ
+         |under prefix ∀β ⊒ ⊥, ∀γ ⊒ ⊥, ∀δ ⊒ ⊥, ∀α = γ → γ, ∀ε = δ → δ
          |yields ℤ
          |Success
-         |  β = ℤ
-         |  γ ⊒ ⊥
-         |  α = γ → γ
-         |  δ = γ
-         |  ε = δ → δ
+         |  ∀β = ℤ
+         |  ∀γ ⊒ ⊥
+         |  ∀α = γ → γ
+         |  ∀δ = γ
+         |  ∀ε = δ → δ
          |
          |""".stripMargin
   }
@@ -596,5 +599,68 @@ object Experiments {
       """|t = λf : α → β. λx : α. f x
          |t deconstructed to λ(f, α → β, λ(x, α, f x))
          |""".stripMargin
+  }
+
+  // DEFUNCT
+  object MonoBodyExperiment extends SyntaxExperiment with MLF {
+    def test(s: String): Unit =
+      puts(ensureMonotypeBody(Type(s)).unparse)
+
+    val auto = "(∀α. α → α) → (∀β. β → β)"
+
+    def run = {
+      test(auto)
+      test(s"∀γ = $auto. γ")
+      dump
+    }
+
+    override def expected =
+      """|∀α₀. ∀α = (α₀ → α₀). ∀β₀. ∀β = (β₀ → β₀). α → β
+         |∀γ = (∀α₀. ∀α = (α₀ → α₀). ∀β₀. ∀β = (β₀ → β₀). α → β). γ
+         |""".stripMargin
+  }
+
+  // DEFUNCT
+  object GammaMLFExperiment extends Experiment with GammaMLF {
+    val subjects = List[(String, String)](
+      "five" -> "5",
+      "single-id" -> "single id",
+      "choose-5" -> "choose 5",
+      "choose-id" -> "choose id",
+      "choose-id-auto" -> "choose-id auto"
+    )
+
+    val badSubjects = List[(String, String)](
+      "id" -> "λx : α. x",
+      "auto" -> "λx : ∀ω. ω → ω. x x",
+      "choose" -> "λx : χ. λy : χ. y",
+      "choose-id-auto" -> "choose-id auto"
+    )
+
+    val postulates = Map[String, Tree](
+      "single" -> Type("∀σ. σ → List σ"),
+      "id" -> Type("∀α. α → α"),
+      "auto" -> Type("∀ω = (∀β. β → β). ω → ω"),
+      "choose" -> Type("∀χ. χ → χ → χ")
+    )
+
+    val ∅ : BinderPrefix = Map.empty
+
+    override def globalTypes =
+      super.globalTypes + "List"
+
+    def run = {
+      var vars = postulates
+      subjects.foreach {
+        case (x, xdef) =>
+          val t = Term(xdef)
+          val τ = Γ_MLF(∅, vars) ⊢ t
+          vars = vars.updated(x, τ)
+          puts(s"$x : ${τ.unparse}")
+          puts(s"$x : ${normalize(τ).unparse}")
+          puts(s"$x = ${t.unparse}\n")
+      }
+      dump
+    }
   }
 }

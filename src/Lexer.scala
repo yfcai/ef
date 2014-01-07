@@ -17,6 +17,8 @@ trait Lexer {
     def isRightParen = body == ")"
 
     def residentLines(n: Int): String = {
+      if (paragraph.body.length <= location)
+        return ""
       assert(paragraph.body(location) != '\n')
       def loop(n: Int, start: Int): Int =
         if (start < 0)

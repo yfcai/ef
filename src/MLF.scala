@@ -92,7 +92,7 @@ trait MLF extends Syntax {
           (children1, children2).zipped.
             foldLeft[Domain](Success(prefix)) {
               case (fail: Failure[_], _) => fail
-              case (Success(prefix), (τ1, τ2)) => unify(prefix, τ1, τ2)
+              case (Success(prefix), (σ1, σ2)) => unify(prefix, σ1, σ2)
             }
         // case 3: incongruent type constructors
         else
@@ -144,8 +144,7 @@ trait MLF extends Syntax {
 
         // line 5.5: let Q" be (QQ') ⇐ (α = τ')
         // case 5.6: return unify(Q", α, τ)
-        val Q2 = (prefix ++ Q1).updated(α,
-          BinderSpec(RigidUniversal, α, τ1))
+        val Q2 = (prefix ++ Q1) + (α ≡ τ1)
         unify(Q2, æ(α), τ)
 
       // case 5 (converse): polytype in prefix
@@ -206,35 +205,28 @@ trait MLF extends Syntax {
         }
 
         // line 6.8: let (Q₃, Q') be Q₀ ↑ dom(Q)
-        val Q3 = Q0.filter(prefix contains _._1)
-        val QP = linearizePrefix(Q0 -- prefix.keySet)
+        val q3qp = upArrow(Q0, prefix.keySet)
+        val Q3 = q3qp._1
+        val QP = linearizePrefix(q3qp._2)
 
         // case 6.9: if ♢₁ is = and (Q₃) ¬ (σ₁ E ∀(Q')τ₁) then fail
         // case 6.A: if ♢₂ is = and (Q₃) ¬ (σ₂ E ∀(Q')τ₂) then fail
 
-        // notice that σi and τi have identical bodies.
-        //
-        // val σ1P = τ1 boundBy linearize(Q1)
-        // val σ2P = τ2 boundBy linearize(Q2)
-        //
-        // this simplifies sharing check a great deal:
-        // the only applicable rule of the sharing relation
-        // is EQ-CONTEXT-L.
-        //
-        // which reduces to equivalence checking on prefixes.
-        // which is not trivial and not syntax-directed.
-        // we attempt an equivalence test by normalization,
-        // but haven't reasoned out its correctness yet.
+        // verification of sharing is too conservative.
+        // "choose id auto" triggers it, if fully written out.
 
         def rigidityViolation(prefix: Seq[BinderSpec], τ1: Tree, τ2: Tree):
             Option[String] = {
-          if (equiv(reattach(prefix, τ1), reattach(prefix, σ2)))
+          val (ρ1, ρ2) = (reattach(prefix, τ1), reattach(prefix, τ2))
+          if (equiv(ρ1, ρ2))
             None
           else
             Some(
-              s"case 6.9/6.A: not equivalent:\n" +
-                s"     σ = ${τ1.unparse}\nand\n" +
-                s"∀(Q')τ = ${τ2.unparse}" +
+              s"case 6.9/A: not equivalent:\n" +
+                s"       σ = ${τ1.unparse}\nand\n" +
+                s"  ∀(Q')τ = ${τ2.unparse}\nnormalized to\n" +
+                s"       σ ~ ${normalize(ρ1).unparse}\n" +
+                s"  ∀(Q')τ ~ ${normalize(ρ2).unparse}\n" +
                 s"where Q' =\n${pretty(prefix)}")
         }
 
@@ -347,33 +339,28 @@ trait MLF extends Syntax {
     def loop(τ: Tree, toAvoid: Set[String]):
         (List[BinderSpec], Tree, Set[String]) = τ match {
       case ⊹(binder: Binder, _*) =>
-        val (∙(_, β), children) = binder.unbind(τ).get
-        val (newSpecs, newChildren, newThingsToAvoid) =
-          children.foldLeft[(List[BinderSpec], List[Tree], Set[String])](
-            (Nil, Nil, τ.freeNames + β)
-          )({
-            case ((specs0, others, toAvoid0), child0) =>
-              val (specs, child, toAvoid) = loop(child0, toAvoid0)
-              (specs ++ specs0, child :: others, toAvoid)
-          })
-        val spec = BinderSpec(binder, β, newChildren.init)
-        (spec :: newSpecs, newChildren.last, newThingsToAvoid)
+        val (∙(_, β), children) = binder.unbind(τ, toAvoid).get
+        val annotations = children.init.map(ensureMonotypeBody)
+        val (specs, body, newThingsToAvoid) =
+          loop(children.last, toAvoid + β)
+        val spec = BinderSpec(binder, β, annotations)
+        (spec :: specs, body, newThingsToAvoid)
 
       // function arrow, functor application et co.
       case ⊹(tag, children @ _*) =>
         val (newSpecs, newChildren, newThingsToAvoid) =
-          children.foldLeft[(List[BinderSpec], List[Tree], Set[String])](
+          children.foldRight[(List[BinderSpec], List[Tree], Set[String])](
             (Nil, Nil, τ.freeNames)
           )({
-            case ((specs0, children, toAvoid0),
-                  child0 @ ⊹(binder: Binder, bodies @ _*)) =>
+            case (child0 @ ⊹(binder: Binder, bodies @ _*),
+                  (specs0, children, toAvoid0)) =>
               val β = Subscript.
                 newName(binder.defaultNameOf(child0), toAvoid0)
               val (specs, child, toAvoid) = loop(child0, toAvoid0 + β)
               val spec = BinderSpec(RigidUniversal, β, child)
-              (spec :: (specs ++ specs0), æ(β) :: children, toAvoid)
+              (specs ++ (spec :: specs0), æ(β) :: children, toAvoid)
 
-            case ((specs0, others, toAvoid0), child0) =>
+            case (child0, (specs0, others, toAvoid0)) =>
               val (specs, child, toAvoid) = loop(child0, toAvoid0)
               (specs ++ specs0, child :: others, toAvoid)
           })
@@ -385,5 +372,17 @@ trait MLF extends Syntax {
 
     val (specs, monobody, _) = loop(τ, τ.freeNames)
     monobody.boundBy(specs)
+  }
+
+  def upArrow(prefix: BinderPrefix, sink: Set[String]):
+      (BinderPrefix, BinderPrefix) = {
+    var frontier = sink
+    var acc: BinderPrefix = Map.empty
+    while (! frontier.isEmpty) {
+      val news = frontier.flatMap(x => prefix.get(x).map(y => (x, y)))
+      acc = acc ++ news
+      frontier = news.flatMap(_._2.annotation.freeNames) -- acc.keySet
+    }
+    (acc, prefix -- acc.keySet)
   }
 }

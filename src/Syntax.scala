@@ -349,7 +349,7 @@ trait Syntax extends ExpressionGrammar {
     def prison = TypeVar
     def freeName = FreeTypeVar
     override def extraSubgenera = Seq(Type)
-    lazy val tryNext = Seq(Seq(FreeTypeVar), typeOps, typeOps)
+    lazy val tryNext = Seq(Seq(FreeTypeVar), Seq(Type), typeOps)
   }
 
   case object CStyleConditional extends Operator {
@@ -405,12 +405,14 @@ trait Syntax extends ExpressionGrammar {
   type BinderPrefix = Map[String, BinderSpec]
 
   def pretty(spec: BinderSpec): String = {
-    val (α, τ) = (spec.x, spec.annotation)
-    s"""$α ${
-      if (spec.tag == BoundedUniversal)    "⊒"
-      else if (spec.tag == RigidUniversal) "="
-      else sys error(s"unrecognized tag $τ")
-    } ${τ.unparse}"""
+    val (α, notes) = (spec.x, spec.annotations)
+    spec.tag match {
+      case BoundedUniversal          => s"∀$α ⊒ ${notes.head.unparse}"
+      case RigidUniversal            => s"∀$α = ${notes.head.unparse}"
+      case BoundedExistential        => s"∃$α ⊒ ${notes.head.unparse}"
+      case UniversalQuantification   => s"∀$α"
+      case ExistentialQuantification => s"∃$α"
+    }
   }
 
   def pretty(Q: BinderPrefix): String =
