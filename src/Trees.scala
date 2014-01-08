@@ -230,15 +230,10 @@ trait Trees {
     }
   }
 
-  case class BinderSpec(tag: Binder, x: String, annotations: Seq[Tree]) {
+  case class BinderSpec(tag: Binder, x: String, annotations: Tree*) {
     def annotation: Tree = annotations match {
       case Seq(note) => note
     }
-  }
-
-  object BinderSpec {
-    def apply(tag: Binder, x: String, annotation: Tree): BinderSpec =
-      BinderSpec(tag, x, Seq(annotation))
   }
 
   trait Tree extends TreeF[Tree] {
@@ -396,7 +391,7 @@ trait Trees {
     // to be bound by lots of binders
     def boundBy(xs: Seq[BinderSpec]): Tree =
       xs.foldRight(this) {
-        case (BinderSpec(binder, x, notes), body) =>
+        case (BinderSpec(binder, x, notes @ _*), body) =>
           binder.bind(x, notes :+ body: _*)
       }
 
@@ -413,7 +408,8 @@ trait Trees {
             tag.unbindAll(this, toAvoid)
           val (others, realBody) =
             body.unbindAll(toAvoid ++ prefix.map(_._1), predicate)
-          (prefix.map(p => BinderSpec(tag, p._1, p._2)) ++ others, realBody)
+          (prefix.map(p => BinderSpec(tag, p._1, p._2: _*)) ++
+            others, realBody)
         case _ =>
           (Nil, this)
       }

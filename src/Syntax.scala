@@ -222,8 +222,8 @@ trait Syntax extends ExpressionGrammar {
   object ∀ extends CollapsedBinderFactory(CollapsedUniversals)
   object ∃ extends CollapsedBinderFactory(CollapsedExistentials)
 
-  object ∀⊒ extends AnnotatedBinderFactory(BoundedUniversal)
-  object ∃⊒ extends AnnotatedBinderFactory(BoundedExistential)
+  object ∀= extends AnnotatedBinderFactory(BoundedUniversal)
+  object ∃= extends AnnotatedBinderFactory(BoundedExistential)
 
   case object Term extends TopLevelGenus { def ops = termOps }
   object χ extends AtomicFactory(FreeVar)
@@ -337,7 +337,7 @@ trait Syntax extends ExpressionGrammar {
   // common ground between bounded universals and existentials
   trait BoundedQuantification extends AnnotatedBinderOp {
     def symbol: Seq[String]
-    def annotationSymbol: Seq[String] = Seq("⊒")
+    def annotationSymbol: Seq[String] = Seq("=")
 
     def genus = Type
     def prison = TypeVar
@@ -400,8 +400,8 @@ trait Syntax extends ExpressionGrammar {
   def pretty(spec: BinderSpec): String = {
     val (α, notes) = (spec.x, spec.annotations)
     spec.tag match {
-      case BoundedUniversal          => s"∀$α ⊒ ${notes.head.unparse}"
-      case BoundedExistential        => s"∃$α ⊒ ${notes.head.unparse}"
+      case BoundedUniversal          => s"∀$α = ${notes.head.unparse}"
+      case BoundedExistential        => s"∃$α = ${notes.head.unparse}"
       case UniversalQuantification   => s"∀$α"
       case ExistentialQuantification => s"∃$α"
     }

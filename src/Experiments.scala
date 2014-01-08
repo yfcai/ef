@@ -263,7 +263,7 @@ object Experiments {
   }
 
   object BoundedQuantificationExperiment extends SyntaxExperiment {
-    val s = "∀α ⊒ (∀α. α → α). List (∃β ⊒ α. β)"
+    val s = "∀α = (∀α. α → α). List (∃β = α. β)"
 
     def run = {
       val t = (Type parse s).get
@@ -273,7 +273,7 @@ object Experiments {
     }
 
     override def expected =
-      """|∀α ⊒ (∀α. α → α). List (∃β ⊒ α. β)
+      """|∀α = (∀α. α → α). List (∃β = α. β)
          |BoundedUniversal, binder of α
          |  ∙(LiteralTag(java.lang.String), α)
          |  UniversalQuantification, binder of α
@@ -326,7 +326,7 @@ object Experiments {
   }
 
   object SourceLocationExperiment extends SyntaxExperiment {
-    val s = """∀α ⊒ ∀α. α → α. List (∃β ⊒ α. β)"""
+    val s = """∀α = ∀α. α → α. List (∃β = α. β)"""
 
     def run = {
       val (t, toks) = Type.parse(ProtoAST(s)).get
@@ -339,67 +339,67 @@ object Experiments {
 
     override def expected =
       """|#LINE:1
-         |∀α ⊒ ∀α. α → α. List (∃β ⊒ α. β)
+         |∀α = ∀α. α → α. List (∃β = α. β)
          | ^
          |LiteralTag(java.lang.String)
          |
          |#LINE:1
-         |∀α ⊒ ∀α. α → α. List (∃β ⊒ α. β)
+         |∀α = ∀α. α → α. List (∃β = α. β)
          |      ^
          |LiteralTag(java.lang.String)
          |
          |#LINE:1
-         |∀α ⊒ ∀α. α → α. List (∃β ⊒ α. β)
+         |∀α = ∀α. α → α. List (∃β = α. β)
          |         ^
          |TypeVar
          |
          |#LINE:1
-         |∀α ⊒ ∀α. α → α. List (∃β ⊒ α. β)
+         |∀α = ∀α. α → α. List (∃β = α. β)
          |             ^
          |TypeVar
          |
          |#LINE:1
-         |∀α ⊒ ∀α. α → α. List (∃β ⊒ α. β)
+         |∀α = ∀α. α → α. List (∃β = α. β)
          |           ^
          |FunctionArrow
          |
          |#LINE:1
-         |∀α ⊒ ∀α. α → α. List (∃β ⊒ α. β)
+         |∀α = ∀α. α → α. List (∃β = α. β)
          |     ^
          |UniversalQuantification
          |
          |#LINE:1
-         |∀α ⊒ ∀α. α → α. List (∃β ⊒ α. β)
+         |∀α = ∀α. α → α. List (∃β = α. β)
          |                ^
          |FreeTypeVar
          |
          |#LINE:1
-         |∀α ⊒ ∀α. α → α. List (∃β ⊒ α. β)
+         |∀α = ∀α. α → α. List (∃β = α. β)
          |                       ^
          |LiteralTag(java.lang.String)
          |
          |#LINE:1
-         |∀α ⊒ ∀α. α → α. List (∃β ⊒ α. β)
+         |∀α = ∀α. α → α. List (∃β = α. β)
          |                           ^
          |TypeVar
          |
          |#LINE:1
-         |∀α ⊒ ∀α. α → α. List (∃β ⊒ α. β)
+         |∀α = ∀α. α → α. List (∃β = α. β)
          |                              ^
          |TypeVar
          |
          |#LINE:1
-         |∀α ⊒ ∀α. α → α. List (∃β ⊒ α. β)
+         |∀α = ∀α. α → α. List (∃β = α. β)
          |                      ^
          |BoundedExistential
          |
          |#LINE:1
-         |∀α ⊒ ∀α. α → α. List (∃β ⊒ α. β)
+         |∀α = ∀α. α → α. List (∃β = α. β)
          |                ^
          |TypeApplication
          |
          |#LINE:1
-         |∀α ⊒ ∀α. α → α. List (∃β ⊒ α. β)
+         |∀α = ∀α. α → α. List (∃β = α. β)
          |^
          |BoundedUniversal
          |
