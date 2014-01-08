@@ -28,6 +28,8 @@ trait Prenex extends Syntax {
   }
 
   object Prenex {
+    def apply(τ: Tree): Prenex = Prenex(τ, Set.empty[String])._1
+
     def apply(τ: Tree, toAvoid: Set[String]): (Prenex, Set[String]) = {
       val (rawPrefix, rawBody) = τ.unbindAll(toAvoid, _ => true)
       val undesirables1 = toAvoid ++ rawPrefix.map(_.x)
@@ -52,8 +54,13 @@ trait Prenex extends Syntax {
           undesirables)
 
       case σ □ τ =>
-        val (Seq(ps, pt), undesirables) = Prenex(Seq(σ, τ), toAvoid)
-        (Prenex(ps.prefix ++ pt.prefix, □(ps.body, pt.body)), undesirables)
+        sys error s"""|
+          |is functor covariant or contravariant or invariant?
+          |we may want to distinguish those in the future
+          |as different, additional tags. juxtaposition would
+          |still be parsed as FunctorApplication, but a module
+          |should be able to refine each occurrence of it.
+          |""".stripMargin
 
       case ⊹(tag, _) =>
         sys error s"object Prenex isn't aware of $tag"

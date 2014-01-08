@@ -378,6 +378,8 @@ trait Syntax extends ExpressionGrammar {
 
   val typeOps: List[Operator] =
     List(
+      UniversalUncertainty,
+      ExistentialUncertainty,
       UniversalBound,
       ExistentialBound,
       UniversalQuantification,

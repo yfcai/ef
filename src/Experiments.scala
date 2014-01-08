@@ -2,9 +2,10 @@ object Experiments {
   val debug = false
 
   val onTrial: Experiment =
-    AnnotatedBinderExperiment
+    PrenexExperiment
 
   val experiments = List[Experiment](
+    PrenexExperiment,
     AnnotatedBinderExperiment,
     AlphaEquivExperiment,
     CStyleConditionalExperiment,
@@ -498,6 +499,36 @@ object Experiments {
     override def expected =
       """|t = λf : α → β. λx : α. f x
          |t deconstructed to λ(f, α → β, λ(x, α, f x))
+         |""".stripMargin
+  }
+
+  object PrenexExperiment extends Experiment with Prenex {
+    val types =
+      """|(α → β) → (β → α)
+         |((∀α. α → α) → (∀α. α → α)) → ((∀α. α → α) → (∀α. α → α))
+         |(\all α = ((\ex α = ((\all? α. α) → ⊥). α → ⊥) → ⊥). α → ⊥) → ⊥
+         |""".stripMargin
+
+    def run = {
+      types.lines.foreach { line =>
+        val τ = Type(line)
+        puts(τ.unparse)
+        puts(Prenex(τ).toType.unparse)
+        puts()
+      }
+      dump
+    }
+
+    override def expected =
+      """|(α → β) → β → α
+         |(α → β) → β → α
+         |
+         |((∀α. α → α) → ∀α. α → α) → (∀α. α → α) → ∀α. α → α
+         |∀α₂. ∃α₁ α₀. ∀α. ((α₂ → α₂) → α₁ → α₁) → (α₀ → α₀) → α → α
+         |
+         |(∀α = ((∃α = ((∀? α. α) → ⊥). α → ⊥) → ⊥). α → ⊥) → ⊥
+         |∃α = (∀α = (∃? α. α → ⊥). (α → ⊥) → ⊥). (α → ⊥) → ⊥
+         |
          |""".stripMargin
   }
 }
