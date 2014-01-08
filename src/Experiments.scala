@@ -2,9 +2,10 @@ object Experiments {
   val debug = false
 
   val onTrial: Experiment =
-    TypeListExperiment
+    UnificationExperiment
 
   val experiments = List[Experiment](
+    UnificationExperiment,
     TypeListExperiment,
     PrenexExperiment,
     AnnotatedBinderExperiment,
@@ -566,6 +567,39 @@ object Experiments {
       """|    FunctionArrow
          |      TypeVar, bound of α
          |      TypeVar, bound of β
+         |""".stripMargin
+  }
+
+  object UnificationExperiment extends Experiment with Unification {
+    val types = List[(String, String)](
+      "α → β" -> "γ → δ",
+      "α → α" -> "(β → β) → (γ → γ)"
+    )
+
+    def run = {
+      types.foreach {
+        case (type1, type2) =>
+          val (σ, τ) = (Type(type1), Type(type2))
+          val mgs = unifyMonotypes(σ.freeNames ++ τ.freeNames, σ, τ).get
+          val μ = σ subst mgs
+          val ν = τ subst mgs
+          Seq(σ, τ, μ, ν).map(_.unparse).map(puts)
+          puts()
+      }
+      dump
+    }
+
+    override def expected =
+      """|α → β
+         |γ → δ
+         |α → β
+         |α → β
+         |
+         |α → α
+         |(β → β) → γ → γ
+         |(β → β) → β → β
+         |(β → β) → β → β
+         |
          |""".stripMargin
   }
 }

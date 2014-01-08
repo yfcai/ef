@@ -279,6 +279,21 @@ trait Trees {
       case otherwise => Tree(otherwise)
     }
 
+    // substitute all free variables of identical genus
+    def subst(x: String, xdef: Tree): Tree = fold[Tree] {
+      case ∙:(tag, get) if tag.genus == this.tag.genus && x == get =>
+        xdef
+      case otherwise => Tree(otherwise)
+    }
+
+    // parallel substitituion of all free variables of identical genus
+    def subst(parallel: Map[String, Tree]): Tree = fold[Tree] {
+      case ∙:(tag: FreeName, x: String)
+          if tag.genus == this.tag.genus && parallel.contains(x) =>
+        parallel(x)
+      case otherwise => Tree(otherwise)
+    }
+
     // put a free variable in prison, give it numbers
     def imprison(prison: DeBruijn, x: String, i: Int): Tree =
       this match {
