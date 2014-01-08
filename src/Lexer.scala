@@ -1,4 +1,12 @@
 trait Lexer {
+  def leftParens : Set[String]
+  def rightParens: Set[String]
+
+  // keywords (always a token by itself):
+  val _leftParens = leftParens
+  val _rightParens = rightParens
+  val keywords: Set[String] = _leftParens ++ _rightParens
+
   case class Problem(token: Token, message: String, lines: Int = 3)
       extends Exception(
     s"""|${token.fileLine}
@@ -43,9 +51,6 @@ trait Lexer {
     def fileLine(file: String, line: Int): String =
       s"${file substring (1 + (file lastIndexOf '/'))}:$line"
   }
-
-  // keywords (always a token by itself):
-  def keywords: Set[String]
 
   def tokenize(p: Paragraph): Seq[Token] = new TokenIterator(p).toSeq
 
@@ -343,6 +348,39 @@ trait Fixities extends ProtoAST {
       }
       case _ => false
     }
+
+    def splitSeq[T](xs: Seq[T], predicate: T => Boolean): Seq[Seq[T]] = {
+      val i = xs.indexWhere(predicate)
+      if (i < 0)
+        Seq(xs)
+      else {
+        val split = xs.splitAt(i)
+        val before = split._1
+        val after  = split._2.tail
+        before +: splitSeq(after, predicate)
+      }
+    }
+  }
+
+  case class SetLike(lp: Any, sep: Any, rp: Any) extends Fixity {
+    def splits(items: Items): Iterator[ItemGroups] = {
+      if (items.length >= 2 &&
+          hasBody(items.head, lp) &&
+          hasBody(items.last, rp)) {
+        val chunks = splitSeq[Tree](items.init.tail, t => hasBody(t, sep))
+        chunks match {
+          case Seq(Seq()) =>
+            Iterator(Nil)
+          case _ if (chunks.find(_.length == 0) != None) =>
+            Iterator.empty
+          case _ =>
+            Iterator(chunks)
+        }
+      }
+      else {
+        Iterator.empty
+      }
+    }
   }
 
   case object AllItemsTogether extends Fixity {
@@ -384,14 +422,19 @@ trait Fixities extends ProtoAST {
         Iterator.empty
   }
 
-  case class LoneToken(forbidden: Set[String]) extends Fixity {
+  case class LoneToken(predicate: String => Boolean) extends Fixity {
     def splits(items: Items) = items match {
       case Seq(∙(TokenAST, token: Token))
-          if ! (forbidden contains token.body) =>
+          if predicate(token.body) =>
         Iterator(Seq(items))
       case _ =>
         Iterator.empty
     }
+  }
+
+  object LoneToken {
+    def forbid(forbidden: Set[String]): LoneToken =
+      LoneToken(x => ! forbidden.contains(x))
   }
 
   case object LoneTree extends Fixity {
@@ -506,6 +549,9 @@ trait Operators extends Fixities {
     def tryNext: Seq[Seq[Operator]]
     def genus: Genus
 
+    def tryNextOverride: Seq[Seq[Tree]] => Seq[Seq[Operator]] =
+      _ => tryNext
+
     /** @param children
       * is the sequence of proto-ASTs allotted to this node if it
       * is a leaf, and is the sequence of children if it is not.
@@ -525,23 +571,23 @@ trait Operators extends Fixities {
         return None
 
       val splits = fixity splits items
-      if (tryNext.isEmpty) {
-        // nothing to try next, produce a leaf
-        if (splits.hasNext) {
-          val x = splits.next match {
-            case Seq(x) => x
+
+      while(splits.hasNext) {
+        val split = splits.next
+        val tryNext = tryNextOverride(split)
+        if (tryNext.isEmpty) {
+          // produce a leaf
+          split match {
+            case Seq(x) =>
+              return Some((cons(x), List(getFirstToken(items))))
+            case Seq() =>
+              return Some((cons(Nil), List(getFirstToken(items))))
             case _ =>
               sys error s"leaf operator with nonunary fixity: $this"
           }
-          Some((cons(x), List(getFirstToken(items))))
         }
-        else
-          None
-      }
-      else {
-        // got stuff to try next, produce a branch.
-        while(splits.hasNext) {
-          val split = splits.next
+        else {
+          // produce a branch
           // assertion to locate buggy operators
           if(split.length != tryNext.length)
             sys error s"""operator $this declares arity ${
@@ -565,9 +611,9 @@ trait Operators extends Fixities {
             ))
           }
         }
-        // I can't parse it
-        None
       }
+      // I can't parse it
+      None
     }
 
     def chooseToken(fixity: Fixity, split: Seq[Seq[Tree]], items: Seq[Tree]):
@@ -617,18 +663,12 @@ trait Operators extends Fixities {
         sys error s"dunno how to unparse:\n${t.print}"
     }
 
-    // duplicates partial info in keyword. how to merge?
-    private
-    val leftParens  = Set('{', '[', 'λ', 'Λ', '∀', '∃')
-    private
-    val rightParens = Set('}', ']', '.')
-
     private[this]
     def pack(tokens: Seq[String]): String =
       (tokens.head +: ((tokens, tokens.tail).zipped.flatMap {
         case (before, after)
-            if before.length == 1 && (leftParens contains before.head)
-            || after .length == 1 && (rightParens contains after.head) =>
+            if (_leftParens contains before)
+            || (_rightParens contains after) =>
           List(after)
         case (_, after) =>
           List(" ", after)

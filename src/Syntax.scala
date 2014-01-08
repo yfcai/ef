@@ -1,9 +1,8 @@
 trait ExpressionGrammar extends Operators {
-  // keywords (always a token by itself):
-  val keywords = "( ) [ ] { } ∀ ∃ Λ λ .".words
+  def leftParens : Set[String] = "( { [ λ Λ ∀ ∃".words
+  def rightParens: Set[String] = ") } ] . ,".words
 
-  // things that can't be a name:
-  val forbidden = "( ) .".words
+  def forbidden: Set[String] = keywords
 
   implicit class SplitStringIntoWords(s: String) {
     def words: Set[String] = Set(s split " ": _*)
@@ -24,8 +23,7 @@ trait ExpressionGrammar extends Operators {
 
   trait Atomic extends LeafOperator with FreeName {
     def genus: Genus
-
-    val fixity = LoneToken(forbidden)
+    val fixity = LoneToken.forbid(forbidden)
 
     def cons(children: Seq[Tree]): Tree = children match {
       case Seq(∙(TokenAST, token: Token)) =>
@@ -187,7 +185,7 @@ trait ExpressionGrammar extends Operators {
 
 
   // common ground between λs and bounded quantifications
-  trait AnnotatedBinderOp extends BinderOperator {
+  trait AnnotatedBinderOp extends BinderOperator with Symbolic {
     def symbol: Seq[String]
     def annotationSymbol: Seq[String]
     def endSymbol: Seq[String] = Seq(".")
@@ -212,6 +210,10 @@ trait ExpressionGrammar extends Operators {
         case (∙(_, x), Seq(annotation, body)) => (x, annotation, body)
       }
   }
+
+  trait Symbolic {
+    def symbol: Seq[String]
+  }
 }
 
 trait Syntax extends ExpressionGrammar {
@@ -222,8 +224,8 @@ trait Syntax extends ExpressionGrammar {
   object ∀ extends CollapsedBinderFactory(CollapsedUniversals)
   object ∃ extends CollapsedBinderFactory(CollapsedExistentials)
 
-  object ∀? extends CollapsedBinderFactory(CollapsedUniversalUncertainties)
-  object ∃? extends CollapsedBinderFactory(CollapsedExistentialUncertainties)
+  object ∀? extends AnnotatedBinderFactory(UniversalUncertainty)
+  object ∃? extends AnnotatedBinderFactory(ExistentialUncertainty)
   object ∀= extends AnnotatedBinderFactory(UniversalBound)
   object ∃= extends AnnotatedBinderFactory(ExistentialBound)
 
@@ -277,49 +279,39 @@ trait Syntax extends ExpressionGrammar {
     val fixity = Infixl(":")
   }
 
-  val universalSymbol   = Seq("∀", """\all""")
-  val existentialSymbol = Seq("∃", """\ex""")
-
   case object UniversalQuantification extends DelegateTypeBinder
   { def delegate = CollapsedUniversals }
 
   case object ExistentialQuantification extends DelegateTypeBinder
   { def delegate = CollapsedExistentials }
 
-  case object UniversalUncertainty extends DelegateTypeBinder
-  { def delegate = CollapsedUniversalUncertainties }
-
-  case object ExistentialUncertainty extends DelegateTypeBinder
-  { def delegate = CollapsedExistentialUncertainties }
-
-  case object CollapsedUniversals extends CollapsedBinder(Type) {
-    val fixity = Prefix(universalSymbol, ".")
+  case object CollapsedUniversals
+      extends CollapsedBinder(Type) with Universals {
+    val fixity = Prefix(symbol, ".")
     def binder = UniversalQuantification
   }
 
-  case object CollapsedExistentials extends CollapsedBinder(Type) {
-    val fixity = Prefix(existentialSymbol, ".")
+  case object CollapsedExistentials
+      extends CollapsedBinder(Type) with Existentials {
+    val fixity = Prefix(symbol, ".")
     def binder = ExistentialQuantification
   }
 
-  case object CollapsedUniversalUncertainties
-      extends CollapsedBinder(Type) {
-    val fixity = Prefix(universalSymbol.map(_ + "?"), ".")
-    def binder = UniversalUncertainty
-  }
+  case object UniversalBound
+      extends BoundedQuantification
+         with Universals
 
-  case object CollapsedExistentialUncertainties
-      extends CollapsedBinder(Type) {
-    val fixity = Prefix(existentialSymbol.map(_ + "?"), ".")
-    def binder = ExistentialUncertainty
-  }
+  case object ExistentialBound
+      extends BoundedQuantification
+         with Existentials
 
-  case object UniversalBound extends BoundedQuantification
-  { def symbol = universalSymbol }
+  case object UniversalUncertainty
+      extends UncertainQuantification
+         with Universals
 
-  case object ExistentialBound extends BoundedQuantification
-  { def symbol = existentialSymbol }
-
+  case object ExistentialUncertainty
+      extends UncertainQuantification
+         with Existentials
 
   case object TypeAbstraction extends Binder with DelegateOperator {
     def genus = Term
@@ -344,26 +336,6 @@ trait Syntax extends ExpressionGrammar {
     lazy val tryNext = Seq(Seq(FreeVar), typeOps, termOps)
   }
 
-  trait DelegateTypeBinder extends Binder with DelegateOperator {
-    def delegate: Operator
-
-    def genus = Type
-    def prison = TypeVar
-    def freeName = FreeTypeVar
-  }
-
-  // common ground between bounded universals and existentials
-  trait BoundedQuantification extends AnnotatedBinderOp {
-    def symbol: Seq[String]
-    def annotationSymbol: Seq[String] = Seq("=")
-
-    def genus = Type
-    def prison = TypeVar
-    def freeName = FreeTypeVar
-    override def extraSubgenera = Seq(Type)
-    lazy val tryNext = Seq(Seq(FreeTypeVar), Seq(Type), typeOps)
-  }
-
   case object CStyleConditional extends Operator {
     final val fixity = Infixr("?", ":")
     lazy val tryNext =
@@ -374,6 +346,74 @@ trait Syntax extends ExpressionGrammar {
     def genus = Term
     override def subgenera = Some(Seq(Term, Term, Term))
     def cons(children: Seq[Tree]): Tree = ⊹(this, children: _*)
+  }
+
+  case object TypeList extends Genus with LeafOperator {
+    def man = manifest[Seq[Tree]]
+    def genus = this
+
+    val fixity = SetLike("{", ",", "}")
+
+    override def tryNextOverride: Seq[Seq[Tree]] => Seq[Seq[Operator]] =
+      _.map(_ => typeOps)
+
+    def cons(children: Seq[Tree]): Tree = ∙(TypeList, children)
+
+    def unparseLeaf(leaf: ∙[_]): String = leaf match {
+      case types @ ∙(TypeList, _) =>
+        s"{${types.as[Seq[Tree]].map(_.unparse).mkString(", ")}}"
+    }
+  }
+
+  // subsets of language constructs
+
+  trait DelegateTypeBinder extends Binder with DelegateOperator {
+    def delegate: Operator
+
+    def genus = Type
+    def prison = TypeVar
+    def freeName = FreeTypeVar
+  }
+
+  // TODO: FIXME! (hint: list of types)
+  trait UncertainQuantification extends MultiplyAnnotatedQuantification {
+    def symbol: Seq[String]
+    def annotationSymbol: Seq[String] = Seq("?")
+  }
+
+  trait BoundedQuantification extends AnnotatedQuantification {
+    def symbol: Seq[String]
+    def annotationSymbol: Seq[String] = Seq("=")
+  }
+
+  trait MultiplyAnnotatedQuantification extends AnnotatedBinderOp {
+    def symbol: Seq[String]
+    def annotationSymbol: Seq[String]
+
+    def genus = Type
+    def prison = TypeVar
+    def freeName = FreeTypeVar
+    override def extraSubgenera = Seq(TypeList)
+    lazy val tryNext = Seq(Seq(FreeTypeVar), Seq(TypeList), typeOps)
+  }
+
+  trait AnnotatedQuantification extends AnnotatedBinderOp {
+    def symbol: Seq[String]
+    def annotationSymbol: Seq[String]
+
+    def genus = Type
+    def prison = TypeVar
+    def freeName = FreeTypeVar
+    override def extraSubgenera = Seq(Type)
+    lazy val tryNext = Seq(Seq(FreeTypeVar), Seq(Type), typeOps)
+  }
+
+  trait Universals extends Symbolic {
+    def symbol = Seq("∀", """\all""")
+  }
+
+  trait Existentials extends Symbolic {
+    def symbol = Seq("∃", """\ex""")
   }
 
   val typeOps: List[Operator] =

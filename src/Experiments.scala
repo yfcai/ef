@@ -2,9 +2,10 @@ object Experiments {
   val debug = false
 
   val onTrial: Experiment =
-    PrenexExperiment
+    TypeListExperiment
 
   val experiments = List[Experiment](
+    TypeListExperiment,
     PrenexExperiment,
     AnnotatedBinderExperiment,
     AlphaEquivExperiment,
@@ -74,7 +75,9 @@ object Experiments {
   trait ModulesExperiment extends SyntaxExperiment with Modules
 
   object ProtoASTExperiment extends Experiment with ProtoAST {
-    val keywords: Set[String] = Set("(", ")")
+    def leftParens  = Set("(")
+    def rightParens = Set(")")
+
     val trees = List(
       "a () (b c (d) ((((e f))) g) (((h))))",
       "((((()))))",
@@ -506,7 +509,7 @@ object Experiments {
     val types =
       """|(α → β) → (β → α)
          |((∀α. α → α) → (∀α. α → α)) → ((∀α. α → α) → (∀α. α → α))
-         |(\all α = ((\ex α = ((\all? α. α) → ⊥). α → ⊥) → ⊥). α → ⊥) → ⊥
+         |(∀α = ((∃α = ((∀α. α) → ⊥). α → ⊥) → ⊥). α → ⊥) → ⊥
          |""".stripMargin
 
     def run = {
@@ -526,9 +529,43 @@ object Experiments {
          |((∀α. α → α) → ∀α. α → α) → (∀α. α → α) → ∀α. α → α
          |∀α₂. ∃α₁ α₀. ∀α. ((α₂ → α₂) → α₁ → α₁) → (α₀ → α₀) → α → α
          |
-         |(∀α = ((∃α = ((∀? α. α) → ⊥). α → ⊥) → ⊥). α → ⊥) → ⊥
-         |∃α = (∀α = (∃? α. α → ⊥). (α → ⊥) → ⊥). (α → ⊥) → ⊥
+         |(∀α = ((∃α = ((∀α. α) → ⊥). α → ⊥) → ⊥). α → ⊥) → ⊥
+         |∃α = (∀α = (∃α. α → ⊥). (α → ⊥) → ⊥). (α → ⊥) → ⊥
          |
+         |""".stripMargin
+  }
+
+  object TypeListExperiment extends SyntaxExperiment {
+    def test(s: String): Unit =
+      puts(TypeList.parse(s).get.as[Seq[Tree]].map(_.unparse).toString)
+
+    val lines =
+      """|{}
+         |{α → β, ∀γ. γ, List β}
+         |""".stripMargin
+
+    val τ = "∀α ? {}. ∃β ? {List γ, γ → δ}. α → β"
+
+    def run = {
+      lines.lines.foreach { line => test(line) }
+      puts(Type(τ).print)
+      dump
+    }
+
+    override def expected =
+      """|List()
+         |List(α → β, ∀γ. γ, List β)
+         |UniversalUncertainty, binder of α
+         |  ∙(LiteralTag(java.lang.String), α)
+         |  ∙(TypeList, List())
+         |  ExistentialUncertainty, binder of β
+         |    ∙(LiteralTag(java.lang.String), β)
+         |    ∙(TypeList, """.stripMargin +
+      "List(⊹(TypeApplication, ∙(FreeTypeVar, List), ∙(FreeTypeVar, γ))," +
+      " ⊹(FunctionArrow, ∙(FreeTypeVar, γ), ∙(FreeTypeVar, δ))))\n" +
+      """|    FunctionArrow
+         |      TypeVar, bound of α
+         |      TypeVar, bound of β
          |""".stripMargin
   }
 }

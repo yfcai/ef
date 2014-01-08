@@ -14,6 +14,8 @@ trait Trees {
     // makes sense.
     def subgenera: Option[Seq[Genus]] = None
 
+    val _subgenera = subgenera
+
     // extension point: pretty printer
     def unparse(t: Tree): String = t.print
   }
@@ -42,11 +44,11 @@ trait Trees {
 
   trait LeafTag extends Tag {
     def man: Manifest[_]
-    override final val subgenera = Some(Nil)
+    override final def subgenera = Some(Nil)
   }
 
-  trait FreeName extends LeafTag { final val man = manifest[String] }
-  trait DeBruijn extends LeafTag { final val man = manifest[Int   ] }
+  trait FreeName extends LeafTag { def man = manifest[String] }
+  trait DeBruijn extends LeafTag { def man = manifest[Int   ] }
 
   /** subscript utilities */
   object Subscript {
@@ -92,7 +94,7 @@ trait Trees {
         |${freeName.genus} to ${prison.genus}
         |""".stripMargin
 
-    override final val subgenera =
+    override def subgenera =
       Some(§.genus +: (extraSubgenera :+ genus))
 
     def        bodyOf(t: Tree): Tree   = t.children.last
@@ -238,8 +240,8 @@ trait Trees {
 
   trait Tree extends TreeF[Tree] {
     // dynamic type safety, may disable for performance
-    if (tag.subgenera != None &&
-        children.map(_.tag.genus) != tag.subgenera.get)
+    if (tag._subgenera != None &&
+        children.map(_.tag.genus) != tag._subgenera.get)
       sys error s"""|subgenera mismatch
         |${tag.subgenera.get.toString}
         |${this.print}
