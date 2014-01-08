@@ -10,10 +10,10 @@ trait Prenex extends Syntax {
             ExistentialQuantification
           case ExistentialQuantification =>
             UniversalQuantification
-          case BoundedUniversal =>
-            BoundedExistential
-          case BoundedExistential =>
-            BoundedUniversal
+          case UniversalBound =>
+            ExistentialBound
+          case ExistentialBound =>
+            UniversalBound
           case UniversalUncertainty =>
             ExistentialUncertainty
           case ExistentialUncertainty =>

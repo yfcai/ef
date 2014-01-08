@@ -224,8 +224,8 @@ trait Syntax extends ExpressionGrammar {
 
   object ∀? extends CollapsedBinderFactory(CollapsedUniversalUncertainties)
   object ∃? extends CollapsedBinderFactory(CollapsedExistentialUncertainties)
-  object ∀= extends AnnotatedBinderFactory(BoundedUniversal)
-  object ∃= extends AnnotatedBinderFactory(BoundedExistential)
+  object ∀= extends AnnotatedBinderFactory(UniversalBound)
+  object ∃= extends AnnotatedBinderFactory(ExistentialBound)
 
   case object Term extends TopLevelGenus { def ops = termOps }
   object χ extends AtomicFactory(FreeVar)
@@ -314,10 +314,10 @@ trait Syntax extends ExpressionGrammar {
     def binder = ExistentialUncertainty
   }
 
-  case object BoundedUniversal extends BoundedQuantification
+  case object UniversalBound extends BoundedQuantification
   { def symbol = universalSymbol }
 
-  case object BoundedExistential extends BoundedQuantification
+  case object ExistentialBound extends BoundedQuantification
   { def symbol = existentialSymbol }
 
 
@@ -378,8 +378,8 @@ trait Syntax extends ExpressionGrammar {
 
   val typeOps: List[Operator] =
     List(
-      BoundedUniversal,
-      BoundedExistential,
+      UniversalBound,
+      ExistentialBound,
       UniversalQuantification,
       ExistentialQuantification,
       FunctionArrow,
@@ -418,8 +418,8 @@ trait Syntax extends ExpressionGrammar {
   def pretty(spec: BinderSpec): String = {
     val (α, notes) = (spec.x, spec.annotations)
     spec.tag match {
-      case BoundedUniversal          => s"∀$α = ${notes.head.unparse}"
-      case BoundedExistential        => s"∃$α = ${notes.head.unparse}"
+      case UniversalBound            => s"∀$α = ${notes.head.unparse}"
+      case ExistentialBound          => s"∃$α = ${notes.head.unparse}"
       case UniversalQuantification   => s"∀$α"
       case ExistentialQuantification => s"∃$α"
     }

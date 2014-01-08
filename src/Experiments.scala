@@ -274,7 +274,7 @@ object Experiments {
 
     override def expected =
       """|∀α = (∀α. α → α). List (∃β = α. β)
-         |BoundedUniversal, binder of α
+         |UniversalBound, binder of α
          |  ∙(LiteralTag(java.lang.String), α)
          |  UniversalQuantification, binder of α
          |    ∙(LiteralTag(java.lang.String), α)
@@ -283,7 +283,7 @@ object Experiments {
          |      TypeVar, bound of α
          |  TypeApplication
          |    ∙(FreeTypeVar, List)
-         |    BoundedExistential, binder of β
+         |    ExistentialBound, binder of β
          |      ∙(LiteralTag(java.lang.String), β)
          |      TypeVar, bound of α
          |      TypeVar, bound of β
@@ -391,7 +391,7 @@ object Experiments {
          |#LINE:1
          |∀α = ∀α. α → α. List (∃β = α. β)
          |                      ^
-         |BoundedExistential
+         |ExistentialBound
          |
          |#LINE:1
          |∀α = ∀α. α → α. List (∃β = α. β)
@@ -401,7 +401,7 @@ object Experiments {
          |#LINE:1
          |∀α = ∀α. α → α. List (∃β = α. β)
          |^
-         |BoundedUniversal
+         |UniversalBound
          |
          |""".stripMargin
   }
