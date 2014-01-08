@@ -222,7 +222,6 @@ trait Syntax extends ExpressionGrammar {
   object ∀ extends CollapsedBinderFactory(CollapsedUniversals)
   object ∃ extends CollapsedBinderFactory(CollapsedExistentials)
 
-  object ∀≡ extends AnnotatedBinderFactory(RigidUniversal)
   object ∀⊒ extends AnnotatedBinderFactory(BoundedUniversal)
   object ∃⊒ extends AnnotatedBinderFactory(BoundedExistential)
 
@@ -312,11 +311,6 @@ trait Syntax extends ExpressionGrammar {
   { def symbol = existentialSymbol }
 
 
-  case object RigidUniversal extends BoundedQuantification {
-    def symbol = universalSymbol
-    override def annotationSymbol: Seq[String] = Seq("=")
-  }
-
   case object TypeAbstraction extends Binder with DelegateOperator {
     def genus = Term
     def prison = TypeVar
@@ -366,7 +360,6 @@ trait Syntax extends ExpressionGrammar {
 
   val typeOps: List[Operator] =
     List(
-      RigidUniversal,
       BoundedUniversal,
       BoundedExistential,
       UniversalQuantification,
@@ -408,7 +401,6 @@ trait Syntax extends ExpressionGrammar {
     val (α, notes) = (spec.x, spec.annotations)
     spec.tag match {
       case BoundedUniversal          => s"∀$α ⊒ ${notes.head.unparse}"
-      case RigidUniversal            => s"∀$α = ${notes.head.unparse}"
       case BoundedExistential        => s"∃$α ⊒ ${notes.head.unparse}"
       case UniversalQuantification   => s"∀$α"
       case ExistentialQuantification => s"∃$α"
