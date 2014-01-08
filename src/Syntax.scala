@@ -222,6 +222,8 @@ trait Syntax extends ExpressionGrammar {
   object ∀ extends CollapsedBinderFactory(CollapsedUniversals)
   object ∃ extends CollapsedBinderFactory(CollapsedExistentials)
 
+  object ∀? extends CollapsedBinderFactory(CollapsedUniversalUncertainties)
+  object ∃? extends CollapsedBinderFactory(CollapsedExistentialUncertainties)
   object ∀= extends AnnotatedBinderFactory(BoundedUniversal)
   object ∃= extends AnnotatedBinderFactory(BoundedExistential)
 
@@ -275,24 +277,20 @@ trait Syntax extends ExpressionGrammar {
     val fixity = Infixl(":")
   }
 
-  case object UniversalQuantification
-      extends Binder with DelegateOperator {
-    def genus = Type
-    def prison = TypeVar
-    def freeName = FreeTypeVar
-    def delegate = CollapsedUniversals
-  }
-
-  case object ExistentialQuantification
-      extends Binder with DelegateOperator {
-    def genus = Type
-    def prison = TypeVar
-    def freeName = FreeTypeVar
-    def delegate = CollapsedExistentials
-  }
-
   val universalSymbol   = Seq("∀", """\all""")
   val existentialSymbol = Seq("∃", """\ex""")
+
+  case object UniversalQuantification extends DelegateTypeBinder
+  { def delegate = CollapsedUniversals }
+
+  case object ExistentialQuantification extends DelegateTypeBinder
+  { def delegate = CollapsedExistentials }
+
+  case object UniversalUncertainty extends DelegateTypeBinder
+  { def delegate = CollapsedUniversalUncertainties }
+
+  case object ExistentialUncertainty extends DelegateTypeBinder
+  { def delegate = CollapsedExistentialUncertainties }
 
   case object CollapsedUniversals extends CollapsedBinder(Type) {
     val fixity = Prefix(universalSymbol, ".")
@@ -302,6 +300,18 @@ trait Syntax extends ExpressionGrammar {
   case object CollapsedExistentials extends CollapsedBinder(Type) {
     val fixity = Prefix(existentialSymbol, ".")
     def binder = ExistentialQuantification
+  }
+
+  case object CollapsedUniversalUncertainties
+      extends CollapsedBinder(Type) {
+    val fixity = Prefix(universalSymbol.map(_ + "?"), ".")
+    def binder = UniversalUncertainty
+  }
+
+  case object CollapsedExistentialUncertainties
+      extends CollapsedBinder(Type) {
+    val fixity = Prefix(existentialSymbol.map(_ + "?"), ".")
+    def binder = ExistentialUncertainty
   }
 
   case object BoundedUniversal extends BoundedQuantification
@@ -332,6 +342,14 @@ trait Syntax extends ExpressionGrammar {
     def freeName = FreeVar
     override def extraSubgenera = Seq(Type)
     lazy val tryNext = Seq(Seq(FreeVar), typeOps, termOps)
+  }
+
+  trait DelegateTypeBinder extends Binder with DelegateOperator {
+    def delegate: Operator
+
+    def genus = Type
+    def prison = TypeVar
+    def freeName = FreeTypeVar
   }
 
   // common ground between bounded universals and existentials

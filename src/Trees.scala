@@ -408,8 +408,8 @@ trait Trees {
             tag.unbindAll(this, toAvoid)
           val (others, realBody) =
             body.unbindAll(toAvoid ++ prefix.map(_._1), predicate)
-          (prefix.map(p => BinderSpec(tag, p._1, p._2: _*)) ++
-            others, realBody)
+          (prefix.map(p =>
+            BinderSpec(tag, p._1, p._2: _*)) ++ others, realBody)
         case _ =>
           (Nil, this)
       }
