@@ -53,7 +53,7 @@ trait Prenex extends Syntax {
         (Prenex(ps.flipPrefix ++ pt.prefix, →(ps.body, pt.body)),
           undesirables)
 
-      case σ □ τ =>
+      case σ ₌ τ =>
         sys error s"""|
           |is functor covariant or contravariant or invariant?
           |we may want to distinguish those in the future
