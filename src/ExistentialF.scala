@@ -22,13 +22,24 @@ trait ExistentialF extends Unification with Prenex {
       case Failure(msg) => return Failure(msg)
     }
 
-    // TODO: process mgs, dissolving families, killing children
+    // process mgs, dissolving families, selling children
+    // 1. collect the debt of families in existential crisis
+    val mgsAfterDebtCollection =
+      collectDebts(prefix, mgs) match {
+        case Success(mgs) => mgs
+        case Failure(msg) => return Failure(msg)
+      }
 
-    // TODO: replace by mgs with broken families
-    val mgsAfterDissolution = mgs
+    // 2. increase the debt of families in financial crisis
+    val prefixAfterLoan =
+      issueLoans(prefix, mgsAfterDebtCollection)
 
-    // TODO: replace by specs with new families (?)
-    val prefixAfterDissolution = prefix
+    // 3. independent children kill their parents
+    val prefixAfterMurder =
+      murderParents(prefixAfterLoan, mgsAfterDebtCollection)
+
+    val prefixAfterDissolution = prefixAfterMurder
+    val mgsAfterDissolution = mgsAfterDebtCollection
 
     // after dissolution, each family in the domain of the mgs suffer
     // one of the following fates:
@@ -52,7 +63,7 @@ trait ExistentialF extends Unification with Prenex {
     // uncertain for now. if the assertion failure waiting to happen
     // did happen, then we have to deal with them.
     val (specsAfterCapture, mgsAfterCapture) =
-      captureFamilyHeads(
+      captureChildren(
         prefixAfterDissolution,
         mgsAfterDissolution,
         operatorPrenex,
@@ -61,7 +72,65 @@ trait ExistentialF extends Unification with Prenex {
     Success(Prenex.normalize(specsAfterCapture, τ subst mgsAfterCapture))
   }
 
-  def captureFamilyHeads(
+  def collectDebts(prefix: Prefix, mgs: Map[String, Tree]):
+      Status[Map[String, Tree]] = {
+    val existentialCrisis = mgs.findFirst[String]({
+      case (α, τ)
+          if prefix.existentialChild(α) &&
+             prefix.universalParent(prefix.parent(α)) =>
+        Some(prefix.parent(α))
+      case _ =>
+        None
+    })
+    // no parent is debt-ridden, all's well with the world
+    if (existentialCrisis == None)
+      Success(mgs)
+    // a family is in existential crisis.
+    // parents sell children to pay debts.
+    else {
+      val parent = existentialCrisis.get
+      val children = prefix.children(parent)
+      val oldDebts = prefix.debts(parent).map(_ subst mgs)
+      val childrensStatus = mgs.filter(children contains _._1)
+      val newDebts = childrensStatus.map(_._2)
+      val resolution =
+        unifyMonotypes(
+          prefix.degreesOfFreedom,
+          oldDebts ++ newDebts: _*
+        ) match {
+          case Success(mgs) => mgs
+          case Failure(msg) =>
+            return Failure(s"BAD DEBT\n$msg")
+        }
+      val childrensEnds = childrensStatus.map {
+        case (α, τ) => (α, τ subst resolution)
+      }
+      // by unification, the ends of children should be identical.
+      // paranoidly checking to make sure.
+      childrensEnds.foreach {
+        case (α, τ) =>
+          assert(τ α_equiv childrensEnds.head._2)
+      }
+      val societalFallout = (mgs -- children).map {
+        case (α, τ) => (α, τ subst resolution)
+      }
+      collectDebts(prefix, societalFallout) match {
+        case Success(newSociety) => childrensEnds.map({
+          case (α, τ) => (α, τ subst newSociety)
+        }) ++ newSociety
+        case Failure(msg) => Failure(msg)
+      }
+    }
+  }
+
+  // borrow against the future
+  def issueLoans(prefix: Prefix, mgs: Map[String, Tree]):
+      Prefix = prefix // TODO
+
+  def murderParents(prefix: Prefix, mgs: Map[String, Tree]):
+      Prefix = prefix // TODO
+
+  def captureChildren(
     prefix: Prefix,
     mgs: Map[String, Tree],
     operatorPrenex: Prenex,
@@ -160,28 +229,28 @@ trait ExistentialF extends Unification with Prenex {
   case class Prefix(specs: Seq[PrenexSpec]) {
     // FIELDS
 
-    val universals               = extractSet(UniversalQuantification)
-    val universalBounds          = extractSet(UniversalBound)
-    val universalUncertainties   = extractSet(UniversalUncertainty)
-    val existentials             = extractSet(ExistentialQuantification)
-    val existentialBounds        = extractSet(ExistentialBound)
-    val existentialUncertainties = extractSet(ExistentialUncertainty)
+    lazy val universal         = extractSet(UniversalQuantification)
+    lazy val universalChild    = extractSet(UniversalBound)
+    lazy val universalParent   = extractSet(UniversalUncertainty)
+    lazy val existential       = extractSet(ExistentialQuantification)
+    lazy val existentialChild  = extractSet(ExistentialBound)
+    lazy val existentialParent = extractSet(ExistentialUncertainty)
 
     // maps names to tags
-    val tagOf =
+    lazy val tagOf =
       extractMap1(_ => true, _.tag)
 
     // debt of uncertain families, to be discharged
     // when the family breaks up
-    val debt =
+    lazy val debts =
       extractMap(TypeList, UniversalUncertainty, ExistentialUncertainty)
 
     // maps children to the name of their parent
-    val parent =
+    lazy val parent =
       extractMap(FreeTypeVar, UniversalBound, ExistentialBound)
 
     // maps parent to the names of their children
-    val children: Map[String, Set[String]] =
+    lazy val children: Map[String, Set[String]] =
       specs.foldLeft(Map.empty[String, Set[String]]) {
         case (acc, PrenexSpec(tag, parent, _))
             if Seq(UniversalUncertainty, ExistentialUncertainty).
@@ -200,10 +269,9 @@ trait ExistentialF extends Unification with Prenex {
 
     // TOOLS
 
-    val degreesOfFreedom: Set[String] =
-      universals ++ universalBounds ++
-        existentialBounds.filter(
-          α => universalUncertainties contains parent(α))
+    lazy val degreesOfFreedom: Set[String] =
+      universal ++ universalChild ++
+        existentialChild.filter(universalParent compose parent)
 
     // HELPERS
 

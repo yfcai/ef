@@ -617,15 +617,15 @@ object Experiments {
       val τ = Prenex(Type(t))
       puts(τ.toType.unparse)
       val prefix = Prefix(τ.prefix)
-      puts(s"∀  = ${prefix.universals}")
-      puts(s"∀? = ${prefix.universalUncertainties}")
-      puts(s"∀= = ${prefix.universalBounds}")
-      puts(s"∃  = ${prefix.existentials}")
-      puts(s"∃? = ${prefix.existentialUncertainties}")
-      puts(s"∃= = ${prefix.existentialBounds}")
+      puts(s"∀  = ${prefix.universal}")
+      puts(s"∀? = ${prefix.universalParent}")
+      puts(s"∀= = ${prefix.universalChild}")
+      puts(s"∃  = ${prefix.existential}")
+      puts(s"∃? = ${prefix.existentialParent}")
+      puts(s"∃= = ${prefix.existentialChild}")
       puts(s"CP = ${prefix.parent}")
       puts(s"PC = ${prefix.children}")
-      puts(s"DT = ${prefix.debt.map({
+      puts(s"DT = ${prefix.debts.map({
         case (k, v) => (k, v.map(_.unparse))
       })}")
       dump
