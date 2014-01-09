@@ -2,7 +2,7 @@ object Experiments {
   val debug = false
 
   val onTrial: Experiment =
-    UnificationExperiment
+    PrenexExperiment
 
   val experiments = List[Experiment](
     UnificationExperiment,
@@ -545,7 +545,12 @@ object Experiments {
          |{α → β, ∀γ. γ, List β}
          |""".stripMargin
 
-    val τ = "∀α ? {}. ∃β ? {List γ, γ → δ}. α → β"
+    // this will never happen in practice.
+    // in practice, an uncertain quantifier never occurs in body:
+    //
+    //   ∀γ. ∃δ. ∀α = {γ, δ}. ∃β = {}. ∀α₀ = α. ∀β₀ = β. α₀ → β₀
+    //
+    val τ = "∀α = {}. ∃β = {List γ, γ → δ}. α → β"
 
     def run = {
       lines.lines.foreach { line => test(line) }

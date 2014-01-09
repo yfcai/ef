@@ -375,10 +375,9 @@ trait Syntax extends ExpressionGrammar {
     def freeName = FreeTypeVar
   }
 
-  // TODO: FIXME! (hint: list of types)
   trait UncertainQuantification extends MultiplyAnnotatedQuantification {
     def symbol: Seq[String]
-    def annotationSymbol: Seq[String] = Seq("?")
+    def annotationSymbol: Seq[String] = Seq("=")
   }
 
   trait BoundedQuantification extends AnnotatedQuantification {

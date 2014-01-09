@@ -23,12 +23,12 @@ trait Prenex extends Syntax {
     })
   }
 
-  case class PrenexSpec(tag: Binder, x: String, annotations: Prenex*) {
-    def toBinderSpec = BinderSpec(tag, x, annotations.map(_.toType): _*)
-  }
-
   object Prenex {
-    def apply(τ: Tree): Prenex = Prenex(τ, Set.empty[String])._1
+    def apply(τ: Tree): Prenex =
+      Prenex(τ, Set.empty[String])._1
+
+    def apply(τ: Tree, types: Tree*): Seq[Prenex] =
+      Prenex(τ +: types, Set.empty[String])._1
 
     def apply(τ: Tree, toAvoid: Set[String]): (Prenex, Set[String]) = {
       val (rawPrefix, rawBody) = τ.unbindAll(toAvoid, _ => true)
@@ -58,7 +58,7 @@ trait Prenex extends Syntax {
           |is functor covariant or contravariant or invariant?
           |we may want to distinguish those in the future
           |as different, additional tags. juxtaposition would
-          |still be parsed as FunctorApplication, but a module
+          |still be parsed as TypeApplication, but a module
           |should be able to refine each occurrence of it.
           |""".stripMargin
 
@@ -68,6 +68,10 @@ trait Prenex extends Syntax {
       case leaf @ ∙(_, _) =>
         (Prenex(Nil, leaf), toAvoid)
     }
+  }
+
+  case class PrenexSpec(tag: Binder, x: String, annotations: Prenex*) {
+    def toBinderSpec = BinderSpec(tag, x, annotations.map(_.toType): _*)
   }
 
   object PrenexSpec {
