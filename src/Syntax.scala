@@ -348,7 +348,10 @@ trait Syntax extends ExpressionGrammar {
     def cons(children: Seq[Tree]): Tree = ⊹(this, children: _*)
   }
 
-  case object TypeList extends Genus with LeafOperator {
+  case object TypeList
+      extends Genus
+         with LeafOperator
+         with KnownLeafTag[Seq[Tree]] {
     def man = manifest[Seq[Tree]]
     def genus = this
 

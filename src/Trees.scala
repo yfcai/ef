@@ -47,8 +47,18 @@ trait Trees {
     override final def subgenera = Some(Nil)
   }
 
-  trait FreeName extends LeafTag { def man = manifest[String] }
-  trait DeBruijn extends LeafTag { def man = manifest[Int   ] }
+  // TODO: make all leaf tags known
+  trait KnownLeafTag[T] extends LeafTag {
+    def man: Manifest[T]
+    def get(t: Tree): T = t match {
+      case node @ ∙(tag, _) if tag == this => node.as[T]
+    }
+  }
+
+  trait FreeName extends KnownLeafTag[String]
+  { def man = manifest[String] }
+  trait DeBruijn extends KnownLeafTag[Int]
+  { def man = manifest[Int] }
 
   /** subscript utilities */
   object Subscript {

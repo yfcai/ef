@@ -2,9 +2,10 @@ object Experiments {
   val debug = false
 
   val onTrial: Experiment =
-    PrenexExperiment
+    PrefixExperiment
 
   val experiments = List[Experiment](
+    PrefixExperiment,
     UnificationExperiment,
     TypeListExperiment,
     PrenexExperiment,
@@ -605,6 +606,41 @@ object Experiments {
          |(β → β) → β → β
          |(β → β) → β → β
          |
+         |""".stripMargin
+  }
+
+  object PrefixExperiment extends Experiment with ExistentialF {
+    val t = "∀γ. ∃δ. ∀α = {γ, δ}. ∃β = {}. ∀α′ = α. ∀β′ = α. α′ → β′"
+
+    def run = {
+      val τ = Prenex(Type(t))
+      puts(τ.toType.unparse)
+      val prefix = Prefix(τ.prefix)
+      puts(s"∀  = ${prefix.universals}")
+      puts(s"∀? = ${prefix.universalUncertainties}")
+      puts(s"∀= = ${prefix.universalBounds}")
+      puts(s"∃  = ${prefix.existentials}")
+      puts(s"∃? = ${prefix.existentialUncertainties}")
+      puts(s"∃= = ${prefix.existentialBounds}")
+      puts(s"CP = ${prefix.parent}")
+      puts(s"PC = ${prefix.children}")
+      puts(s"DT = ${prefix.debt.map({
+        case (k, v) => (k, v.map(_.unparse))
+      })}")
+      dump
+    }
+
+    override def expected =
+      """|∀γ. ∃δ. ∀α = {γ, δ}. ∃β = {}. ∀α′ = α. ∀β′ = α. α′ → β′
+         |∀  = Set(γ)
+         |∀? = Set(α)
+         |∀= = Set(α′, β′)
+         |∃  = Set(δ)
+         |∃? = Set(β)
+         |∃= = Set()
+         |CP = Map(α′ -> α, β′ -> α)
+         |PC = Map(α -> Set(α′, β′), β -> Set())
+         |DT = Map(α -> List(γ, δ), β -> List())
          |""".stripMargin
   }
 }
