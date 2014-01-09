@@ -6,7 +6,7 @@ trait Modules extends Syntax {
 
   case object TypeSynonym
       extends CollapsedBinder(Type) with Definitional {
-    val fixity = Prefix("type", "=")
+    val fixity = Prefixr("type", "=")
     def binder = UniversalQuantification
 
     def sanityCheck(t: Tree, tok: Token) =

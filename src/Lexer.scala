@@ -402,7 +402,7 @@ trait Fixities extends ProtoAST {
         Iterator.empty
   }
 
-  case class Prefix(ops: Any*) extends Fixity {
+  case class Prefixr(ops: Any*) extends Fixity {
     def splits(items: Items): Iterator[ItemGroups] =
       if (items.isEmpty)
         Iterator.empty
@@ -412,7 +412,7 @@ trait Fixities extends ProtoAST {
         Iterator.empty
   }
 
-  case class Postfix(ops: Any*) extends Fixity {
+  case class Postfixl(ops: Any*) extends Fixity {
     def splits(items: Items): Iterator[ItemGroups] =
       if (items.isEmpty)
         Iterator.empty
@@ -650,9 +650,9 @@ trait Operators extends Fixities {
         pack(operator.fixity match {
           case _: Juxtaposed =>
             parens
-          case p: Prefix     =>
+          case p: Prefixr     =>
             prefixLike(p.ops, parens)
-          case p: Postfix    =>
+          case p: Postfixl    =>
             postfixLike(p.ops, parens)
           case i: Infix      =>
             parens.head +: prefixLike(i.ops, parens.tail)

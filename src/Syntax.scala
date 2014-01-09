@@ -91,7 +91,7 @@ trait ExpressionGrammar extends Operators {
     def lhs: Seq[Operator]
     def rhs: Seq[Operator]
 
-    val fixity = Postfix(ops._1, ops._2)
+    val fixity = Postfixl(ops._1, ops._2)
   }
 
   case object AtomList extends Genus with LeafOperator {
@@ -198,7 +198,7 @@ trait ExpressionGrammar extends Operators {
         fixity.hasBody(x.last, annotationSymbol)
     }
 
-    val fixity = Prefix(symbol, annotationSymbol, endSymbol)
+    val fixity = Prefixr(symbol, annotationSymbol, endSymbol)
   }
 
   abstract class AnnotatedBinderFactory(tag: AnnotatedBinderOp) {
@@ -287,13 +287,13 @@ trait Syntax extends ExpressionGrammar {
 
   case object CollapsedUniversals
       extends CollapsedBinder(Type) with Universals {
-    val fixity = Prefix(symbol, ".")
+    val fixity = Prefixr(symbol, ".")
     def binder = UniversalQuantification
   }
 
   case object CollapsedExistentials
       extends CollapsedBinder(Type) with Existentials {
-    val fixity = Prefix(symbol, ".")
+    val fixity = Prefixr(symbol, ".")
     def binder = ExistentialQuantification
   }
 
@@ -321,7 +321,7 @@ trait Syntax extends ExpressionGrammar {
   }
 
   case object CollapsedTypeAbstractions extends CollapsedBinder(Term) {
-    val fixity = Prefix(Seq("Λ", """\Tabs"""), ".")
+    val fixity = Prefixr(Seq("Λ", """\Tabs"""), ".")
     def binder = TypeAbstraction
   }
 
