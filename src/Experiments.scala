@@ -2,9 +2,10 @@ object Experiments {
   val debug = false
 
   val onTrial: Experiment =
-    PrefixExperiment
+    CaptureExperiment
 
   val experiments = List[Experiment](
+    ScopingExperiment,
     PrefixExperiment,
     UnificationExperiment,
     TypeListExperiment,
@@ -642,5 +643,34 @@ object Experiments {
          |PC = Map(α -> Set(α′, β′), β -> Set())
          |DT = Map(α -> List(γ, δ), β -> List())
          |""".stripMargin
+  }
+
+  // important scoping exercise
+  // assumed during capturing of family heads
+  object ScopingExperiment extends Experiment with ExistentialF {
+    def run = {
+      val β = "β"
+      val τ = ∀(β, ∀=(β, æ(β), æ(β)))
+      puts(s"∀(β, ∀=(β, æ(β), æ(β))) = ${τ.unparse}")
+      dump
+    }
+
+    override def expected =
+      """|∀(β, ∀=(β, æ(β), æ(β))) = ∀β₀. ∀β = β₀. β
+         |""".stripMargin
+  }
+
+  object CaptureExperiment extends Experiment with ExistentialF {
+    val choose = Type("∀α. α → α → α")
+    val absurd = Type("∀ω. ω")
+    val id = Type("∀ι. ι → ι")
+
+    def run = {
+      val abs = resultType(choose, absurd).get
+      puts(abs.unparse)
+      val cid = resultType(choose, id).get
+      puts(cid.unparse)
+      dump
+    }
   }
 }

@@ -352,6 +352,8 @@ trait Syntax extends ExpressionGrammar {
       extends Genus
          with LeafOperator
          with KnownLeafTag[Seq[Tree]] {
+    def apply(seq: Tree*): Tree = cons(seq)
+
     def man = manifest[Seq[Tree]]
     def genus = this
 

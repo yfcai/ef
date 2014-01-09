@@ -5,25 +5,122 @@ trait Prenex extends Syntax {
 
     def flipPrefix: Seq[PrenexSpec] = prefix.map({
       case PrenexSpec(tag, x, annotations @ _*) =>
-        val flippedTag = tag match {
-          case UniversalQuantification =>
-            ExistentialQuantification
-          case ExistentialQuantification =>
-            UniversalQuantification
-          case UniversalBound =>
-            ExistentialBound
-          case ExistentialBound =>
-            UniversalBound
-          case UniversalUncertainty =>
-            ExistentialUncertainty
-          case ExistentialUncertainty =>
-            UniversalUncertainty
-        }
-        PrenexSpec(flippedTag, x, annotations: _*)
+        PrenexSpec(Prenex.flipTag(tag), x, annotations: _*)
     })
+
+    def normalize: Tree =
+      Prenex.normalize(prefix, body)
+
+    def indexOf(α: String): Int =
+      Prenex.indexOf(α, body)
+
+    def depth(α: String): Int =
+      Prenex.depth(α, body)
+
+    def count(α: String): Int =
+      Prenex.count(α, body)
+
+    lazy val freeNames: Set[String] =
+      body.freeNames -- prefix.map(_.x)
   }
 
   object Prenex {
+    def normalize(prefix: Seq[PrenexSpec], body: Tree): Tree = {
+      val topo = topologicalOrder(prefix)
+      val specs =
+        prefix.withFilter(body.freeNames contains _.x).map(
+          spec => (spec, (topo(spec.x), indexOf(spec.x, body)))
+        ).sortBy(_._2).map(_._1)
+      Prenex(specs, body).toType
+    }
+
+    // consider merging with topological order of binderspecs
+    def topologicalOrder(prefix: Seq[PrenexSpec]):
+        Map[String, Int] =
+      topologicalOrder(
+        prefix.map(s => (s.x, s))(collection.breakOut):
+            Map[String, PrenexSpec])
+
+    def topologicalOrder(prefix: Map[String, PrenexSpec]):
+        Map[String, Int] = {
+      // copied from Syntax.topologicalOrder
+      val graph = prefix map {
+        case (α, spec) =>
+          (α,
+            spec.annotations.flatMap(_.freeNames)(collection.breakOut):
+                Set[String])
+      }
+      var distance = -1
+      var toVisit  = graph.keySet
+      var result   = Map.empty[String, Int]
+      while (! toVisit.isEmpty) {
+        val frontier = toVisit.filter {
+          α => graph(α).find(toVisit contains _) == None
+        }
+        if (frontier.isEmpty)
+          sys error s"cycle detected in prenex topology"
+        distance = distance +  1
+        toVisit  = toVisit  -- frontier
+        result   = result   ++ frontier.map(α => (α, distance))
+      }
+      result
+    }
+
+    def indexOf(α: String, body: Tree): Int =
+      body.preorder.indexOf(æ(α))
+
+    // is there a standard name?
+    //
+    // max number of function arrows to whom
+    // a fixed occurrence of α is a left descendant
+    // --OR--
+    // max number of type constructors to whom
+    // a fixed occurrence of α is a contravariant descendant
+    //
+    // number is -∞ if α does not occur here.
+    def depth(α: String, τ: Tree): Int = τ match {
+      case σ → τ =>
+        Math.max(depth(α, σ) + 1, depth(α, τ))
+
+      // only know how to recurse down to unannotated binders
+      case τ @ ⊹(tag: Binder, _*)
+          if tag == UniversalQuantification
+          || tag == ExistentialQuantification =>
+        depth(α, tag bodyOf τ)
+
+      case ⊹(_, _*) =>
+        sys error s"depth of ${τ.unparse}"
+      case æ(β) if α == β =>
+        0
+      case _ =>
+        Int.MinValue
+    }
+
+    // number of occurrences of α
+    def count(α: String, τ: Tree): Int = τ match {
+        case ⊹(_, children @ _*) =>
+          children.map(σ => count(α, σ)).fold(0)(_ + _)
+        case æ(β) if α == β =>
+          1
+        case _ =>
+          0
+      }
+
+    def flipTag(tag: Binder): Binder = tag match {
+      case UniversalQuantification =>
+        ExistentialQuantification
+      case ExistentialQuantification =>
+        UniversalQuantification
+      case UniversalBound =>
+        ExistentialBound
+      case ExistentialBound =>
+        UniversalBound
+      case UniversalUncertainty =>
+        ExistentialUncertainty
+      case ExistentialUncertainty =>
+        UniversalUncertainty
+    }
+
     def apply(τ: Tree): Prenex =
       Prenex(τ, Set.empty[String])._1
 
