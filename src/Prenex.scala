@@ -1,7 +1,7 @@
 /** Prenex forms for Existential F */
 trait Prenex extends Syntax {
   case class Prenex(prefix: Seq[PrenexSpec], body: Tree) {
-    def toType: Tree = body.boundBy(prefix.map(_.toBinderSpec))
+    def toType: Tree = Prenex.bind(prefix, body)
 
     def flipPrefix: Seq[PrenexSpec] = prefix.map({
       case PrenexSpec(tag, x, annotations @ _*) =>
@@ -31,8 +31,11 @@ trait Prenex extends Syntax {
         prefix.withFilter(body.freeNames contains _.x).map(
           spec => (spec, (topo(spec.x), indexOf(spec.x, body)))
         ).sortBy(_._2).map(_._1)
-      Prenex(specs, body).toType
+      bind(specs, body)
     }
+
+    def bind(prefix: Seq[PrenexSpec], body: Tree): Tree =
+      body.boundBy(prefix.map(_.toBinderSpec))
 
     // consider merging with topological order of binderspecs
     def topologicalOrder(prefix: Seq[PrenexSpec]):

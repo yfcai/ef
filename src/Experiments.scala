@@ -666,9 +666,9 @@ object Experiments {
     val id = Type("∀ι. ι → ι")
 
     def run = {
-      val abs = resultType(choose, absurd).get
+      val abs = Prenex(resultType(choose, absurd).get).toType
       puts(abs.unparse)
-      val cid = resultType(choose, id).get
+      val cid = Prenex(resultType(choose, id).get).toType
       puts(cid.unparse)
       dump
     }

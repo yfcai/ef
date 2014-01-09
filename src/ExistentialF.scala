@@ -58,8 +58,6 @@ trait ExistentialF extends Unification with Prenex {
         operatorPrenex,
         operandPrenex)
 
-    // TO DECIDE: normalize or not?
-    // (abuse of Prenex. τ subst capturedMgs is not a monotype.)
     Success(Prenex.normalize(specsAfterCapture, τ subst mgsAfterCapture))
   }
 
