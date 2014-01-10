@@ -334,11 +334,44 @@ trait ProtoAST extends Lexer with Trees {
 
 trait Fixities extends ProtoAST {
   trait Fixity {
+    fixityTrait =>
+
     type Item = Tree
     type Items = Seq[Tree]
     type ItemGroups = Seq[Seq[Tree]]
 
     def splits(items: Items): Iterator[ItemGroups]
+
+    def orElse(that: Fixity): Fixity = new Fixity {
+      def splits(items: Items): Iterator[ItemGroups] =
+        fixityTrait.splits(items) ++ that.splits(items)
+    }
+
+    def andThen(divide: Items => (Items, Items), that: Fixity):
+        Fixity = new Fixity {
+      def splits(items: Items) = new Iterator[ItemGroups] {
+        val (srcLeft, srcRight) = divide(items)
+        val itLeft = fixityTrait.splits(srcLeft)
+        val itRight = that.splits(srcRight)
+
+        def hasNext = itLeft.hasNext && itRight.hasNext
+        def next = itLeft.next ++ itRight.next
+      }
+    }
+
+    def andThenN(n: Int, that: Fixity): Fixity = andThen(_.splitAt(n), that)
+
+    def andThen1(that: Fixity): Fixity = andThenN(1, that)
+
+    def andThenAfter(what: Any, that: Fixity): Fixity = andThen(items => {
+      val i = items.indexWhere(item => hasBody(item, what))
+      if (i < 0)
+        (Nil, Nil)
+      else {
+        val (lhs, andRhs) = items.splitAt(i)
+        (lhs, andRhs.tail)
+      }
+    }, that)
 
     // helper for dealing with tokens
     def hasBody(t: Tree, op: Any): Boolean = t match {
@@ -363,6 +396,8 @@ trait Fixities extends ProtoAST {
   }
 
   case class SetLike(lp: Any, sep: Any, rp: Any) extends Fixity {
+    setLike =>
+
     def splits(items: Items): Iterator[ItemGroups] = {
       if (items.length >= 2 &&
           hasBody(items.head, lp) &&
@@ -380,6 +415,11 @@ trait Fixities extends ProtoAST {
       else {
         Iterator.empty
       }
+    }
+
+    def composite: Fixity = new Fixity {
+      def splits(items: Items): Iterator[ItemGroups] =
+        setLike.splits(items).map(_ => Seq(items))
     }
   }
 

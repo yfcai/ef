@@ -221,6 +221,7 @@ trait Syntax extends ExpressionGrammar {
   object æ extends AtomicFactory(FreeTypeVar)
   object ₌ extends BinaryFactory(TypeApplication)
   object → extends BinaryFactory(FunctionArrow)
+
   object ∀ extends CollapsedBinderFactory(CollapsedUniversals)
   object ∃ extends CollapsedBinderFactory(CollapsedExistentials)
 
@@ -353,6 +354,10 @@ trait Syntax extends ExpressionGrammar {
          with LeafOperator
          with KnownLeafTag[Seq[Tree]] {
     def apply(seq: Tree*): Tree = cons(seq)
+    def unapply(t: Tree): Option[Seq[Tree]] = t match {
+      case t @ ∙(TypeList, _) => Some(t.as[Seq[Tree]])
+      case _ => None
+    }
 
     def man = manifest[Seq[Tree]]
     def genus = this
@@ -366,8 +371,11 @@ trait Syntax extends ExpressionGrammar {
 
     def unparseLeaf(leaf: ∙[_]): String = leaf match {
       case types @ ∙(TypeList, _) =>
-        s"{${types.as[Seq[Tree]].map(_.unparse).mkString(", ")}}"
+        unparse(types.as[Seq[Tree]])
     }
+
+    def unparse(seq: Seq[Tree]): String =
+      s"{${seq.map(_.unparse).mkString(", ")}}"
   }
 
   // subsets of language constructs
@@ -420,14 +428,110 @@ trait Syntax extends ExpressionGrammar {
     def symbol = Seq("∃", """\ex""")
   }
 
+  case object Universal extends Quantification {
+    def symbol = Seq("∀", """\all""")
+  }
+
+  case object Existential extends Quantification {
+    def symbol = Seq("∃", """\ex""")
+  }
+
+  trait Quantification extends BinderOperator {
+    def symbol: Any
+
+    val fixity = Prefixr(symbol, ".")
+
+    def genus = Type
+    override
+    def extraSubgenera = Seq(Annotation)
+    def tryNext = Seq(Seq(Annotation), typeOps)
+    def freeName = FreeTypeVar
+    def prison = TypeVar
+
+    override def cons(children: Seq[Tree]): Tree = children match {
+      case Seq(note @ ♬(α, _, _), body) =>
+        this.bind(α, note, body)
+    }
+  }
+
+  case class Annotation(
+    alpha : String,
+    parent: Option[String],
+    debts : Option[Seq[Tree]]) {
+
+    def toTree: Tree = ∙(Annotation, this)
+  }
+
+  // annotation constructors & destructor
+  object ♬ {
+    def apply(α: String): Tree =
+      Annotation(α, None, None).toTree
+    def apply(α: String, β: String): Tree =
+      Annotation(α, Some(β), None).toTree
+    def apply(α: String, debts: Seq[Tree]): Tree =
+      Annotation(α, None, Some(debts)).toTree
+    def apply(α: String, β: String, debts: Seq[Tree]): Tree =
+      Annotation(α, Some(β), Some(debts)).toTree
+
+    def unapply(t: Tree):
+        Option[(String, Option[String], Option[Seq[Tree]])] = t match {
+      case ∙(Annotation, Annotation(α, parent, debts)) =>
+        Some((α, parent, debts))
+      case _ =>
+        None
+    }
+  }
+
+  case object Annotation
+      extends Genus
+         with LeafOperator
+         with KnownLeafTag[Annotation] {
+    def man = manifest[Annotation]
+    def genus = this
+
+    val fixity: Fixity = {
+      val α = LoneToken.forbid(forbidden)
+      val * = TypeList.fixity.composite
+      α orElse
+      α.andThenAfter("=", α orElse * orElse (α andThen1 *))
+    }
+
+    override def tryNextOverride: Seq[Seq[Tree]] => Seq[Seq[Operator]] =
+      stuff => stuff.length match {
+        case 1 => Seq(Seq(FreeTypeVar))
+        case 2 => Seq(Seq(FreeTypeVar), Seq(FreeTypeVar, TypeList))
+        case 3 => Seq(Seq(FreeTypeVar), Seq(FreeTypeVar), Seq(TypeList))
+        case _ => sys error s"\n\n$stuff\n\n"
+      }
+
+    def cons(children: Seq[Tree]): Tree =
+      children match {
+        case Seq(æ(α)) =>
+          ♬(α)
+        case Seq(æ(α), æ(β)) =>
+          ♬(α, β)
+        case Seq(æ(α), TypeList(debts)) =>
+          ♬(α, debts)
+        case Seq(æ(α), æ(β), TypeList(debts)) =>
+          ♬(α, β, debts)
+      }
+
+    def unparseLeaf(leaf: ∙[_]): String = leaf.as[Annotation] match {
+      case Annotation(α, None, None) =>
+        α
+      case Annotation(α, Some(parent), None) =>
+        s"α = $parent"
+      case Annotation(α, None, Some(seq)) =>
+        s"α = ${TypeList.unparse(seq)}"
+      case Annotation(α, Some(parent), Some(seq)) =>
+        s"α = $parent ${TypeList.unparse(seq)}"
+    }
+  }
+
+
   val typeOps: List[Operator] =
     List(
-      UniversalUncertainty,
-      ExistentialUncertainty,
-      UniversalBound,
-      ExistentialBound,
-      UniversalQuantification,
-      ExistentialQuantification,
+      Universal,
       FunctionArrow,
       TypeApplication,
       ParenthesizedType,

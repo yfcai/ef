@@ -2,9 +2,13 @@ object Experiments {
   val debug = false
 
   val onTrial: Experiment =
-    CaptureExperiment
+    AnnotationExperiment
 
   val experiments = List[Experiment](
+    AnnotationExperiment
+  )
+/*
+    //CaptureExperiment,
     ScopingExperiment,
     PrefixExperiment,
     UnificationExperiment,
@@ -27,6 +31,7 @@ object Experiments {
     ApplicationExperiment,
     SelfReferenceExperiment,
     ProtoASTExperiment).reverse
+ */
 
   def maintenance() = experiments foreach { ex =>
     if (ex.run != ex.expected) sys error s"failed: $ex"
@@ -672,5 +677,27 @@ object Experiments {
       puts(cid.unparse)
       dump
     }
+  }
+
+  object AnnotationExperiment extends SyntaxExperiment {
+    val s = "∀α = {}. ∀β = α {δ, ε}. ∀γ = β. γ"
+
+    def run = {
+      puts(Type(s).print)
+      dump
+    }
+
+    override def expected =
+      """|Universal, binder of α
+         |  ∙(LiteralTag(java.lang.String), α)
+         |  ∙(Annotation, Annotation(α,None,Some(List())))
+         |  Universal, binder of β
+         |    ∙(LiteralTag(java.lang.String), β)
+         |    ∙(Annotation, Annotation(β,Some(α),Some(List(∙(FreeTypeVar, δ), ∙(FreeTypeVar, ε)))))
+         |    Universal, binder of γ
+         |      ∙(LiteralTag(java.lang.String), γ)
+         |      ∙(Annotation, Annotation(γ,Some(β),None))
+         |      TypeVar, bound of γ
+         |""".stripMargin
   }
 }
