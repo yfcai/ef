@@ -115,9 +115,10 @@ trait ExistentialF extends Unification with Prenex {
         case (α, τ) => (α, τ subst resolution)
       }
       collectDebts(prefix, societalFallout) match {
-        case Success(newSociety) => childrensEnds.map({
-          case (α, τ) => (α, τ subst newSociety)
-        }) ++ newSociety
+        case Success(newSociety) =>
+          Success(childrensEnds.map({
+            case (α, τ) => (α, τ subst newSociety)
+          }) ++ newSociety)
         case Failure(msg) => Failure(msg)
       }
     }
