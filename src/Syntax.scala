@@ -392,7 +392,10 @@ trait Syntax extends ExpressionGrammar {
 
     def collapse(t: Tree): Tree = {
       val (bindings, body) = t.unbindAll(binder)
-      val i = bindings.indexWhere(spec => spec.annotation != ♬(spec.x))
+      val i = bindings.indexWhere(spec => spec.annotation match {
+        case ♬(_, None, None) => false
+        case _ => true
+      })
       val j = if (i < 0) bindings.length else i
       val (collapsibles, uncollapsibles) = bindings.splitAt(j)
       bind(collapsibles.map(_.x), body.boundBy(uncollapsibles))

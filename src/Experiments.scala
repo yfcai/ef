@@ -2,12 +2,21 @@ object Experiments {
   val debug = false
 
   val onTrial: Experiment =
-    DeclarationsExperiment
+    ShadowyExperiment
 
   val experiments = List[Experiment](
+    DeclarationsExperiment,
     AnnotationExperiment,
-    DeclarationsExperiment
-  )
+
+
+    ShadowyExperiment,
+    CollapsedBinderExperiment,
+    AtomListExperiment,
+    AscriptionExperiment,
+    FunctionArrowExperiment,
+    ApplicationExperiment,
+    SelfReferenceExperiment,
+    ProtoASTExperiment).reverse
 /*
     //CaptureExperiment,
     ScopingExperiment,
@@ -19,18 +28,9 @@ object Experiments {
     AlphaEquivExperiment,
     CStyleConditionalExperiment,
     FileParsingExperiment,
-    SourceLocationExperiment,
     CStyleConditionalExperiment,
     AbstractionsExperiment,
-    BoundedQuantificationExperiment,
-    ShadowyExperiment,
-    CollapsedBinderExperiment,
-    AtomListExperiment,
-    AscriptionExperiment,
-    FunctionArrowExperiment,
-    ApplicationExperiment,
-    SelfReferenceExperiment,
-    ProtoASTExperiment).reverse
+    SourceLocationExperiment,
  */
 
   def maintenance() = experiments foreach { ex =>
@@ -38,11 +38,13 @@ object Experiments {
   }
 
   def main(args: Array[String]) = {
-    if (debug) onTrial.debug
+    if (debug)
+      onTrial.debug
+    else
+      onTrial.trial
     println("MAINTAINING ...")
     maintenance()
     println("MAINTENANCE SUCCESSFUL")
-    if (! debug) onTrial.trial
   }
 
   trait Experiment {
@@ -81,8 +83,6 @@ object Experiments {
   }
 
   trait ModulesExperiment extends SyntaxExperiment with Modules
-
-  /*
 
   object ProtoASTExperiment extends Experiment with ProtoAST {
     def leftParens  = Set("(")
@@ -251,12 +251,14 @@ object Experiments {
 
     override def expected =
       """|∀β. α → ∃α. α → β
-         |UniversalQuantification, binder of β
+         |Universal, binder of β
          |  ∙(LiteralTag(java.lang.String), β)
+         |  ∙(Annotation, Annotation(β,None,None))
          |  FunctionArrow
          |    ∙(FreeTypeVar, α)
-         |    ExistentialQuantification, binder of α
+         |    Existential, binder of α
          |      ∙(LiteralTag(java.lang.String), α)
+         |      ∙(Annotation, Annotation(α,None,None))
          |      FunctionArrow
          |        TypeVar, bound of α
          |        TypeVar, bound of β
@@ -265,43 +267,15 @@ object Experiments {
 
   object ShadowyExperiment extends SyntaxExperiment {
     val t =
-      ⊹(UniversalQuantification, §("α"),
-        ⊹(UniversalQuantification, §("α"),
-          ⊹(UniversalQuantification, §("α"),
-            ⊹(UniversalQuantification, §("α"),
-              ⊹(UniversalQuantification, §("α"),
-                ₌(∙(TypeVar, 1), ₌(∙(TypeVar, 2), ∙(TypeVar, 3))))))))
+      ⊹(Universal, §("α"), ♬("α"),
+      ⊹(Universal, §("α"), ♬("α"),
+      ⊹(Universal, §("α"), ♬("α"),
+      ⊹(Universal, §("α"), ♬("α"),
+      ⊹(Universal, §("α"), ♬("α"),
+      ₌(∙(TypeVar, 1), ₌(∙(TypeVar, 2), ∙(TypeVar, 3))))))))
 
     def run = { puts(t.unparse) ; dump }
     override def expected = "∀α α₂ α₁ α₀ α. α₀ (α₁ α₂)\n"
-  }
-
-  object BoundedQuantificationExperiment extends SyntaxExperiment {
-    val s = "∀α = (∀α. α → α). List (∃β = α. β)"
-
-    def run = {
-      val t = (Type parse s).get
-      puts(t.unparse)
-      puts(t.print)
-      dump
-    }
-
-    override def expected =
-      """|∀α = (∀α. α → α). List (∃β = α. β)
-         |UniversalBound, binder of α
-         |  ∙(LiteralTag(java.lang.String), α)
-         |  UniversalQuantification, binder of α
-         |    ∙(LiteralTag(java.lang.String), α)
-         |    FunctionArrow
-         |      TypeVar, bound of α
-         |      TypeVar, bound of α
-         |  TypeApplication
-         |    ∙(FreeTypeVar, List)
-         |    ExistentialBound, binder of β
-         |      ∙(LiteralTag(java.lang.String), β)
-         |      TypeVar, bound of α
-         |      TypeVar, bound of β
-         |""".stripMargin
   }
 
   object AbstractionsExperiment extends SyntaxExperiment {
@@ -338,7 +312,7 @@ object Experiments {
          |    ∙(FreeVar, e)
          |""".stripMargin
   }
-
+/*
   object SourceLocationExperiment extends SyntaxExperiment {
     val s = """∀α = ∀α. α → α. List (∃β = α. β)"""
 

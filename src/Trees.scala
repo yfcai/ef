@@ -155,7 +155,8 @@ trait Trees {
         (List[(String, Seq[Tree])], Tree) =
       unbind(t, toAvoid) match {
         case Some((x, body)) =>
-          val (xs, realBody) = unbindAll(body.last, toAvoid + x.get)
+          // no need to add x.get. it's already there in "nameOf".
+          val (xs, realBody) = unbindAll(body.last, toAvoid)
           ((x.get, body.init) :: xs, realBody)
         case None =>
           (Nil, t)
