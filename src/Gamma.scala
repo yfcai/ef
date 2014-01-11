@@ -41,7 +41,7 @@ trait Gamma extends Syntax {
   }
 
   trait Γ {
-    def prefix: BinderPrefix
+    //def prefix: BinderPrefix
     def vars: Map[String, Tree]
 
     def global: PartialFunction[String, Tree] = intsAndBools

@@ -2,10 +2,11 @@ object Experiments {
   val debug = false
 
   val onTrial: Experiment =
-    AnnotationExperiment
+    DeclarationsExperiment
 
   val experiments = List[Experiment](
-    AnnotationExperiment
+    AnnotationExperiment,
+    DeclarationsExperiment
   )
 /*
     //CaptureExperiment,
@@ -18,7 +19,6 @@ object Experiments {
     AlphaEquivExperiment,
     CStyleConditionalExperiment,
     FileParsingExperiment,
-    DeclarationsExperiment,
     SourceLocationExperiment,
     CStyleConditionalExperiment,
     AbstractionsExperiment,
@@ -418,7 +418,7 @@ object Experiments {
          |UniversalBound
          |
          |""".stripMargin
-  }
+  }*/
 
   object DeclarationsExperiment extends ModulesExperiment {
     val either = "type Either α β = ∀γ. (α → γ) → (β → γ) → γ"
@@ -465,7 +465,7 @@ object Experiments {
          |auto : (∀α. α → α) → ∀α. α → α
          |""".stripMargin
   }
-
+/*
   object FileParsingExperiment extends ModulesExperiment {
     def thisFile = new Throwable().getStackTrace().head.getFileName
     val nats = thisFile.substring(0, thisFile.lastIndexOf('/') + 1) +
@@ -683,33 +683,14 @@ object Experiments {
    */
 
   object AnnotationExperiment extends SyntaxExperiment {
-    val s = "∀α = {}. ∀δ ε. ∃β = α {δ, ε}. ∀γ = β. γ"
+    val s = "∀α = {}. ∀δ ε. ∃η ζ. ∃β = α {δ, ε, η, ζ}. ∀γ = β. γ"
 
     def run = {
       val τ = Type(s)
       puts(τ.unparse)
-      puts(τ.print)
       dump
     }
 
-    override def expected =
-      """|∀α = {}. ∀δ ε. ∃β = α {δ, ε}. ∀γ = β. γ
-         |Universal, binder of α
-         |  ∙(LiteralTag(java.lang.String), α)
-         |  ∙(Annotation, Annotation(α,None,Some(List())))
-         |  Universal, binder of δ
-         |    ∙(LiteralTag(java.lang.String), δ)
-         |    ∙(Annotation, Annotation(δ,None,None))
-         |    Universal, binder of ε
-         |      ∙(LiteralTag(java.lang.String), ε)
-         |      ∙(Annotation, Annotation(ε,None,None))
-         |      Existential, binder of β
-         |        ∙(LiteralTag(java.lang.String), β)
-         |        ∙(Annotation, Annotation(β,Some(α),Some(List(∙(FreeTypeVar, δ), ∙(FreeTypeVar, ε)))))
-         |        Universal, binder of γ
-         |          ∙(LiteralTag(java.lang.String), γ)
-         |          ∙(Annotation, Annotation(γ,Some(β),None))
-         |          TypeVar, bound of γ
-         |""".stripMargin
+    override def expected = s + "\n"
   }
 }

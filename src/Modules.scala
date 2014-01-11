@@ -5,13 +5,20 @@ trait Modules extends Syntax {
   }
 
   case object TypeSynonym
-      extends CollapsedBinder(Type) with Definitional {
+      extends CollapsedQuantification with Definitional {
     val fixity = Prefixr("type", "=")
-    def binder = UniversalQuantification
+    def binder = Universal
 
     def sanityCheck(t: Tree, tok: Token) =
       if (binder.count(t) != 0)
         throw Problem(tok, "recursive type synonym")
+
+    override def subgenera = super[Definitional].subgenera
+
+    override def unparse(t: Tree): String = t match {
+      case ⊹(TypeSynonym, x, body) =>
+        s"type ${x.unparse} = ${body.unparse}"
+    }
   }
 
   case object Definition extends UnaryDefinitional {
@@ -28,7 +35,7 @@ trait Modules extends Syntax {
     def rhs = Type.ops
   }
 
-  trait Definitional extends BinaryOperator {
+  trait Definitional extends Operator {
     def sanityCheck(t: Tree, tok: Token): Unit
 
     override def subgenera: Option[Seq[Genus]] = None
@@ -38,11 +45,13 @@ trait Modules extends Syntax {
         case result @ (t, toks) => sanityCheck(t, toks.head) ; result
       }).map {
         case (t @ ⊹(binder: Binder, _*), toks) =>
-          val (x, Seq(body)) = binder.unbind(t).get
+          val (x, Seq(_, body)) = binder.unbind(t).get
           (⊹(this, x, body), toks)
         case otherwise =>
           otherwise
       }
+
+    // SUBCLASSES OF DEFINITIONAL HAS TO OVERRIDE UNPARSE
 
     def unparse(x: String, body: Tree): String =
       unparse(⊹(this, §(x), body))
@@ -56,13 +65,16 @@ trait Modules extends Syntax {
     }
   }
 
-  abstract class UnaryDefinitional extends Definitional {
+  trait UnaryDefinitional
+      extends Definitional with BinaryOperator {
     def defSymbol: String
     def opGenus: BinaryOpGenus
     def lhs: Seq[Operator]
     def rhs: Seq[Operator]
 
     final val fixity: Fixity = Infixr(defSymbol)
+
+    override def subgenera = super[Definitional].subgenera
 
     override def precondition(items: Seq[Tree]) =
       items.take(2).length == 2 && fixity.hasBody(items(1), defSymbol)

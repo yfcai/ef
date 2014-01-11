@@ -2,7 +2,7 @@ trait ExpressionGrammar extends Operators {
   def leftParens : Set[String] = "( { [ λ Λ ∀ ∃".words
   def rightParens: Set[String] = ") } ] . ,".words
 
-  def forbidden: Set[String] = keywords
+  def forbidden: Set[String] = leftParens ++ rightParens
 
   implicit class SplitStringIntoWords(s: String) {
     def words: Set[String] = Set(s split " ": _*)
@@ -120,10 +120,7 @@ trait ExpressionGrammar extends Operators {
     override def tryNext = Seq.empty[Seq[Operator]]
   }
 
-  // should be part of name binding language, shouldn't it?
-  // @param genus has to be class parameter because "val genus"
-  // is taken in trait BinaryOperator and it doesn't make sense
-  // to declare something like "genus0".
+  // for Λs
   abstract class CollapsedBinder(_genus: TopLevelGenus)
       extends BinaryOperator {
     def binder: Binder
@@ -172,20 +169,8 @@ trait ExpressionGrammar extends Operators {
     }
   }
 
-  abstract class CollapsedBinderFactory(tag: CollapsedBinder) {
-    def apply(x: String, body: Tree): Tree =
-      tag.binder.bind(x, body)
-
-    def apply(xs: String*)(body: => Tree): Tree =
-      tag.expand(tag.bind(xs, body))
-
-    def unapplySeq(t: ⊹): Option[(∙[String], Seq[Tree])] =
-      tag.binder.unbind(t)
-  }
-
-
-  // common ground between λs and bounded quantifications
-  trait AnnotatedBinderOp extends BinderOperator with Symbolic {
+  // for λs
+  trait AnnotatedBinderOp extends BinderOperator {
     def symbol: Seq[String]
     def annotationSymbol: Seq[String]
     def endSymbol: Seq[String] = Seq(".")
@@ -210,10 +195,6 @@ trait ExpressionGrammar extends Operators {
         case (∙(_, x), Seq(annotation, body)) => (x, annotation, body)
       }
   }
-
-  trait Symbolic {
-    def symbol: Seq[String]
-  }
 }
 
 trait Syntax extends ExpressionGrammar {
@@ -221,14 +202,8 @@ trait Syntax extends ExpressionGrammar {
   object æ extends AtomicFactory(FreeTypeVar)
   object ₌ extends BinaryFactory(TypeApplication)
   object → extends BinaryFactory(FunctionArrow)
-
-  object ∀ extends CollapsedBinderFactory(CollapsedUniversals)
-  object ∃ extends CollapsedBinderFactory(CollapsedExistentials)
-
-  object ∀? extends AnnotatedBinderFactory(UniversalUncertainty)
-  object ∃? extends AnnotatedBinderFactory(ExistentialUncertainty)
-  object ∀= extends AnnotatedBinderFactory(UniversalBound)
-  object ∃= extends AnnotatedBinderFactory(ExistentialBound)
+  object ∀ extends QuantificationFactory(Universal)
+  object ∃ extends QuantificationFactory(Existential)
 
   case object Term extends TopLevelGenus { def ops = termOps }
   object χ extends AtomicFactory(FreeVar)
@@ -272,6 +247,14 @@ trait Syntax extends ExpressionGrammar {
     val fixity = Infixr(Seq("→", "->"))
   }
 
+  case object Universal extends Quantification {
+    def symbol = Seq("∀", """\all""")
+  }
+
+  case object Existential extends Quantification {
+    def symbol = Seq("∃", """\ex""")
+  }
+
   case object Ascription extends BinaryOperator {
     def opGenus = BinaryOpGenus(Term, Type, Term)
     def lhs: Seq[Operator] = downFrom(Ascription, termOps)
@@ -279,40 +262,6 @@ trait Syntax extends ExpressionGrammar {
 
     val fixity = Infixl(":")
   }
-
-  case object UniversalQuantification extends DelegateTypeBinder
-  { def delegate = CollapsedUniversals }
-
-  case object ExistentialQuantification extends DelegateTypeBinder
-  { def delegate = CollapsedExistentials }
-
-  case object CollapsedUniversals
-      extends CollapsedBinder(Type) with Universals {
-    val fixity = Prefixr(symbol, ".")
-    def binder = UniversalQuantification
-  }
-
-  case object CollapsedExistentials
-      extends CollapsedBinder(Type) with Existentials {
-    val fixity = Prefixr(symbol, ".")
-    def binder = ExistentialQuantification
-  }
-
-  case object UniversalBound
-      extends BoundedQuantification
-         with Universals
-
-  case object ExistentialBound
-      extends BoundedQuantification
-         with Existentials
-
-  case object UniversalUncertainty
-      extends UncertainQuantification
-         with Universals
-
-  case object ExistentialUncertainty
-      extends UncertainQuantification
-         with Existentials
 
   case object TypeAbstraction extends Binder with DelegateOperator {
     def genus = Term
@@ -378,65 +327,6 @@ trait Syntax extends ExpressionGrammar {
       s"{${seq.map(_.unparse).mkString(", ")}}"
   }
 
-  // subsets of language constructs
-
-  trait DelegateTypeBinder extends Binder with DelegateOperator {
-    def delegate: Operator
-
-    def genus = Type
-    def prison = TypeVar
-    def freeName = FreeTypeVar
-  }
-
-  trait UncertainQuantification extends MultiplyAnnotatedQuantification {
-    def symbol: Seq[String]
-    def annotationSymbol: Seq[String] = Seq("=")
-  }
-
-  trait BoundedQuantification extends AnnotatedQuantification {
-    def symbol: Seq[String]
-    def annotationSymbol: Seq[String] = Seq("=")
-  }
-
-  trait MultiplyAnnotatedQuantification extends AnnotatedBinderOp {
-    def symbol: Seq[String]
-    def annotationSymbol: Seq[String]
-
-    def genus = Type
-    def prison = TypeVar
-    def freeName = FreeTypeVar
-    override def extraSubgenera = Seq(TypeList)
-    lazy val tryNext = Seq(Seq(FreeTypeVar), Seq(TypeList), typeOps)
-  }
-
-  trait AnnotatedQuantification extends AnnotatedBinderOp {
-    def symbol: Seq[String]
-    def annotationSymbol: Seq[String]
-
-    def genus = Type
-    def prison = TypeVar
-    def freeName = FreeTypeVar
-    override def extraSubgenera = Seq(Type)
-    lazy val tryNext = Seq(Seq(FreeTypeVar), Seq(Type), typeOps)
-  }
-
-  trait Universals extends Symbolic {
-    def symbol = Seq("∀", """\all""")
-  }
-
-  trait Existentials extends Symbolic {
-    def symbol = Seq("∃", """\ex""")
-  }
-
-
-  case object Universal extends Quantification {
-    def symbol = Seq("∀", """\all""")
-  }
-
-  case object Existential extends Quantification {
-    def symbol = Seq("∃", """\ex""")
-  }
-
   trait Quantification extends BinderOperator {
     def symbol: Any
 
@@ -475,12 +365,19 @@ trait Syntax extends ExpressionGrammar {
     }
   }
 
-  case class Collapsed(binder: Quantification) extends Operator {
+  case class Collapsed(binder: Quantification)
+      extends Operator with CollapsedQuantification {
     val fixity = Prefixr(binder.symbol, binder.dot)
+  }
+
+  trait CollapsedQuantification extends Operator {
+    def binder: Quantification
+    def fixity: Fixity
+
     def tryNext = Seq(Seq(AtomList), typeOps)
 
     def genus = binder.genus
-    override def subgenera = Some(Seq(AtomList, genus))
+    override def subgenera: Option[Seq[Genus]] = Some(Seq(AtomList, genus))
 
     def cons(children: Seq[Tree]): Tree = ⊹(this, children: _*)
 
@@ -545,6 +442,17 @@ trait Syntax extends ExpressionGrammar {
     def updated(α: String) = Annotation(α, parent, debts)
   }
 
+  abstract class QuantificationFactory(binder: Quantification) {
+    def apply (note: Tree, body: Tree): Tree =
+      binder.bind(♬.getName(note), note, body)
+
+    def unapply(t: Tree): Option[(Annotation, Tree)] =
+      binder.unbind(t).map {
+        case (x, Seq(note, body)) =>
+          (Annotation.get(note).updated(x.get), body)
+      }
+  }
+
   // annotation constructors & destructor
   object ♬ {
     def apply(α: String): Tree =
@@ -563,6 +471,8 @@ trait Syntax extends ExpressionGrammar {
       case _ =>
         None
     }
+
+    def getName(note: Tree): String = unapply(note).get._1
   }
 
   case object Annotation
@@ -602,6 +512,18 @@ trait Syntax extends ExpressionGrammar {
     def unparseLeaf(leaf: ∙[_]): String = leaf.as[Annotation].unparse
   }
 
+  def downFrom(x: Operator, ops: List[Operator]): List[Operator] =
+    ops match {
+      case y :: tail if x == y => ops
+      case _ :: tail => downFrom(x, tail)
+      case Nil => sys error s"$x not found in $ops"
+    }
+
+  def downBelow(x: Operator, ops: List[Operator]): List[Operator] =
+    downFrom(x, ops) match {
+      case Nil | _ :: Nil => sys error s"nothing below $x in $ops"
+      case x :: tail => tail
+    }
 
   val typeOps: List[Operator] =
     List(
@@ -625,41 +547,8 @@ trait Syntax extends ExpressionGrammar {
       ParenthesizedTerm,
       FreeVar)
 
-  def downFrom(x: Operator, ops: List[Operator]): List[Operator] =
-    ops match {
-      case y :: tail if x == y => ops
-      case _ :: tail => downFrom(x, tail)
-      case Nil => sys error s"$x not found in $ops"
-    }
-
-  def downBelow(x: Operator, ops: List[Operator]): List[Operator] =
-    downFrom(x, ops) match {
-      case Nil | _ :: Nil => sys error s"nothing below $x in $ops"
-      case x :: tail => tail
-    }
-
-  // BINDERPREFIX
-
-  type BinderPrefix = Map[String, BinderSpec]
-
-  def pretty(spec: BinderSpec): String = {
-    val (α, notes) = (spec.x, spec.annotations)
-    spec.tag match {
-      case UniversalBound            => s"∀$α = ${notes.head.unparse}"
-      case ExistentialBound          => s"∃$α = ${notes.head.unparse}"
-      case UniversalQuantification   => s"∀$α"
-      case ExistentialQuantification => s"∃$α"
-    }
-  }
-
-  def pretty(Q: BinderPrefix): String =
-    pretty(linearizePrefix(Q))
-
-  def pretty(Q: Seq[BinderSpec]): String =
-    Q.map(pretty).mkString("\n")
-
-  def topologicalOrder(Q: BinderPrefix): Map[String, Int] = {
-    val graph = Q map { case (α, spec) => (α, spec.annotation.freeNames) }
+  // TODO: put everything below in prenex
+  def topologicalOrder(graph: Map[String, Set[String]]): Map[String, Int] = {
     var distance = -1
     var toVisit  = graph.keySet
     var result   = Map.empty[String, Int]
@@ -668,19 +557,12 @@ trait Syntax extends ExpressionGrammar {
         α => graph(α).find(toVisit contains _) == None
       }
       if (frontier.isEmpty)
-        sys error s"cycle detected in prefix\n${pretty(Q)}"
+        sys error s"cycle detected"
       distance = distance +  1
       toVisit  = toVisit  -- frontier
       result   = result   ++ frontier.map(α => (α, distance))
     }
     result
-  }
-
-  // sort by topological order first and then by lexicographical order
-  def linearizePrefix(Q: BinderPrefix): Seq[BinderSpec] = {
-    val topo = topologicalOrder(Q)
-    Q.map({ case (α, τ) => (τ, (topo(α), α)) }).toList.
-      sortBy(_._2).map(_._1)
   }
 
   trait Status[+T] {
