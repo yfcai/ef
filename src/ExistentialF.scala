@@ -1,5 +1,6 @@
 /** the type system */
 trait ExistentialF extends Unification with Prenex {
+  /*
 
   def resultType(operatorType: Tree, operandType: Tree): Status[Tree] = {
     val Seq(operatorPrenex, operandPrenex) =
@@ -258,4 +259,5 @@ trait ExistentialF extends Unification with Prenex {
       specs.withFilter(predicate).
         map(extraction)(collection.breakOut)
   }
+   */
 }

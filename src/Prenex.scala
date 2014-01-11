@@ -1,5 +1,6 @@
 /** Prenex forms for Existential F */
 trait Prenex extends Syntax {
+  /*
   case class Prenex(prefix: Seq[PrenexSpec], body: Tree) {
     def toType: Tree = Prenex.bind(prefix, body)
 
@@ -190,4 +191,5 @@ trait Prenex extends Syntax {
           (spec +: specs, undesirables)
       }
   }
+   */
 }

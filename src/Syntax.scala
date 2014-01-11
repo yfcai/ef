@@ -428,6 +428,7 @@ trait Syntax extends ExpressionGrammar {
     def symbol = Seq("∃", """\ex""")
   }
 
+
   case object Universal extends Quantification {
     def symbol = Seq("∀", """\all""")
   }
@@ -439,7 +440,7 @@ trait Syntax extends ExpressionGrammar {
   trait Quantification extends BinderOperator {
     def symbol: Any
 
-    val fixity = Prefixr(symbol, ".")
+    val fixity = Prefixr(symbol, dot)
 
     def genus = Type
     override
@@ -452,6 +453,75 @@ trait Syntax extends ExpressionGrammar {
       case Seq(note @ ♬(α, _, _), body) =>
         this.bind(α, note, body)
     }
+
+    val collapsed = Collapsed(this)
+
+    override def unparse(t: Tree): String = t match {
+      case ⊹(tag, _, ♬(_, None, None), _) if tag == this =>
+        collapsed.unparse(t)
+      case _ if t.tag == this =>
+        val (æ(α), Seq(note, body)) = unbind(t).get
+        val newNote = note.as[Annotation].updated(α)
+        s"$getSymbol${newNote.unparse}$dot ${body.unparse}"
+      case _ =>
+        super.unparse(t)
+    }
+
+    def dot = "."
+
+    def getSymbol: String = symbol match {
+      case s: String => s
+      case y: Seq[_] => y.head.toString
+    }
+  }
+
+  case class Collapsed(binder: Quantification) extends Operator {
+    val fixity = Prefixr(binder.symbol, binder.dot)
+    def tryNext = Seq(Seq(AtomList), typeOps)
+
+    def genus = binder.genus
+    override def subgenera = Some(Seq(AtomList, genus))
+
+    def cons(children: Seq[Tree]): Tree = ⊹(this, children: _*)
+
+    override def parse(items: Seq[Tree]) =
+      super.parse(items).map { case (t, toks) => (expand(t), toks) }
+
+    override def unparse(t: Tree): String = unbind(collapse(t)).get match {
+      case (params, body) =>
+        s"${binder.getSymbol}${params.mkString(" ")}"+
+        s"${binder.dot} ${body.unparse}"
+    }
+
+    def collapse(t: Tree): Tree = {
+      val (bindings, body) = t.unbindAll(binder)
+      val i = bindings.indexWhere(spec => spec.annotation != ♬(spec.x))
+      val j = if (i < 0) bindings.length else i
+      val (collapsibles, uncollapsibles) = bindings.splitAt(j)
+      bind(collapsibles.map(_.x), body.boundBy(uncollapsibles))
+    }
+
+    def expand(t: Tree): Tree = t match {
+      case ⊹(tag, params @ ∙(AtomList, _), body) if tag == this =>
+        params.as[Seq[String]].foldRight(body) {
+          case (x, body) => binder.bind(x, ♬(x), body)
+        }
+      case otherwise =>
+        otherwise
+    }
+
+    def bind(xs: Seq[String], body: Tree): Tree =
+      if (xs.isEmpty)
+        body
+      else
+        ⊹(this, ∙(AtomList, xs), body)
+
+    def unbind(t: Tree): Option[(Seq[String], Tree)] = t match {
+      case ⊹(tag, params @ ∙(AtomList, _), body) if tag == this =>
+        Some((params.as[Seq[String]], body))
+      case _ =>
+        None
+    }
   }
 
   case class Annotation(
@@ -460,6 +530,19 @@ trait Syntax extends ExpressionGrammar {
     debts : Option[Seq[Tree]]) {
 
     def toTree: Tree = ∙(Annotation, this)
+
+    def unparse: String = this match {
+      case Annotation(α, None, None) =>
+        α
+      case Annotation(α, Some(parent), None) =>
+        s"$α = $parent"
+      case Annotation(α, None, Some(seq)) =>
+        s"$α = ${TypeList.unparse(seq)}"
+      case Annotation(α, Some(parent), Some(seq)) =>
+        s"$α = $parent ${TypeList.unparse(seq)}"
+    }
+
+    def updated(α: String) = Annotation(α, parent, debts)
   }
 
   // annotation constructors & destructor
@@ -516,22 +599,16 @@ trait Syntax extends ExpressionGrammar {
           ♬(α, β, debts)
       }
 
-    def unparseLeaf(leaf: ∙[_]): String = leaf.as[Annotation] match {
-      case Annotation(α, None, None) =>
-        α
-      case Annotation(α, Some(parent), None) =>
-        s"α = $parent"
-      case Annotation(α, None, Some(seq)) =>
-        s"α = ${TypeList.unparse(seq)}"
-      case Annotation(α, Some(parent), Some(seq)) =>
-        s"α = $parent ${TypeList.unparse(seq)}"
-    }
+    def unparseLeaf(leaf: ∙[_]): String = leaf.as[Annotation].unparse
   }
 
 
   val typeOps: List[Operator] =
     List(
       Universal,
+      Universal.collapsed,
+      Existential,
+      Existential.collapsed,
       FunctionArrow,
       TypeApplication,
       ParenthesizedType,

@@ -82,6 +82,8 @@ object Experiments {
 
   trait ModulesExperiment extends SyntaxExperiment with Modules
 
+  /*
+
   object ProtoASTExperiment extends Experiment with ProtoAST {
     def leftParens  = Set("(")
     def rightParens = Set(")")
@@ -678,26 +680,36 @@ object Experiments {
       dump
     }
   }
+   */
 
   object AnnotationExperiment extends SyntaxExperiment {
-    val s = "∀α = {}. ∀β = α {δ, ε}. ∀γ = β. γ"
+    val s = "∀α = {}. ∀δ ε. ∃β = α {δ, ε}. ∀γ = β. γ"
 
     def run = {
-      puts(Type(s).print)
+      val τ = Type(s)
+      puts(τ.unparse)
+      puts(τ.print)
       dump
     }
 
     override def expected =
-      """|Universal, binder of α
+      """|∀α = {}. ∀δ ε. ∃β = α {δ, ε}. ∀γ = β. γ
+         |Universal, binder of α
          |  ∙(LiteralTag(java.lang.String), α)
          |  ∙(Annotation, Annotation(α,None,Some(List())))
-         |  Universal, binder of β
-         |    ∙(LiteralTag(java.lang.String), β)
-         |    ∙(Annotation, Annotation(β,Some(α),Some(List(∙(FreeTypeVar, δ), ∙(FreeTypeVar, ε)))))
-         |    Universal, binder of γ
-         |      ∙(LiteralTag(java.lang.String), γ)
-         |      ∙(Annotation, Annotation(γ,Some(β),None))
-         |      TypeVar, bound of γ
+         |  Universal, binder of δ
+         |    ∙(LiteralTag(java.lang.String), δ)
+         |    ∙(Annotation, Annotation(δ,None,None))
+         |    Universal, binder of ε
+         |      ∙(LiteralTag(java.lang.String), ε)
+         |      ∙(Annotation, Annotation(ε,None,None))
+         |      Existential, binder of β
+         |        ∙(LiteralTag(java.lang.String), β)
+         |        ∙(Annotation, Annotation(β,Some(α),Some(List(∙(FreeTypeVar, δ), ∙(FreeTypeVar, ε)))))
+         |        Universal, binder of γ
+         |          ∙(LiteralTag(java.lang.String), γ)
+         |          ∙(Annotation, Annotation(γ,Some(β),None))
+         |          TypeVar, bound of γ
          |""".stripMargin
   }
 }

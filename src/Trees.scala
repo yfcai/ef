@@ -423,6 +423,10 @@ trait Trees {
       }
 
     // unbind lots of binders
+    def unbindAll(ofWhom: Binder*):
+        (List[BinderSpec], Tree) =
+      unbindAll(Set.empty[String], ofWhom: _*)
+
     def unbindAll(toAvoid: Set[String], ofWhom: Binder*):
         (List[BinderSpec], Tree) =
       unbindAll(toAvoid, ofWhom contains _)
