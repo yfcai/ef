@@ -2,14 +2,26 @@ object Experiments {
   val debug = false
 
   val onTrial: Experiment =
-    ShadowyExperiment
+    AnnotatedBinderExperiment
 
   val experiments = List[Experiment](
+    /*
+    CaptureExperiment,
+    PrefixExperiment,
+    UnificationExperiment,
+    PrenexExperiment,
+     */
     DeclarationsExperiment,
     AnnotationExperiment,
-
-
+    ScopingExperiment,
+    AlphaEquivExperiment,
+    TypeListExperiment,
+    FileParsingExperiment,
+    CStyleConditionalExperiment,
+    AbstractionsExperiment,
+    SourceLocationExperiment,
     ShadowyExperiment,
+    AnnotatedBinderExperiment,
     CollapsedBinderExperiment,
     AtomListExperiment,
     AscriptionExperiment,
@@ -17,21 +29,6 @@ object Experiments {
     ApplicationExperiment,
     SelfReferenceExperiment,
     ProtoASTExperiment).reverse
-/*
-    //CaptureExperiment,
-    ScopingExperiment,
-    PrefixExperiment,
-    UnificationExperiment,
-    TypeListExperiment,
-    PrenexExperiment,
-    AnnotatedBinderExperiment,
-    AlphaEquivExperiment,
-    CStyleConditionalExperiment,
-    FileParsingExperiment,
-    CStyleConditionalExperiment,
-    AbstractionsExperiment,
-    SourceLocationExperiment,
- */
 
   def maintenance() = experiments foreach { ex =>
     if (ex.run != ex.expected) sys error s"failed: $ex"
@@ -253,12 +250,12 @@ object Experiments {
       """|∀β. α → ∃α. α → β
          |Universal, binder of β
          |  ∙(LiteralTag(java.lang.String), β)
-         |  ∙(Annotation, Annotation(β,None,None))
+         |  ∙(Annotation, Annotation(None,None))
          |  FunctionArrow
          |    ∙(FreeTypeVar, α)
          |    Existential, binder of α
          |      ∙(LiteralTag(java.lang.String), α)
-         |      ∙(Annotation, Annotation(α,None,None))
+         |      ∙(Annotation, Annotation(None,None))
          |      FunctionArrow
          |        TypeVar, bound of α
          |        TypeVar, bound of β
@@ -267,15 +264,146 @@ object Experiments {
 
   object ShadowyExperiment extends SyntaxExperiment {
     val t =
-      ⊹(Universal, §("α"), ♬("α"),
-      ⊹(Universal, §("α"), ♬("α"),
-      ⊹(Universal, §("α"), ♬("α"),
-      ⊹(Universal, §("α"), ♬("α"),
-      ⊹(Universal, §("α"), ♬("α"),
+      ⊹(Universal, §("α"), Annotation(None, None).toTree,
+      ⊹(Universal, §("α"), Annotation(None, None).toTree,
+      ⊹(Universal, §("α"), Annotation(None, None).toTree,
+      ⊹(Universal, §("α"), Annotation(None, None).toTree,
+      ⊹(Universal, §("α"), Annotation(None, None).toTree,
       ₌(∙(TypeVar, 1), ₌(∙(TypeVar, 2), ∙(TypeVar, 3))))))))
 
     def run = { puts(t.unparse) ; dump }
     override def expected = "∀α α₂ α₁ α₀ α. α₀ (α₁ α₂)\n"
+  }
+
+  object SourceLocationExperiment extends SyntaxExperiment {
+    val s = "Λγ δ. λx : ∀α β. List (∃ε. ε → γ → δ). x"
+
+    def run = {
+      val (t, toks) = Term.parse(ProtoAST(s)).get
+      withTokens(t, toks).fold[Unit] {
+        case (tf, tok) =>
+          puts(Problem(tok, tf.tag.toString, 1).getMessage)
+      }
+      dump
+    }
+
+    override def expected =
+      """|#LINE:1
+         |Λγ δ. λx : ∀α β. List (∃ε. ε → γ → δ). x
+         | ^
+         |LiteralTag(java.lang.String)
+         |
+         |#LINE:1
+         |Λγ δ. λx : ∀α β. List (∃ε. ε → γ → δ). x
+         |   ^
+         |LiteralTag(java.lang.String)
+         |
+         |#LINE:1
+         |Λγ δ. λx : ∀α β. List (∃ε. ε → γ → δ). x
+         |       ^
+         |LiteralTag(java.lang.String)
+         |
+         |#LINE:1
+         |Λγ δ. λx : ∀α β. List (∃ε. ε → γ → δ). x
+         |            ^
+         |LiteralTag(java.lang.String)
+         |
+         |#LINE:1
+         |Λγ δ. λx : ∀α β. List (∃ε. ε → γ → δ). x
+         |            ^
+         |Annotation
+         |
+         |#LINE:1
+         |Λγ δ. λx : ∀α β. List (∃ε. ε → γ → δ). x
+         |              ^
+         |LiteralTag(java.lang.String)
+         |
+         |#LINE:1
+         |Λγ δ. λx : ∀α β. List (∃ε. ε → γ → δ). x
+         |              ^
+         |Annotation
+         |
+         |#LINE:1
+         |Λγ δ. λx : ∀α β. List (∃ε. ε → γ → δ). x
+         |                 ^
+         |FreeTypeVar
+         |
+         |#LINE:1
+         |Λγ δ. λx : ∀α β. List (∃ε. ε → γ → δ). x
+         |                        ^
+         |LiteralTag(java.lang.String)
+         |
+         |#LINE:1
+         |Λγ δ. λx : ∀α β. List (∃ε. ε → γ → δ). x
+         |                        ^
+         |Annotation
+         |
+         |#LINE:1
+         |Λγ δ. λx : ∀α β. List (∃ε. ε → γ → δ). x
+         |                           ^
+         |TypeVar
+         |
+         |#LINE:1
+         |Λγ δ. λx : ∀α β. List (∃ε. ε → γ → δ). x
+         |                               ^
+         |TypeVar
+         |
+         |#LINE:1
+         |Λγ δ. λx : ∀α β. List (∃ε. ε → γ → δ). x
+         |                                   ^
+         |TypeVar
+         |
+         |#LINE:1
+         |Λγ δ. λx : ∀α β. List (∃ε. ε → γ → δ). x
+         |                                 ^
+         |FunctionArrow
+         |
+         |#LINE:1
+         |Λγ δ. λx : ∀α β. List (∃ε. ε → γ → δ). x
+         |                             ^
+         |FunctionArrow
+         |
+         |#LINE:1
+         |Λγ δ. λx : ∀α β. List (∃ε. ε → γ → δ). x
+         |                       ^
+         |Existential
+         |
+         |#LINE:1
+         |Λγ δ. λx : ∀α β. List (∃ε. ε → γ → δ). x
+         |                 ^
+         |TypeApplication
+         |
+         |#LINE:1
+         |Λγ δ. λx : ∀α β. List (∃ε. ε → γ → δ). x
+         |              ^
+         |Universal
+         |
+         |#LINE:1
+         |Λγ δ. λx : ∀α β. List (∃ε. ε → γ → δ). x
+         |            ^
+         |Universal
+         |
+         |#LINE:1
+         |Λγ δ. λx : ∀α β. List (∃ε. ε → γ → δ). x
+         |                                       ^
+         |Var
+         |
+         |#LINE:1
+         |Λγ δ. λx : ∀α β. List (∃ε. ε → γ → δ). x
+         |      ^
+         |AnnotatedAbstraction
+         |
+         |#LINE:1
+         |Λγ δ. λx : ∀α β. List (∃ε. ε → γ → δ). x
+         |   ^
+         |TypeAbstraction
+         |
+         |#LINE:1
+         |Λγ δ. λx : ∀α β. List (∃ε. ε → γ → δ). x
+         | ^
+         |TypeAbstraction
+         |
+         |""".stripMargin
   }
 
   object AbstractionsExperiment extends SyntaxExperiment {
@@ -312,87 +440,6 @@ object Experiments {
          |    ∙(FreeVar, e)
          |""".stripMargin
   }
-/*
-  object SourceLocationExperiment extends SyntaxExperiment {
-    val s = """∀α = ∀α. α → α. List (∃β = α. β)"""
-
-    def run = {
-      val (t, toks) = Type.parse(ProtoAST(s)).get
-      withTokens(t, toks).fold[Unit] {
-        case (tf, tok) =>
-          puts(Problem(tok, tf.tag.toString, 1).getMessage)
-      }
-      dump
-    }
-
-    override def expected =
-      """|#LINE:1
-         |∀α = ∀α. α → α. List (∃β = α. β)
-         | ^
-         |LiteralTag(java.lang.String)
-         |
-         |#LINE:1
-         |∀α = ∀α. α → α. List (∃β = α. β)
-         |      ^
-         |LiteralTag(java.lang.String)
-         |
-         |#LINE:1
-         |∀α = ∀α. α → α. List (∃β = α. β)
-         |         ^
-         |TypeVar
-         |
-         |#LINE:1
-         |∀α = ∀α. α → α. List (∃β = α. β)
-         |             ^
-         |TypeVar
-         |
-         |#LINE:1
-         |∀α = ∀α. α → α. List (∃β = α. β)
-         |           ^
-         |FunctionArrow
-         |
-         |#LINE:1
-         |∀α = ∀α. α → α. List (∃β = α. β)
-         |     ^
-         |UniversalQuantification
-         |
-         |#LINE:1
-         |∀α = ∀α. α → α. List (∃β = α. β)
-         |                ^
-         |FreeTypeVar
-         |
-         |#LINE:1
-         |∀α = ∀α. α → α. List (∃β = α. β)
-         |                       ^
-         |LiteralTag(java.lang.String)
-         |
-         |#LINE:1
-         |∀α = ∀α. α → α. List (∃β = α. β)
-         |                           ^
-         |TypeVar
-         |
-         |#LINE:1
-         |∀α = ∀α. α → α. List (∃β = α. β)
-         |                              ^
-         |TypeVar
-         |
-         |#LINE:1
-         |∀α = ∀α. α → α. List (∃β = α. β)
-         |                      ^
-         |ExistentialBound
-         |
-         |#LINE:1
-         |∀α = ∀α. α → α. List (∃β = α. β)
-         |                ^
-         |TypeApplication
-         |
-         |#LINE:1
-         |∀α = ∀α. α → α. List (∃β = α. β)
-         |^
-         |UniversalBound
-         |
-         |""".stripMargin
-  }*/
 
   object DeclarationsExperiment extends ModulesExperiment {
     val either = "type Either α β = ∀γ. (α → γ) → (β → γ) → γ"
@@ -427,7 +474,7 @@ object Experiments {
       """|type Either = ∀α β γ. (α → γ) → (β → γ) → γ
          |#LINE:1
          |type List α = either Unit (α → List α → List α)
-         |^
+         |     ^
          |recursive type synonym
          |
          |id = λx : α. x
@@ -439,7 +486,7 @@ object Experiments {
          |auto : (∀α. α → α) → ∀α. α → α
          |""".stripMargin
   }
-/*
+
   object FileParsingExperiment extends ModulesExperiment {
     def thisFile = new Throwable().getStackTrace().head.getFileName
     val nats = thisFile.substring(0, thisFile.lastIndexOf('/') + 1) +
@@ -458,8 +505,8 @@ object Experiments {
   }
 
   object AlphaEquivExperiment extends SyntaxExperiment {
-    val s = "∀α ⊒ ∀β. β → β. α → α"
-    val t = "∀γ ⊒ ∀δ. δ → δ. γ → γ"
+    val s = "∀α β. β → β. α → α"
+    val t = "∀γ δ. δ → δ. γ → γ"
 
     def run = {
       val (σ, τ) = (Type.parse(s).get, Type.parse(t).get)
@@ -489,6 +536,44 @@ object Experiments {
          |""".stripMargin
   }
 
+  object TypeListExperiment extends SyntaxExperiment {
+    def test(s: String): Unit =
+      puts(TypeList.parse(s).get.as[Seq[Tree]].map(_.unparse).toString)
+
+    val lines =
+      """|{}
+         |{α → β, ∀γ. γ, List β}
+         |""".stripMargin
+
+    // this will never happen in practice.
+    // in practice, an uncertain quantifier never occurs in body:
+    //
+    //   ∀γ. ∃δ. ∀α = {γ, δ}. ∃β = {}. ∀α₀ = α. ∀β₀ = β. α₀ → β₀
+    //
+    val τ = "∀α = {}. ∃β = {List γ, γ → δ}. α → β"
+
+    def run = {
+      lines.lines.foreach { line => test(line) }
+      puts(Type(τ).print)
+      dump
+    }
+
+    override def expected =
+      """|List()
+         |List(α → β, ∀γ. γ, List β)
+         |Universal, binder of α
+         |  ∙(LiteralTag(java.lang.String), α)
+         |  ∙(Annotation, Annotation(None,Some(List())))
+         |  Existential, binder of β
+         |    ∙(LiteralTag(java.lang.String), β)
+         |    ∙(Annotation, Annotation(None,Some(List(⊹(TypeApplication, ∙(FreeTypeVar, List), ∙(FreeTypeVar, γ)), ⊹(FunctionArrow, ∙(FreeTypeVar, γ), ∙(FreeTypeVar, δ))))))
+         |    FunctionArrow
+         |      TypeVar, bound of α
+         |      TypeVar, bound of β
+         |""".stripMargin
+  }
+
+  /*
   object PrenexExperiment extends Experiment with Prenex {
     val types =
       """|(α → β) → (β → α)
@@ -516,45 +601,6 @@ object Experiments {
          |(∀α = ((∃α = ((∀α. α) → ⊥). α → ⊥) → ⊥). α → ⊥) → ⊥
          |∃α = (∀α = (∃α. α → ⊥). (α → ⊥) → ⊥). (α → ⊥) → ⊥
          |
-         |""".stripMargin
-  }
-
-  object TypeListExperiment extends SyntaxExperiment {
-    def test(s: String): Unit =
-      puts(TypeList.parse(s).get.as[Seq[Tree]].map(_.unparse).toString)
-
-    val lines =
-      """|{}
-         |{α → β, ∀γ. γ, List β}
-         |""".stripMargin
-
-    // this will never happen in practice.
-    // in practice, an uncertain quantifier never occurs in body:
-    //
-    //   ∀γ. ∃δ. ∀α = {γ, δ}. ∃β = {}. ∀α₀ = α. ∀β₀ = β. α₀ → β₀
-    //
-    val τ = "∀α = {}. ∃β = {List γ, γ → δ}. α → β"
-
-    def run = {
-      lines.lines.foreach { line => test(line) }
-      puts(Type(τ).print)
-      dump
-    }
-
-    override def expected =
-      """|List()
-         |List(α → β, ∀γ. γ, List β)
-         |UniversalUncertainty, binder of α
-         |  ∙(LiteralTag(java.lang.String), α)
-         |  ∙(TypeList, List())
-         |  ExistentialUncertainty, binder of β
-         |    ∙(LiteralTag(java.lang.String), β)
-         |    ∙(TypeList, """.stripMargin +
-      "List(⊹(TypeApplication, ∙(FreeTypeVar, List), ∙(FreeTypeVar, γ))," +
-      " ⊹(FunctionArrow, ∙(FreeTypeVar, γ), ∙(FreeTypeVar, δ))))\n" +
-      """|    FunctionArrow
-         |      TypeVar, bound of α
-         |      TypeVar, bound of β
          |""".stripMargin
   }
 
@@ -626,21 +672,37 @@ object Experiments {
          |""".stripMargin
   }
 
+ */
   // important scoping exercise
   // assumed during capturing of family heads
   object ScopingExperiment extends Experiment with ExistentialF {
     def run = {
       val β = "β"
-      val τ = ∀(β, ∀=(β, æ(β), æ(β)))
-      puts(s"∀(β, ∀=(β, æ(β), æ(β))) = ${τ.unparse}")
+      val τ =
+        ∀(β, Annotation(None, None),
+          ∀(β, Annotation(Some(β), None), æ(β)))
+      puts(τ.unparse)
       dump
     }
 
     override def expected =
-      """|∀(β, ∀=(β, æ(β), æ(β))) = ∀β₀. ∀β = β₀. β
+      """|∀β. ∀β = β. β
          |""".stripMargin
   }
 
+  object AnnotationExperiment extends SyntaxExperiment {
+    val s = "∀α = {}. ∀δ ε. ∃η ζ. ∃β = α {δ, ε, η, ζ}. ∀γ = β. γ"
+
+    def run = {
+      val τ = Type(s)
+      puts(τ.unparse)
+      dump
+    }
+
+    override def expected = s + "\n"
+  }
+
+ /*
   object CaptureExperiment extends Experiment with ExistentialF {
     val choose = Type("∀α. α → α → α")
     val absurd = Type("∀ω. ω")
@@ -655,16 +717,4 @@ object Experiments {
     }
   }
    */
-
-  object AnnotationExperiment extends SyntaxExperiment {
-    val s = "∀α = {}. ∀δ ε. ∃η ζ. ∃β = α {δ, ε, η, ζ}. ∀γ = β. γ"
-
-    def run = {
-      val τ = Type(s)
-      puts(τ.unparse)
-      dump
-    }
-
-    override def expected = s + "\n"
-  }
 }

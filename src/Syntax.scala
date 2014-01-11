@@ -114,6 +114,10 @@ trait ExpressionGrammar extends Operators {
     def cons(children: Seq[Tree]): Tree =
       ∙(this, children.map(_.as[Token].body): Seq[String])
 
+    override
+    def getLeafTokens(items: Seq[Tree]): List[Token] =
+      items.map(_.as[Token])(collection.breakOut)
+
     def unparseLeaf(leaf: ∙[_]): String =
       leaf.as[List[_]] mkString " "
 
@@ -157,6 +161,18 @@ trait ExpressionGrammar extends Operators {
       case otherwise =>
         otherwise
     }
+
+    // duplicate to create a token for each nonexisting nonterminal:
+    // one variable is transformed into 2 to stand for
+    // 1. the quantification
+    // 2. the bound variable
+    override
+    def consTokens(tok: Token, toks: Seq[List[Token]]): List[Token] =
+      toks match { case Seq(params, body) =>
+        params.foldRight(body) {
+          case (x, xs) => x :: x :: xs
+        }
+      }
 
     def bind(xs: Seq[String], body: Tree): Tree =
       ⊹(this, ∙(AtomList, xs), body)
@@ -339,20 +355,32 @@ trait Syntax extends ExpressionGrammar {
     def freeName = FreeTypeVar
     def prison = TypeVar
 
-    override def cons(children: Seq[Tree]): Tree = children match {
-      case Seq(note @ ♬(α, _, _), body) =>
-        this.bind(α, note, body)
+    override
+    def cons(children: Seq[Tree]): Tree = children match {
+      case Seq(Annotated(α, note), body) =>
+        this.bind(α, note.toTree, body)
+    }
+
+    // changing 2 to 3, must override consTokens
+    override
+    def consTokens(tok: Token, toks: Seq[List[Token]]): List[Token] =
+      toks match { case Seq(annotation, body) =>
+      val boundName = annotation.head
+      val note = annotation.tail match {
+        case Nil => boundName
+        case token :: _ => token
+      }
+      tok :: boundName :: note :: body
     }
 
     val collapsed = Collapsed(this)
 
     override def unparse(t: Tree): String = t match {
-      case ⊹(tag, _, ♬(_, None, None), _) if tag == this =>
+      case ⊹(tag, _, Noted(None, None), _) if tag == this =>
         collapsed.unparse(t)
       case _ if t.tag == this =>
         val (æ(α), Seq(note, body)) = unbind(t).get
-        val newNote = note.as[Annotation].updated(α)
-        s"$getSymbol${newNote.unparse}$dot ${body.unparse}"
+        s"$getSymbol$α${note.unparse}$dot ${body.unparse}"
       case _ =>
         super.unparse(t)
     }
@@ -393,7 +421,7 @@ trait Syntax extends ExpressionGrammar {
     def collapse(t: Tree): Tree = {
       val (bindings, body) = t.unbindAll(binder)
       val i = bindings.indexWhere(spec => spec.annotation match {
-        case ♬(_, None, None) => false
+        case Noted(None, None) => false
         case _ => true
       })
       val j = if (i < 0) bindings.length else i
@@ -404,11 +432,25 @@ trait Syntax extends ExpressionGrammar {
     def expand(t: Tree): Tree = t match {
       case ⊹(tag, params @ ∙(AtomList, _), body) if tag == this =>
         params.as[Seq[String]].foldRight(body) {
-          case (x, body) => binder.bind(x, ♬(x), body)
+          case (x, body) =>
+            binder.bind(x, Annotation(None, None).toTree, body)
         }
       case otherwise =>
         otherwise
     }
+
+    // duplicate to create a token for each nonexisting nonterminal:
+    // one variable is transformed into 3 to stand for
+    // 1. the quantification
+    // 2. the bound variable
+    // 3. the nonexistent annotation
+    override
+    def consTokens(tok: Token, toks: Seq[List[Token]]): List[Token] =
+      toks match { case Seq(params, body) =>
+        params.foldRight(body) {
+          case (x, xs) => x :: x :: x :: xs
+        }
+      }
 
     def bind(xs: Seq[String], body: Tree): Tree =
       if (xs.isEmpty)
@@ -424,58 +466,31 @@ trait Syntax extends ExpressionGrammar {
     }
   }
 
-  case class Annotation(
-    alpha : String,
-    parent: Option[String],
-    debts : Option[Seq[Tree]]) {
-
-    def toTree: Tree = ∙(Annotation, this)
-
-    def unparse: String = this match {
-      case Annotation(α, None, None) =>
-        α
-      case Annotation(α, Some(parent), None) =>
-        s"$α = $parent"
-      case Annotation(α, None, Some(seq)) =>
-        s"$α = ${TypeList.unparse(seq)}"
-      case Annotation(α, Some(parent), Some(seq)) =>
-        s"$α = $parent ${TypeList.unparse(seq)}"
-    }
-
-    def updated(α: String) = Annotation(α, parent, debts)
-  }
-
   abstract class QuantificationFactory(binder: Quantification) {
-    def apply (note: Tree, body: Tree): Tree =
-      binder.bind(♬.getName(note), note, body)
+    def apply (α: String, note: Annotation, body: Tree): Tree =
+      binder.bind(α, note.toTree, body)
 
-    def unapply(t: Tree): Option[(Annotation, Tree)] =
+    def unapply(t: Tree): Option[(String, Annotation, Tree)] =
       binder.unbind(t).map {
-        case (x, Seq(note, body)) =>
-          (Annotation.get(note).updated(x.get), body)
+        case (α, Seq(note, body)) =>
+          (α.get, Annotation.get(note), body)
       }
   }
 
-  // annotation constructors & destructor
-  object ♬ {
-    def apply(α: String): Tree =
-      Annotation(α, None, None).toTree
-    def apply(α: String, β: String): Tree =
-      Annotation(α, Some(β), None).toTree
-    def apply(α: String, debts: Seq[Tree]): Tree =
-      Annotation(α, None, Some(debts)).toTree
-    def apply(α: String, β: String, debts: Seq[Tree]): Tree =
-      Annotation(α, Some(β), Some(debts)).toTree
+  case class Annotation(parent: Option[String], debts : Option[Seq[Tree]])
+  {
+    def toTree: Tree = ∙(Annotation, this)
 
-    def unapply(t: Tree):
-        Option[(String, Option[String], Option[Seq[Tree]])] = t match {
-      case ∙(Annotation, Annotation(α, parent, debts)) =>
-        Some((α, parent, debts))
-      case _ =>
-        None
+    def unparse: String = this match {
+      case Annotation(None, None) =>
+        ""
+      case Annotation(Some(parent), None) =>
+        s" = $parent"
+      case Annotation(None, Some(seq)) =>
+        s" = ${TypeList.unparse(seq)}"
+      case Annotation(Some(parent), Some(seq)) =>
+        s" = $parent ${TypeList.unparse(seq)}"
     }
-
-    def getName(note: Tree): String = unapply(note).get._1
   }
 
   case object Annotation
@@ -503,16 +518,42 @@ trait Syntax extends ExpressionGrammar {
     def cons(children: Seq[Tree]): Tree =
       children match {
         case Seq(æ(α)) =>
-          ♬(α)
+          Annotated(α, None, None)
         case Seq(æ(α), æ(β)) =>
-          ♬(α, β)
+          Annotated(α, Some(β), None)
         case Seq(æ(α), TypeList(debts)) =>
-          ♬(α, debts)
+          Annotated(α, None, Some(debts))
         case Seq(æ(α), æ(β), TypeList(debts)) =>
-          ♬(α, β, debts)
+          Annotated(α, Some(β), Some(debts))
       }
 
     def unparseLeaf(leaf: ∙[_]): String = leaf.as[Annotation].unparse
+  }
+
+  object Annotated extends Genus with KnownLeafTag[(String, Annotation)] {
+    def man = manifest[(String, Annotation)]
+    def genus = this
+
+    def apply(
+      α: String,
+      parent: Option[String],
+      debts: Option[Seq[Tree]]):
+        Tree = ∙(this, (α, Annotation(parent, debts)))
+
+    def unapply(t: Tree): Option[(String, Annotation)] = t match {
+      case node @ ∙(Annotated, _) =>
+        Some(get(node))
+      case _ =>
+        None
+    }
+  }
+
+  object Noted {
+    def unapply(t: Tree): Option[(Option[String], Option[Seq[Tree]])] =
+      if (t.tag == Annotation)
+        Annotation.unapply(Annotation.get(t))
+      else
+        None
   }
 
   def downFrom(x: Operator, ops: List[Operator]): List[Operator] =

@@ -619,9 +619,9 @@ trait Operators extends Fixities {
           // produce a leaf
           split match {
             case Seq(x) =>
-              return Some((cons(x), List(getFirstToken(items))))
+              return Some((cons(x), getLeafTokens(items)))
             case Seq() =>
-              return Some((cons(Nil), List(getFirstToken(items))))
+              return Some((cons(Nil), getLeafTokens(items)))
             case _ =>
               sys error s"leaf operator with nonunary fixity: $this"
           }
@@ -647,7 +647,8 @@ trait Operators extends Fixities {
             case None => ()
             case Some(children) => return Some((
               cons(children.map(_._1)),
-              chooseToken(fixity, split, items) :: children.flatMap(_._2)
+              consTokens(chooseToken(fixity, split, items),
+                children.map(_._2))
             ))
           }
         }
@@ -655,6 +656,12 @@ trait Operators extends Fixities {
       // I can't parse it
       None
     }
+
+    def consTokens(tok: Token, toks: Seq[List[Token]]): List[Token] =
+      tok :: (toks.flatMap(x => x)(collection.breakOut): List[Token])
+
+    def getLeafTokens(items: Seq[Tree]): List[Token] =
+      List(getFirstToken(items))
 
     def chooseToken(fixity: Fixity, split: Seq[Seq[Tree]], items: Seq[Tree]):
         Token = (fixity, split) match {

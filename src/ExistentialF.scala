@@ -148,6 +148,7 @@ trait ExistentialF extends Unification with Prenex {
   // precondition: sign is universal-/existential-quantification.
   def bindChild(sign: Tag, β: String, body: Tree): Tree = sign match {
     // to understand, consult Experiments.ScopingExperiment
+    // (need to change now)
     case UniversalQuantification =>
       ∀=(β, æ(β), body)
     case ExistentialQuantification =>
