@@ -327,7 +327,11 @@ trait Syntax extends ExpressionGrammar {
     def man = manifest[Seq[Tree]]
     def genus = this
 
-    val fixity = SetLike("{", ",", "}")
+    val leftParen  = "{"
+    val separator  = ","
+    val rightParen = "}"
+
+    val fixity = SetLike(leftParen, separator, rightParen)
 
     override def tryNextOverride: Seq[Seq[Tree]] => Seq[Seq[Operator]] =
       _.map(_ => typeOps)
@@ -351,32 +355,20 @@ trait Syntax extends ExpressionGrammar {
     def genus = Type
     override
     def extraSubgenera = Seq(Annotation)
-    def tryNext = Seq(Seq(Annotation), typeOps)
+    def tryNext = Seq(Seq(Annotated), typeOps)
     def freeName = FreeTypeVar
     def prison = TypeVar
 
     override
     def cons(children: Seq[Tree]): Tree = children match {
       case Seq(Annotated(α, note), body) =>
-        this.bind(α, note.toTree, body)
-    }
-
-    // changing 2 to 3, must override consTokens
-    override
-    def consTokens(tok: Token, toks: Seq[List[Token]]): List[Token] =
-      toks match { case Seq(annotation, body) =>
-      val boundName = annotation.head
-      val note = annotation.tail match {
-        case Nil => boundName
-        case token :: _ => token
-      }
-      tok :: boundName :: note :: body
+        this.bind(α, note, body)
     }
 
     val collapsed = Collapsed(this)
 
     override def unparse(t: Tree): String = t match {
-      case ⊹(tag, _, Noted(None, None), _) if tag == this =>
+      case ⊹(tag, _, Annotation.none(), _) if tag == this =>
         collapsed.unparse(t)
       case _ if t.tag == this =>
         val (æ(α), Seq(note, body)) = unbind(t).get
@@ -420,10 +412,7 @@ trait Syntax extends ExpressionGrammar {
 
     def collapse(t: Tree): Tree = {
       val (bindings, body) = t.unbindAll(binder)
-      val i = bindings.indexWhere(spec => spec.annotation match {
-        case Noted(None, None) => false
-        case _ => true
-      })
+      val i = bindings.indexWhere(_.annotation != Annotation.none())
       val j = if (i < 0) bindings.length else i
       val (collapsibles, uncollapsibles) = bindings.splitAt(j)
       bind(collapsibles.map(_.x), body.boundBy(uncollapsibles))
@@ -433,22 +422,22 @@ trait Syntax extends ExpressionGrammar {
       case ⊹(tag, params @ ∙(AtomList, _), body) if tag == this =>
         params.as[Seq[String]].foldRight(body) {
           case (x, body) =>
-            binder.bind(x, Annotation(None, None).toTree, body)
+            binder.bind(x, Annotation.none(), body)
         }
       case otherwise =>
         otherwise
     }
 
     // duplicate to create a token for each nonexisting nonterminal:
-    // one variable is transformed into 3 to stand for
+    // one variable is transformed into 5 to stand for
     // 1. the quantification
     // 2. the bound variable
-    // 3. the nonexistent annotation
+    // 3. the nonexistent annotation (costs 3)
     override
     def consTokens(tok: Token, toks: Seq[List[Token]]): List[Token] =
       toks match { case Seq(params, body) =>
         params.foldRight(body) {
-          case (x, xs) => x :: x :: x :: xs
+          case (x, xs) => x :: x :: x :: x :: x :: xs
         }
       }
 
@@ -467,21 +456,71 @@ trait Syntax extends ExpressionGrammar {
   }
 
   abstract class QuantificationFactory(binder: Quantification) {
-    def apply (α: String, note: Annotation, body: Tree): Tree =
-      binder.bind(α, note.toTree, body)
+    def apply (α: String, note: Tree, body: Tree): Tree =
+      binder.bind(α, note, body)
 
-    def unapply(t: Tree): Option[(String, Annotation, Tree)] =
+    def unapply(t: Tree): Option[(String, Tree, Tree)] =
       binder.unbind(t).map {
-        case (α, Seq(note, body)) =>
-          (α.get, Annotation.get(note), body)
+        case (α, Seq(note, body)) => (α.get, note, body)
       }
   }
 
-  case class Annotation(parent: Option[String], debts : Option[Seq[Tree]])
-  {
-    def toTree: Tree = ∙(Annotation, this)
+  // an encoding of Option
+  case object Nope extends LeafTag with Genus {
+    def apply(): Tree = ∙[Unit](Nope, ())
 
-    def unparse: String = this match {
+    def unapply(t: Tree): Boolean = t.tag == this
+
+    def man = manifest[Unit]
+    def genus = this
+  }
+
+  case object Yeah extends Tag with Genus {
+    def apply(t: Tree*): Tree = ⊹(this, t: _*)
+
+    def unapplySeq(t: Tree): Option[Seq[Tree]] = t match {
+      case ⊹(Yeah, subtree @ _*) => Some(subtree)
+      case _ => None
+    }
+
+    def genus = this
+  }
+
+  case object Annotation extends Genus with Tag {
+    def apply(parent: Option[String], debts: Option[Seq[Tree]]): Tree =
+      ⊹(this, fromOption(parent.map(æ.apply)), fromOptions(debts))
+
+    def unapply(t: Tree): Option[(Option[String], Option[Seq[Tree]])] =
+      t match {
+        case ⊹(Annotation, parent, debts) =>
+          Some((toOption(parent).map(FreeTypeVar.get), toOptions(debts)))
+        case _ =>
+          None
+      }
+
+    // interconversion betwen options & trees
+    // don't know how to reduce code duplication...
+    def fromOption(opt: Option[Tree]): Tree = opt match {
+      case None => Nope()
+      case Some(t) => Yeah(t)
+    }
+    def fromOptions(opt: Option[Seq[Tree]]): Tree = opt match {
+      case None => Nope()
+      case Some(trees) => Yeah(trees: _*)
+    }
+    def toOption(t: Tree): Option[Tree] = t match {
+      case Nope() => None
+      case Yeah(t) => Some(t)
+    }
+    def toOptions(t: Tree): Option[Seq[Tree]] = t match {
+      case Nope() => None
+      case Yeah(trees @ _*) => Some(trees)
+    }
+
+    def genus = this
+
+    override
+    def unparse(t: Tree): String = t match {
       case Annotation(None, None) =>
         ""
       case Annotation(Some(parent), None) =>
@@ -491,15 +530,28 @@ trait Syntax extends ExpressionGrammar {
       case Annotation(Some(parent), Some(seq)) =>
         s" = $parent ${TypeList.unparse(seq)}"
     }
+
+    object none {
+      def apply(): Tree = _none
+      def unapply(t: Tree): Boolean = t match {
+        case Annotation(None, None) => true
+        case _ => false
+      }
+      val _none = Annotation(None, None)
+    }
   }
 
-  case object Annotation
-      extends Genus
-         with LeafOperator
-         with KnownLeafTag[Annotation] {
-    def man = manifest[Annotation]
+  case object Annotated extends Genus with Operator {
     def genus = this
 
+    def apply(α: String, note: Tree): Tree = ⊹(this, §(α), note)
+
+    def unapply(t: Tree): Option[(String, Tree)] = t match {
+      case ⊹(Annotated, §(α), note) => Some((α, note))
+      case _ => None
+    }
+
+    // parsing
     val fixity: Fixity = {
       val α = LoneToken.forbid(forbidden)
       val * = TypeList.fixity.composite
@@ -507,6 +559,7 @@ trait Syntax extends ExpressionGrammar {
       α.andThenAfter("=", α orElse * orElse (α andThen1 *))
     }
 
+    def tryNext: Seq[Seq[Operator]] = Seq.empty
     override def tryNextOverride: Seq[Seq[Tree]] => Seq[Seq[Operator]] =
       stuff => stuff.length match {
         case 1 => Seq(Seq(FreeTypeVar))
@@ -518,42 +571,62 @@ trait Syntax extends ExpressionGrammar {
     def cons(children: Seq[Tree]): Tree =
       children match {
         case Seq(æ(α)) =>
-          Annotated(α, None, None)
+          Annotated(α, Annotation(None, None))
         case Seq(æ(α), æ(β)) =>
-          Annotated(α, Some(β), None)
+          Annotated(α, Annotation(Some(β), None))
         case Seq(æ(α), TypeList(debts)) =>
-          Annotated(α, None, Some(debts))
+          Annotated(α, Annotation(None, Some(debts)))
         case Seq(æ(α), æ(β), TypeList(debts)) =>
-          Annotated(α, Some(β), Some(debts))
+          Annotated(α, Annotation(Some(β), Some(debts)))
       }
 
-    def unparseLeaf(leaf: ∙[_]): String = leaf.as[Annotation].unparse
-  }
+    // produce tokens to fit the eventual AST
+    override
+    def consTokens(tok: Token, toks: Seq[List[Token]]): List[Token] =
+      toks match {
+        // ∙(LiteralTag(java.lang.String), α)
+        // Annotation
+        //   ∙(Nope, ())
+        //   ∙(Nope, ())
+        case Seq(List(α)) => α :: α :: α :: α :: Nil
 
-  object Annotated extends Genus with KnownLeafTag[(String, Annotation)] {
-    def man = manifest[(String, Annotation)]
-    def genus = this
+        // ∙(LiteralTag(java.lang.String), α)
+        // Annotation
+        //   ∙(Nope, ())
+        //   Yeah
+        //
+        // --OR--
+        //
+        // ∙(LiteralTag(java.lang.String), α)
+        // Annotation
+        //   Yeah
+        //     TypeVar, bound of β
+        //   ∙(Nope, ())
+        case Seq(List(α), List(β)) =>
+          if (β.body == TypeList.leftParen)
+            α :: β :: β :: β :: Nil
+          else
+            α :: β :: β :: β :: β :: Nil
 
-    def apply(
-      α: String,
-      parent: Option[String],
-      debts: Option[Seq[Tree]]):
-        Tree = ∙(this, (α, Annotation(parent, debts)))
+        // ∙(LiteralTag(java.lang.String), α)
+        // Annotation
+        //   ∙(Nope, ())
+        //   Yeah
+        //     TypeVar, bound of γ
+        //     TypeVar, bound of δ
+        case Seq(List(α), debts @ lp :: _) =>
+          α :: lp :: lp :: debts
 
-    def unapply(t: Tree): Option[(String, Annotation)] = t match {
-      case node @ ∙(Annotated, _) =>
-        Some(get(node))
-      case _ =>
-        None
-    }
-  }
-
-  object Noted {
-    def unapply(t: Tree): Option[(Option[String], Option[Seq[Tree]])] =
-      if (t.tag == Annotation)
-        Annotation.unapply(Annotation.get(t))
-      else
-        None
+        // ∙(LiteralTag(java.lang.String), α)
+        // Annotation
+        //   Yeah
+        //     TypeVar, bound of β
+        //   Yeah
+        //     TypeVar, bound of γ
+        //     TypeVar, bound of δ
+        case Seq(List(α), List(β), debts) =>
+          α :: β :: β :: β :: debts
+      }
   }
 
   def downFrom(x: Operator, ops: List[Operator]): List[Operator] =
@@ -590,38 +663,4 @@ trait Syntax extends ExpressionGrammar {
       Application,
       ParenthesizedTerm,
       FreeVar)
-
-  // TODO: put everything below in prenex
-  def topologicalOrder(graph: Map[String, Set[String]]): Map[String, Int] = {
-    var distance = -1
-    var toVisit  = graph.keySet
-    var result   = Map.empty[String, Int]
-    while (! toVisit.isEmpty) {
-      val frontier = toVisit.filter {
-        α => graph(α).find(toVisit contains _) == None
-      }
-      if (frontier.isEmpty)
-        sys error s"cycle detected"
-      distance = distance +  1
-      toVisit  = toVisit  -- frontier
-      result   = result   ++ frontier.map(α => (α, distance))
-    }
-    result
-  }
-
-  trait Status[+T] {
-    def toBoolean: Boolean
-    def get: T
-    def map[R](f: T => R): Status[R]
-  }
-  case class Success[+T](get: T) extends Status[T] {
-    def toBoolean: Boolean = true
-    def map[R](f: T => R): Status[R] = Success(f(get))
-  }
-  case class Failure[+T](message: String) extends Status[T] {
-    def toBoolean: Boolean = false
-    def map[R](f: T => R): Status[R] = Failure(message)
-
-    def get: T = sys error s"get of $this"
-  }
 }

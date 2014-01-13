@@ -1,14 +1,60 @@
 /** Prenex forms for Existential F */
 trait Prenex extends Syntax {
   /*
-  case class Prenex(prefix: Seq[PrenexSpec], body: Tree) {
+  case class Prenex(prefix: Seq[BinderSpec], body: Tree) {
     def toType: Tree = Prenex.bind(prefix, body)
 
-    def flipPrefix: Seq[PrenexSpec] = prefix.map({
-      case PrenexSpec(tag, x, annotations @ _*) =>
-        PrenexSpec(Prenex.flipTag(tag), x, annotations: _*)
+    def flipPrefix: Seq[BinderSpec] = prefix.map({
+      case BinderSpec(tag, α, notes @ _*) =>
+        BinderSpec(Prenex.flip(tag), α, notes: _*)
     })
+  }
 
+  object Prenex {
+    def bind(prefix: Seq[BinderSpec], body: Tree): Tree =
+      body.boundBy(prefix)
+
+    def normalize(prefix: Seq[BinderSpec], body: Tree): Tree = {
+      val topo = topologicalOrder(prefix)
+      val specs =
+        prefix.withFilter(body.freeNames contains _.x).map(
+          spec => (spec, (topo(spec.x), indexOf(spec.x, body)))
+        ).sortBy(_._2).map(_._1)
+      bind(specs, body)
+    }
+
+    def flip(tag: Binder): Binder = tag match {
+      case Universal   => Existential
+      case Existential => Universal
+    }
+
+    def topologicalOrder(prefix: Seq[BinderSpec]):
+        Map[String, Int] = ???
+      //prefix.map({ case BinderSpec(_, α, 
+
+    def topologicalOrder(graph: Map[String, Set[String]]):
+        Map[String, Int] = {
+      var distance = -1
+      var toVisit  = graph.keySet
+      var result   = Map.empty[String, Int]
+      while (! toVisit.isEmpty) {
+        val frontier = toVisit.filter {
+          α => graph(α).find(toVisit contains _) == None
+        }
+        if (frontier.isEmpty)
+          sys error s"cycle detected"
+        distance = distance +  1
+        toVisit  = toVisit  -- frontier
+        result   = result   ++ frontier.map(α => (α, distance))
+      }
+      result
+    }
+
+    def indexOf(α: String, body: Tree): Int =
+      body.preorder.indexOf(æ(α))
+  }*/
+
+  /*
     def normalize: Tree =
       Prenex.normalize(prefix, body)
 
@@ -26,15 +72,6 @@ trait Prenex extends Syntax {
   }
 
   object Prenex {
-    def normalize(prefix: Seq[PrenexSpec], body: Tree): Tree = {
-      val topo = topologicalOrder(prefix)
-      val specs =
-        prefix.withFilter(body.freeNames contains _.x).map(
-          spec => (spec, (topo(spec.x), indexOf(spec.x, body)))
-        ).sortBy(_._2).map(_._1)
-      bind(specs, body)
-    }
-
     def bind(prefix: Seq[PrenexSpec], body: Tree): Tree =
       body.boundBy(prefix.map(_.toBinderSpec))
 
@@ -69,9 +106,6 @@ trait Prenex extends Syntax {
       }
       result
     }
-
-    def indexOf(α: String, body: Tree): Int =
-      body.preorder.indexOf(æ(α))
 
     // is there a standard name?
     //
@@ -109,21 +143,6 @@ trait Prenex extends Syntax {
         case _ =>
           0
       }
-
-    def flipTag(tag: Binder): Binder = tag match {
-      case UniversalQuantification =>
-        ExistentialQuantification
-      case ExistentialQuantification =>
-        UniversalQuantification
-      case UniversalBound =>
-        ExistentialBound
-      case ExistentialBound =>
-        UniversalBound
-      case UniversalUncertainty =>
-        ExistentialUncertainty
-      case ExistentialUncertainty =>
-        UniversalUncertainty
-    }
 
     def apply(τ: Tree): Prenex =
       Prenex(τ, Set.empty[String])._1
@@ -169,27 +188,6 @@ trait Prenex extends Syntax {
       case leaf @ ∙(_, _) =>
         (Prenex(Nil, leaf), toAvoid)
     }
-  }
-
-  case class PrenexSpec(tag: Binder, x: String, annotations: Prenex*) {
-    def toBinderSpec = BinderSpec(tag, x, annotations.map(_.toType): _*)
-  }
-
-  object PrenexSpec {
-    def apply(spec: BinderSpec, toAvoid: Set[String]):
-        (PrenexSpec, Set[String]) = spec match {
-      case BinderSpec(tag, x, notes @ _*) =>
-        val (prenexes, undesirables) = Prenex(notes, toAvoid)
-        (PrenexSpec(tag, x, prenexes: _*), undesirables)
-    }
-
-    def apply(specs: Seq[BinderSpec], toAvoid: Set[String]):
-        (Seq[PrenexSpec], Set[String]) =
-      specs.foldRight[(Seq[PrenexSpec], Set[String])]((Nil, toAvoid)) {
-        case (binderSpec, (specs, toAvoid)) =>
-          val (spec, undesirables) = PrenexSpec(binderSpec, toAvoid)
-          (spec +: specs, undesirables)
-      }
   }
    */
 }
