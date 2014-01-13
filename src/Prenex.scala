@@ -144,4 +144,97 @@ trait Prenex extends Syntax {
         Int.MinValue
     }
   }
+
+  // divide the prefix of a type in prenex form
+  // (wastful traversals of specs, optimization opportunity)
+  case class Prefix(specs: Map[String, BinderSpec]) {
+    // FIELDS
+
+    def universal  (α: String) = tagOf(α) == Universal
+    def existential(α: String) = tagOf(α) == Existential
+
+    // maps names to tags
+    def tagOf(α: String): Binder = specs(α).tag
+
+    // debt of uncertain families down the generations
+    // to be discharged when the family breaks up
+    def debts(α: String) =
+      ???
+
+    def myOwnDebt(α: String): Seq[Tree] = specs(α).annotation match {
+      case Annotation(_, Some(debts)) => debts
+    }
+
+    // maps children to the name of their parent
+    def parent(α: String): String = specs(α).annotation match {
+      case Annotation(Some(β), _) => β
+    }
+
+    // maps parent to the names of their children
+    lazy val children: Map[String, Set[String]] =
+      ??? /*
+      specs.foldLeft(Map.empty[String, Set[String]]) {
+        case (acc, PrenexSpec(tag, parent, _))
+            if Seq(UniversalUncertainty, ExistentialUncertainty).
+                 contains(tag) =>
+          // paranoid verification of consistency:
+          // parent must come before children.
+          assert(! acc.contains(parent))
+          acc.updated(parent, Set())
+        case (acc, PrenexSpec(tag, child, Prenex(Seq(), parentNode)))
+            if Seq(UniversalBound, ExistentialBound) contains tag =>
+          val parent = FreeTypeVar get parentNode
+          acc.updated(parent, acc(parent) + child)
+        case (acc, _) =>
+          acc
+      }*/
+
+    // TOOLS
+
+    lazy val degreesOfFreedom: Set[String] = ???
+    /*
+      universal ++ universalChild ++
+        existentialChild.filter(universalParent compose parent)
+     */
+
+    import collection.mutable.MultiMap
+    case class Cache(
+      children: MultiMap[String, String],
+      ancestry: MultiMap[String, String],
+      progeny : MultiMap[String, String])
+    lazy val cache = {
+      import collection.mutable.{HashMap, Set}
+      val children = new HashMap[String, Set[String]]
+                     with MultiMap[String, String]
+      val ancestry = new HashMap[String, Set[String]]
+                     with MultiMap[String, String]
+      val progeny  = new HashMap[String, Set[String]]
+                     with MultiMap[String, String]
+      specs.foreach {
+        case (α, BinderSpec(_, _, Annotation(Some(β), _))) =>
+          // add the parent-child edge (β, α)
+          children.addBinding(β, α)
+          // all ancestors of β are ancestors of all progenies of α
+          // all progenies of α are progenies of all ancestors of β
+          for {
+            ancestor   <- ancestry.withDefault(_ => Set.empty)(β) + β
+            descendant <- progeny .withDefault(_ => Set.empty)(α) + α
+          } {
+            ancestry.addBinding(ancestor, descendant)
+            progeny .addBinding(descendant, ancestor)
+          }
+        case _ =>
+          ()
+      }
+      Cache(children, ancestry, progeny)
+    }
+  }
+
+  object Prefix {
+    // overloaded constructor
+    def apply(linearizedPrefix: Seq[BinderSpec]): Prefix =
+      Prefix(linearizedPrefix.map({
+        spec => (spec.x, spec)
+      })(collection.breakOut): Map[String, BinderSpec])
+  }
 }
