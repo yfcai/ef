@@ -1,6 +1,5 @@
 /** Prenex forms for Existential F */
 trait Prenex extends Syntax {
-  /*
   case class Prenex(prefix: Seq[BinderSpec], body: Tree) {
     def toType: Tree = Prenex.bind(prefix, body)
 
@@ -8,53 +7,7 @@ trait Prenex extends Syntax {
       case BinderSpec(tag, α, notes @ _*) =>
         BinderSpec(Prenex.flip(tag), α, notes: _*)
     })
-  }
 
-  object Prenex {
-    def bind(prefix: Seq[BinderSpec], body: Tree): Tree =
-      body.boundBy(prefix)
-
-    def normalize(prefix: Seq[BinderSpec], body: Tree): Tree = {
-      val topo = topologicalOrder(prefix)
-      val specs =
-        prefix.withFilter(body.freeNames contains _.x).map(
-          spec => (spec, (topo(spec.x), indexOf(spec.x, body)))
-        ).sortBy(_._2).map(_._1)
-      bind(specs, body)
-    }
-
-    def flip(tag: Binder): Binder = tag match {
-      case Universal   => Existential
-      case Existential => Universal
-    }
-
-    def topologicalOrder(prefix: Seq[BinderSpec]):
-        Map[String, Int] = ???
-      //prefix.map({ case BinderSpec(_, α, 
-
-    def topologicalOrder(graph: Map[String, Set[String]]):
-        Map[String, Int] = {
-      var distance = -1
-      var toVisit  = graph.keySet
-      var result   = Map.empty[String, Int]
-      while (! toVisit.isEmpty) {
-        val frontier = toVisit.filter {
-          α => graph(α).find(toVisit contains _) == None
-        }
-        if (frontier.isEmpty)
-          sys error s"cycle detected"
-        distance = distance +  1
-        toVisit  = toVisit  -- frontier
-        result   = result   ++ frontier.map(α => (α, distance))
-      }
-      result
-    }
-
-    def indexOf(α: String, body: Tree): Int =
-      body.preorder.indexOf(æ(α))
-  }*/
-
-  /*
     def normalize: Tree =
       Prenex.normalize(prefix, body)
 
@@ -72,78 +25,6 @@ trait Prenex extends Syntax {
   }
 
   object Prenex {
-    def bind(prefix: Seq[PrenexSpec], body: Tree): Tree =
-      body.boundBy(prefix.map(_.toBinderSpec))
-
-    // consider merging with topological order of binderspecs
-    def topologicalOrder(prefix: Seq[PrenexSpec]):
-        Map[String, Int] =
-      topologicalOrder(
-        prefix.map(s => (s.x, s))(collection.breakOut):
-            Map[String, PrenexSpec])
-
-    def topologicalOrder(prefix: Map[String, PrenexSpec]):
-        Map[String, Int] = {
-      // copied from Syntax.topologicalOrder
-      val graph = prefix map {
-        case (α, spec) =>
-          (α,
-            spec.annotations.flatMap(_.freeNames)(collection.breakOut):
-                Set[String])
-      }
-      var distance = -1
-      var toVisit  = graph.keySet
-      var result   = Map.empty[String, Int]
-      while (! toVisit.isEmpty) {
-        val frontier = toVisit.filter {
-          α => graph(α).find(toVisit contains _) == None
-        }
-        if (frontier.isEmpty)
-          sys error s"cycle detected in prenex topology"
-        distance = distance +  1
-        toVisit  = toVisit  -- frontier
-        result   = result   ++ frontier.map(α => (α, distance))
-      }
-      result
-    }
-
-    // is there a standard name?
-    //
-    // max number of function arrows to whom
-    // a fixed occurrence of α is a left descendant
-    // --OR--
-    // max number of type constructors to whom
-    // a fixed occurrence of α is a contravariant descendant
-    //
-    // number is -∞ if α does not occur here.
-    def depth(α: String, τ: Tree): Int = τ match {
-      case σ → τ =>
-        Math.max(depth(α, σ) + 1, depth(α, τ))
-
-      // only know how to recurse down to unannotated binders
-      case τ @ ⊹(tag: Binder, _*)
-          if tag == UniversalQuantification
-          || tag == ExistentialQuantification =>
-        depth(α, tag bodyOf τ)
-
-      case ⊹(_, _*) =>
-        sys error s"depth of ${τ.unparse}"
-      case æ(β) if α == β =>
-        0
-      case _ =>
-        Int.MinValue
-    }
-
-    // number of occurrences of α
-    def count(α: String, τ: Tree): Int = τ match {
-        case ⊹(_, children @ _*) =>
-          children.map(σ => count(α, σ)).fold(0)(_ + _)
-        case æ(β) if α == β =>
-          1
-        case _ =>
-          0
-      }
-
     def apply(τ: Tree): Prenex =
       Prenex(τ, Set.empty[String])._1
 
@@ -151,11 +32,10 @@ trait Prenex extends Syntax {
       Prenex(τ +: types, Set.empty[String])._1
 
     def apply(τ: Tree, toAvoid: Set[String]): (Prenex, Set[String]) = {
-      val (rawPrefix, rawBody) = τ.unbindAll(toAvoid, _ => true)
-      val undesirables1 = toAvoid ++ rawPrefix.map(_.x)
-      val (prefix, undesirables2) = PrenexSpec(rawPrefix, undesirables1)
-      val (pbody, undesirables3) = ofMonotype(rawBody, undesirables2)
-      (Prenex(prefix ++ pbody.prefix, pbody.body), undesirables3)
+      val (prefix, body) = τ.unbindAll(toAvoid, _ => true)
+      val undesirables1 = toAvoid ++ prefix.map(_.x)
+      val (pbody, undesirables2) = ofMonotype(body, undesirables1)
+      (Prenex(prefix ++ pbody.prefix, pbody.body), undesirables2)
     }
 
     def apply(types: Seq[Tree], toAvoid: Set[String]):
@@ -188,6 +68,80 @@ trait Prenex extends Syntax {
       case leaf @ ∙(_, _) =>
         (Prenex(Nil, leaf), toAvoid)
     }
+
+    def bind(prefix: Seq[BinderSpec], body: Tree): Tree =
+      body.boundBy(prefix)
+
+    def normalize(prefix: Seq[BinderSpec], body: Tree): Tree = {
+      val topo = topologicalOrder(prefix)
+      val specs =
+        prefix.withFilter(body.freeNames contains _.x).map(
+          spec => (spec, (topo(spec.x), indexOf(spec.x, body)))
+        ).sortBy(_._2).map(_._1)
+      bind(specs, body)
+    }
+
+    def flip(tag: Binder): Binder = tag match {
+      case Universal   => Existential
+      case Existential => Universal
+    }
+
+    def topologicalOrder(prefix: Seq[BinderSpec]):
+        Map[String, Int] =
+      topologicalOrder(prefix.map({
+        case BinderSpec(_, α, note) => (α, note.freeNames)
+      })(collection.breakOut): Map[String, Set[String]])
+
+    def topologicalOrder(graph: Map[String, Set[String]]):
+        Map[String, Int] = {
+      var distance = -1
+      var toVisit  = graph.keySet
+      var result   = Map.empty[String, Int]
+      while (! toVisit.isEmpty) {
+        val frontier = toVisit.filter {
+          α => graph(α).find(toVisit contains _) == None
+        }
+        if (frontier.isEmpty)
+          sys error s"cycle detected"
+        distance = distance +  1
+        toVisit  = toVisit  -- frontier
+        result   = result   ++ frontier.map(α => (α, distance))
+      }
+      result
+    }
+
+    // ATTRIBUTES OF A TYPE VARIABLE
+
+    def indexOf(α: String, body: Tree): Int =
+      body.preorder.indexOf(æ(α))
+
+    // number of occurrences of α
+    def count(α: String, τ: Tree): Int =
+      τ.preorder.count(_ == æ(α))
+
+    // is there a standard name?
+    //
+    // max number of function arrows to whom
+    // a fixed occurrence of α is a left descendant
+    // --OR--
+    // max number of type constructors to whom
+    // a fixed occurrence of α is a contravariant descendant
+    //
+    // number is -∞ if α does not occur here.
+    def depth(α: String, τ: Tree): Int = τ match {
+      case σ → τ =>
+        Math.max(depth(α, σ) + 1, depth(α, τ))
+
+      // only know how to recurse down to unannotated quantifications
+      case τ @ ⊹(tag: Quantification, Annotation.none(), body) =>
+        depth(α, body)
+
+      case ⊹(_, _*) =>
+        sys error s"depth of $α in ${τ.unparse}"
+      case æ(β) if α == β =>
+        0
+      case _ =>
+        Int.MinValue
+    }
   }
-   */
 }

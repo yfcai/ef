@@ -8,9 +8,9 @@ object Experiments {
     /*
     CaptureExperiment,
     PrefixExperiment,
+     */
     UnificationExperiment,
     PrenexExperiment,
-     */
     DeclarationsExperiment,
     AnnotationExperiment,
     AlphaEquivExperiment,
@@ -660,12 +660,10 @@ object Experiments {
          |""".stripMargin
   }
 
-  /*
   object PrenexExperiment extends Experiment with Prenex {
     val types =
       """|(α → β) → (β → α)
          |((∀α. α → α) → (∀α. α → α)) → ((∀α. α → α) → (∀α. α → α))
-         |(∀α = ((∃α = ((∀α. α) → ⊥). α → ⊥) → ⊥). α → ⊥) → ⊥
          |""".stripMargin
 
     def run = {
@@ -684,9 +682,6 @@ object Experiments {
          |
          |((∀α. α → α) → ∀α. α → α) → (∀α. α → α) → ∀α. α → α
          |∀α₂. ∃α₁ α₀. ∀α. ((α₂ → α₂) → α₁ → α₁) → (α₀ → α₀) → α → α
-         |
-         |(∀α = ((∃α = ((∀α. α) → ⊥). α → ⊥) → ⊥). α → ⊥) → ⊥
-         |∃α = (∀α = (∃α. α → ⊥). (α → ⊥) → ⊥). (α → ⊥) → ⊥
          |
          |""".stripMargin
   }
@@ -724,6 +719,7 @@ object Experiments {
          |""".stripMargin
   }
 
+  /*
   object PrefixExperiment extends Experiment with ExistentialF {
     val t = "∀γ. ∃δ. ∀α = {γ, δ}. ∃β = {}. ∀α′ = α. ∀β′ = α. α′ → β′"
 
