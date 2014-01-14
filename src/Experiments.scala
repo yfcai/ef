@@ -2,13 +2,10 @@ object Experiments {
   val debug = false
 
   val onTrial: Experiment =
-    TypeListExperiment
+    NondeterminismExperiment
 
   val experiments = List[Experiment](
-    /*
-    CaptureExperiment,
-    PrefixExperiment,
-     */
+    NondeterminismExperiment,
     UnificationExperiment,
     PrenexExperiment,
     DeclarationsExperiment,
@@ -719,43 +716,6 @@ object Experiments {
          |""".stripMargin
   }
 
-  /*
-  object PrefixExperiment extends Experiment with ExistentialF {
-    val t = "∀γ. ∃δ. ∀α = {γ, δ}. ∃β = {}. ∀α′ = α. ∀β′ = α. α′ → β′"
-
-    def run = {
-      val τ = Prenex(Type(t))
-      puts(τ.toType.unparse)
-      val prefix = Prefix(τ.prefix)
-      puts(s"∀  = ${prefix.universal}")
-      puts(s"∀? = ${prefix.universalParent}")
-      puts(s"∀= = ${prefix.universalChild}")
-      puts(s"∃  = ${prefix.existential}")
-      puts(s"∃? = ${prefix.existentialParent}")
-      puts(s"∃= = ${prefix.existentialChild}")
-      puts(s"CP = ${prefix.parent}")
-      puts(s"PC = ${prefix.children}")
-      puts(s"DT = ${prefix.debts.map({
-        case (k, v) => (k, v.map(_.unparse))
-      })}")
-      dump
-    }
-
-    override def expected =
-      """|∀γ. ∃δ. ∀α = {γ, δ}. ∃β = {}. ∀α′ = α. ∀β′ = α. α′ → β′
-         |∀  = Set(γ)
-         |∀? = Set(α)
-         |∀= = Set(α′, β′)
-         |∃  = Set(δ)
-         |∃? = Set(β)
-         |∃= = Set()
-         |CP = Map(α′ -> α, β′ -> α)
-         |PC = Map(α -> Set(α′, β′), β -> Set())
-         |DT = Map(α -> List(γ, δ), β -> List())
-         |""".stripMargin
-  }
-
- */
   // important scoping exercise
   // assumed during capturing of family heads
   object ScopingExperiment extends Experiment with ExistentialF {
@@ -806,19 +766,19 @@ object Experiments {
     override def expected = s + "\n"
   }
 
- /*
-  object CaptureExperiment extends Experiment with ExistentialF {
-    val choose = Type("∀α. α → α → α")
-    val absurd = Type("∀ω. ω")
-    val id = Type("∀ι. ι → ι")
-
+  object NondeterminismExperiment extends Experiment with Nondeterminism {
     def run = {
-      val abs = Prenex(resultType(choose, absurd).get).toType
-      puts(abs.unparse)
-      val cid = Prenex(resultType(choose, id).get).toType
-      puts(cid.unparse)
+      var i = 0
+      val tape = Nondeterministic.tape
+      while (tape.hasNext) {
+        tape.next
+        i += 1
+        (1 to 5) foreach { _ => tape.read }
+      }
+      puts(i)
       dump
     }
+
+    override def expected = "32\n"
   }
-   */
 }
