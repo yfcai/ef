@@ -11,6 +11,15 @@ trait Prenex extends Syntax {
     def normalize: Tree =
       Prenex.normalize(prefix, body)
 
+    // divide prefix without regard to annotations & the dependency
+    // therebetwixt
+    def blindPartition: (Seq[BinderSpec], Seq[BinderSpec], Tree) = {
+      val (all, ex) = prefix.partition(_.tag == Universal)
+      (all, ex, body)
+    }
+
+    def tagOf(α: String): Binder = prefix.find(_.x == α).get.tag
+
     def indexOf(α: String): Int =
       Prenex.indexOf(α, body)
 
@@ -71,6 +80,10 @@ trait Prenex extends Syntax {
 
     def bind(prefix: Seq[BinderSpec], body: Tree): Tree =
       body.boundBy(prefix)
+
+    // not bind unless necessary
+    def close(prefix: Seq[BinderSpec], body: Tree): Tree =
+      bind(prefix.filter(body.freeNames contains _.x), body)
 
     def normalize(prefix: Seq[BinderSpec], body: Tree): Tree = {
       val topo = topologicalOrder(prefix)

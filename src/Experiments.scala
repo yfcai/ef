@@ -2,7 +2,7 @@ object Experiments {
   val debug = false
 
   val onTrial: Experiment =
-    NondeterminismExperiment
+    CaptureExperiment
 
   val experiments = List[Experiment](
     NondeterminismExperiment,
@@ -693,7 +693,8 @@ object Experiments {
       types.foreach {
         case (type1, type2) =>
           val (σ, τ) = (Type(type1), Type(type2))
-          val mgs = unifyMonotypes(σ.freeNames ++ τ.freeNames, σ, τ).get
+          val mgs = unifyMonotypesBy(_.head.toInt,
+            σ.freeNames ++ τ.freeNames, σ, τ).get
           val μ = σ subst mgs
           val ν = τ subst mgs
           Seq(σ, τ, μ, ν).map(_.unparse).map(puts)
@@ -705,13 +706,13 @@ object Experiments {
     override def expected =
       """|α → β
          |γ → δ
-         |α → β
-         |α → β
+         |γ → δ
+         |γ → δ
          |
          |α → α
          |(β → β) → γ → γ
-         |(β → β) → β → β
-         |(β → β) → β → β
+         |(γ → γ) → γ → γ
+         |(γ → γ) → γ → γ
          |
          |""".stripMargin
   }
@@ -780,5 +781,36 @@ object Experiments {
     }
 
     override def expected = "32\n"
+  }
+
+  object CaptureExperiment extends Experiment with ExistentialF {
+    val types = List[(String, String)](
+      ("∀α. α → α → ⊥", id()),
+      // . rant 1: better not to capture
+      ("∀α. α → (α → α → α)", id()),
+      // . rant 2: better to capture
+      ("∀α. α → (α → ⊥) → α", id()),
+      // . rant 3: that is the question indeed!
+      ("∀α. α → (α → α) → α", id()))
+
+    def id(β: String = "β") = s"∀$β. $β → $β"
+
+    def normalize(τ: Tree): Tree = Prenex(τ).normalize
+
+    def run = {
+      types.foreach {
+        case (operator, operand) =>
+          val fun = Type(operator)
+          val arg = Type(operand)
+          val rt0 = normalize(resultTypeCaptureNone(fun, arg).get)
+          val rt1 = normalize(resultTypeCaptureAll (fun, arg).get)
+          puts(s"     f : ${fun.unparse}")
+          puts(s"     x : ${arg.unparse}")
+          puts(s"(f x)₀ : ${rt0.unparse}")
+          puts(s"(f x)₁ : ${rt1.unparse}")
+          puts()
+      }
+      dump
+    }
   }
 }

@@ -1,10 +1,35 @@
 /** Nondeterminism tape of a Turing machine */
 trait Nondeterminism {
-  object Nondeterministic {
-    def tape = (new Nondeterministic).tape
+  topLevel =>
+
+  trait Tape extends Iterator[Tape] {
+    def readable: Boolean
+    def read: Boolean
   }
 
-  // usage: val tape = new Nondeterministic.tape
+  object Nondeterministic {
+    def tape: Tape = (new Nondeterministic).tape
+  }
+
+  object Deterministic {
+    def allZeros = Tape(Stream.continually(false))
+    def allOnes  = Tape(Stream.continually(true ))
+
+    case class Tape(var stream: Seq[Boolean]) extends topLevel.Tape {
+      def hasNext: Boolean = false
+      def next: Tape = sys error s"No next for a deterministic tape"
+
+      def readable: Boolean = ! stream.isEmpty
+
+      def read: Boolean = {
+        val result = stream.head
+        stream = stream.tail
+        result
+      }
+    }
+  }
+
+  private
   class Nondeterministic {
     nondeterministic =>
 
@@ -29,7 +54,7 @@ trait Nondeterminism {
         extends Exception("$maxQuery bit of nondeterminism's used up")
 
     case class Tape(var i: Int, var j: Int = 0)
-        extends Iterator[Tape] {
+        extends topLevel.Tape {
       def nextQueryNumber: Int = j + 1
 
       def hasNext: Boolean = nondeterministic.hasNext

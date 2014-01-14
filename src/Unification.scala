@@ -18,12 +18,15 @@ trait Unification extends Syntax {
     def get: T = sys error s"get of $this"
   }
 
-  def unifyMonotypes(degreesOfFreedom: Set[String], monotypes: Tree*):
+  def unifyMonotypesBy(
+    index: String => Int,
+    degreesOfFreedom: Set[String],
+    monotypes: Tree*):
       Status[Map[String, Tree]] =
     if (monotypes.isEmpty)
       Success(Map.empty)
     else
-      resolveConstraints(degreesOfFreedom,
+      resolveConstraintsBy(index, degreesOfFreedom,
         monotypes.tail.map(_ ≡ monotypes.head))
 
   // equality constraints
@@ -36,7 +39,10 @@ trait Unification extends Syntax {
 
   /** @param dof degrees of freedom
     */
-  def resolveConstraints(dof: Set[String], constraints: Seq[≡]):
+  def resolveConstraintsBy(
+    index: String => Int,
+    dof: Set[String],
+    constraints: Seq[≡]):
       Status[Map[String, Tree]] =
   {
     type Domain = Status[Map[String, Tree]]
@@ -51,9 +57,16 @@ trait Unification extends Syntax {
         loop(rest)
 
       case æ(α) ≡ τ :: rest if (dof contains α) =>
-          loop(rest map {
-            case lhs ≡ rhs => (lhs.subst(æ(α), τ)) ≡ (rhs.subst(æ(α), τ))
-          }).map(mgs => mgs.updated(α, τ subst mgs))
+        // prefer names with a smaller index in the domain
+        val (β, σ) = τ match {
+          case æ(β) if (dof contains β) && index(β) < index(α) =>
+            (β, æ(α))
+          case _ =>
+            (α, τ)
+        }
+        loop(rest map {
+          case lhs ≡ rhs => (lhs.subst(æ(β), σ)) ≡ (rhs.subst(æ(β), σ))
+        }).map(mgs => mgs.updated(β, σ subst mgs))
 
       case τ ≡ æ(α) :: rest if (dof contains α) =>
         loop(æ(α) ≡ τ :: rest)
