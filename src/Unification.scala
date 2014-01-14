@@ -26,12 +26,6 @@ trait Unification extends Syntax {
       resolveConstraints(degreesOfFreedom,
         monotypes.tail.map(_ ≡ monotypes.head))
 
-  def unifySubstitutions(lhs: Map[String, Tree], rhs: Map[String, Tree]):
-      Status[Map[String, Tree]] = {
-    val conflicts = lhs.keySet & rhs.keySet
-    ???
-  }
-
   // equality constraints
   case class ≡(lhs: Tree, rhs: Tree) {
     override def toString = s"${lhs.unparse}  ≡  ${rhs.unparse}"
