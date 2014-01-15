@@ -1,5 +1,87 @@
 /** the type system */
-trait ExistentialF extends Unification with Prenex with Nondeterminism {
+trait ExistentialF extends Modules with Unification {
+
+  // MODULE OBLIGATIONS
+
+  // Domain is a function from the set of variables that are already
+  // bound to a type.
+
+  val ℤ = "ℤ"
+  val Bool = "Bool"
+  val globalTypes: Set[String] = Set(ℤ, Bool)
+
+  case class Dom[S](apply: Set[String] => (S, Status[Tree]))
+      extends Domain[S] {
+    def get: (S, Status[Tree]) = apply(globalTypes)
+  }
+
+  def mapDom[T]
+    (obj: Domain[T], globalNames: Set[String])
+    (f: Tree => (T, Status[Tree])):
+      (T, Status[Tree]) =
+    obj match {
+      case Dom(info) =>
+        val (log, result) = info(globalNames)
+        result match {
+          case earlyFailure @ Failure(_) => (log, earlyFailure)
+          case Success(τ) => f(τ)
+        }
+    }
+
+  def inject[T](payload: T, τ: Status[Tree]) = Dom[T](_ => (payload, τ))
+
+  def postulates[T]:
+      T => PartialFunction[String, Domain[T]] = nil => {
+    val int        = æ(ℤ)
+    val bool       = æ(Bool)
+    val intLiteral = """(-)?↓+"""
+    val intBinOp   = Type(s"$ℤ → $ℤ → $ℤ")
+    val absurdity  = Type("∀a̧. a̧")
+    val primitives: PartialFunction[String, Tree] = {
+      case "+" | "-" | "*" | "/" | "%" =>
+        intBinOp
+      case "true" | "false" =>
+        bool
+      case "???" =>
+        absurdity
+      case n if n matches intLiteral =>
+        int
+    }
+    primitives.andThen[Domain[T]](τ => inject(nil, Success(τ)))
+  }
+
+  def inferType[T]:
+      PartialFunction[TreeF[Domain[T]], Tape => T => Domain[T]] = {
+
+    // (→∀I)
+    case ⊹:(AnnotatedAbstraction, arg, body) =>
+      tape => payload => Dom[T] { globalNames =>
+        mapDom(arg, globalNames) { σ =>
+          val toQuantify = σ.freeNames -- globalNames
+          mapDom(body, globalNames ++ toQuantify) { τ =>
+            ( payload,
+              Success(→(σ, τ).boundBy(toQuantify.map(
+                α => BinderSpec(Universal, α, Annotation.none())
+              )(collection.breakOut)))
+            )
+          }
+        }
+      }
+
+    // (→∀∃E)
+    case ⊹:(Application, fun, arg) =>
+      tape => payload => Dom[T] { globalNames =>
+        mapDom(fun, globalNames) { funType =>
+          mapDom(arg, globalNames) { argType =>
+            (payload, resultType(funType, argType, tape))
+          }
+        }
+      }
+
+    // C-style conditionals
+    case ⊹:(CStyleConditional, condition, thenBranch, elseBranch) =>
+      ???
+  }
 
   // BLIND INFERENCE TRIALS FOR TESTING
 

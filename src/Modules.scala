@@ -10,18 +10,21 @@ trait Modules extends Prenex with Nondeterminism {
     }
 
     def remaining: Int = tokens.length
+
+    def +: (tok: Token): Seq[Token] = tok +: tokens
   }   
 
-  // to be overridden by type-system-specific subclasses
-  type Domain
-  def injectType(τ: Tree): Domain
-  def extractType(knowledge: Domain): Tree
-  def inferType: PartialFunction[TreeF[Domain], Tape => Status[Domain]]
-  def postulates: PartialFunction[String, Domain]
+  // to be extended by type-system-specific subclasses
+  trait Domain[S] {
+    def get: (S, Status[Tree])
+  }
 
-  // call these.
-  val _postulates = postulates
-  val _inferType = inferType
+  def inject[T](payload: T, τ: Status[Tree]): Domain[T]
+  def postulates[T]: T => PartialFunction[String, Domain[T]]
+  def inferType[T]: PartialFunction[TreeF[Domain[T]],
+    Tape => T => Domain[T]]
+
+  lazy val _postulates = postulates[Seq[Token]](Nil)
 
   case object ParagraphExpr extends TopLevelGenus {
     val ops = List(TypeSynonym, Signature, Definition)
@@ -205,34 +208,32 @@ trait Modules extends Prenex with Nondeterminism {
           }).updated(word, meaning)
       }
 
-    lazy val resolvedSignatures: Map[String, Domain] =
-      sig.map(p => (p._1, injectType(resolve(p._2))))
+    lazy val resolvedSignatures: Map[String, Tree] =
+      sig.map(p => (p._1, resolve(p._2)))
 
     // TYPE INFERENCE
 
     // low level type inference
     def infer(term: Tree, tape: Tape, toks: Seq[Token]):
-        Either[(Problem, TokenTracker), Domain] =
+        Domain[Seq[Token]] =
       infer(
         term,
-        resolvedSignatures,
+        resolvedSignatures.map(p =>
+          p._1 -> inject[Seq[Token]](Nil, Success(p._2))),
         tape, toks.head, TokenTracker(toks.tail))
 
     // CAUTION: don't forget the postulates here!
     def infer(
-      term: Tree, Γ: Map[String, Domain],
+      term: Tree, Γ: Map[String, Domain[Seq[Token]]],
       tape: Tape, tok: Token, toks: TokenTracker):
-        Either[(Problem, TokenTracker), Domain] = term match {
+        Domain[Seq[Token]] = term match {
 
       // TAUT
       case χ(x) =>
-        type LHS = (Problem, TokenTracker)
-        type RHS = Domain
-        type DOM = Either[LHS, RHS]
-          Γ.orElse(_postulates).andThen[DOM](τ => Right(τ)).
-            orElse[String, DOM]({
-              case _ => Left((Problem(tok, "unknown object"), toks))
-            })(x)
+        Γ.orElse(_postulates).
+          orElse[String, Domain[Seq[Token]]]({
+          case _ => inject(tok +: toks, Failure("unknown object"))
+        })(x)
 
 
       // CAUTION: Binders!
@@ -246,22 +247,15 @@ trait Modules extends Prenex with Nondeterminism {
       case τ if τ.tag == Type =>
         // call toks.next a suitable number of times
         τ.preorder.toStream.tail.foreach { _ => toks.next }
-        Right(injectType(resolve(τ)))
+        inject[Seq[Token]](Nil, Success(resolve(τ)))
 
       // λ: skip bound name, context update etc.
       case λ(x, annotation, body) =>
+        val mytoks = tok +: toks // extract my tokens before it's too late
         toks.next // skip "x"
-        val σ = infer(annotation, Γ, tape, toks.next, toks) match {
-          case Left (_) => sys error s"impossible"
-          case Right(σ) => σ
-        }
-        val τ = infer(body, Γ.updated(x, σ), tape, toks.next, toks) match {
-          case problemSituation @ Left(_) =>
-            return problemSituation
-          case Right(τ) =>
-            τ
-        }
-        doInferType(⊹:(AnnotatedAbstraction, σ, τ), tape, tok, toks)
+        val σ = infer(annotation, Γ, tape, toks.next, toks)
+        val τ = infer(body, Γ.updated(x, σ), tape, toks.next, toks)
+        inferType(⊹:(AnnotatedAbstraction, σ, τ))(tape)(mytoks)
 
       // TODO (for Continuation Calculus):
       // handle Λ here.
@@ -271,26 +265,11 @@ trait Modules extends Prenex with Nondeterminism {
         sys error s"unhandled binder $tag"
 
       case ⊹(tag, children @ _*) if ! tag.isInstanceOf[Binder] =>
-        val types = children.map(
-          t => infer(t, Γ, tape, toks.next, toks) match {
-            case problemSituation @ Left(_) =>
-                return problemSituation
-            case Right(τ) =>
-              τ
-          })
-        doInferType(⊹:(tag, types: _*), tape, tok, toks)
+        val mytoks = tok +: toks
+        val types = children.map(t => infer(t, Γ, tape, toks.next, toks))
+        inferType(⊹:(tag, types: _*))(tape)(mytoks)
     }
 
-    // low level type system invocation
-    def doInferType(datapack: TreeF[Domain],
-      tape: Tape, tok: Token, toks: TokenTracker):
-        Either[(Problem, TokenTracker), Domain] =
-      _inferType(datapack)(tape) match {
-        case Failure(msg) =>
-          return Left((Problem(tok, msg), toks))
-        case Success(τ) =>
-          Right(τ)
-      }
 
     // high level type error report
     def typeError: Option[Problem] = {
@@ -300,6 +279,7 @@ trait Modules extends Prenex with Nondeterminism {
           Some(Problem(toks.head, "definition lacks type signature"))
         val expected = sig(name)
         val expectedType = Prenex(resolve(expected)).normalize
+
         // TODO: swap in the prefix skipping tape when it's done
         val tape = Nondeterministic.tape
 
@@ -309,17 +289,26 @@ trait Modules extends Prenex with Nondeterminism {
         var remainingToks: Int = Int.MaxValue
 
         val result = tape.find { tape =>
-          infer(term, tape, toks).fold[Boolean](
-            { case (problem, toks) =>
-                val remaining = toks.remaining
-                if (remainingToks > remaining) {
-                  remainingToks = remaining
-                  typeError = problem
-                }
+          infer(term, tape, toks).get match {
+            case (_, Success(τ0)) =>
+              val τ = Prenex(τ0).normalize
+              val correct = expectedType α_equiv τ
+              if (correct)
+                true
+              else {
+                typeError = Problem(toks.head,
+                  s"""|expect $expected
+                      |actual $τ
+                      |""".stripMargin)
+                // whole definition's scanned without freak-outs
+                remainingToks = 0
                 false
-            },
-            obj => expectedType α_equiv Prenex(extractType(obj)).normalize
-          )
+              }
+            case (toks, Failure(msg)) =>
+              typeError = Problem(toks.head, msg)
+              remainingToks = toks.tail.length
+              false
+          }
         }
         if (result == None)
           return Some(typeError)

@@ -77,12 +77,19 @@ object Experiments {
   }
 
   trait ModulesExperiment extends SyntaxExperiment with Modules {
-    type Domain = Unit
-    def postulates = Map.empty[String, Domain]
-    def injectType(τ: Tree): Domain = ()
-    def extractType(knowledge: Domain): Tree =
-      sys error s"there's no type system"
-    def inferType = Map.empty[TreeF[Domain], Tape => Status[Domain]]
+    def noTypeSystem = sys error "there's no type system"
+
+    def inject[T](payload: T, τ: Status[Tree]):
+        Domain[T] =
+      noTypeSystem
+
+    def postulates[T]:
+        T => PartialFunction[String, Domain[T]] =
+      noTypeSystem
+
+    def inferType[T]:
+        PartialFunction[TreeF[Domain[T]], Tape => T => Domain[T]] =
+      noTypeSystem
   }
 
   object ProtoASTExperiment extends Experiment with ProtoAST {
