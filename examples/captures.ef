@@ -35,9 +35,6 @@ g2 = f2 id
 h2 : ∀ε. ((ε → ε) → ℤ) → ε → ε
 h2 = f2 id
 
-. TYPE ERROR: NOT ALPHA EQUIV YOU'RE LOOKING AT
-. HINT: ASCRIPTION
-
 j2 : ∀ε. ((ε → ε) → ℤ) → ε → ε
 j2 = g2
 
