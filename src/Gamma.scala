@@ -25,21 +25,6 @@ trait Gamma extends Syntax {
 
   def globalTypes: Set[String] = Set(ℤ, Bool)
 
-  object DummyTokenTracker extends TokenTracker(Nil) {
-    final override val next: Token =
-      Token("", 0, Paragraph("#DUMMY", 0, ""))
-
-    override def toString = "DummyTokenTracker"
-  }
-
-  case class TokenTracker(var tokens: Seq[Token]) {
-    def next: Token = {
-      val tok = tokens.head
-      tokens = tokens.tail
-      tok
-    }
-  }
-
   trait Γ {
     //def prefix: BinderPrefix
     def vars: Map[String, Tree]

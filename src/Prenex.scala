@@ -1,5 +1,5 @@
 /** Prenex forms for Existential F */
-trait Prenex extends Syntax {
+trait Prenex extends Syntax with Status {
   case class Prenex(prefix: Seq[BinderSpec], body: Tree) {
     def toType: Tree = Prenex.bind(prefix, body)
 

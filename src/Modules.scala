@@ -1,5 +1,28 @@
 // parse file, produce AST
-trait Modules extends Syntax {
+trait Modules extends Prenex with Nondeterminism {
+
+  // ensure correct tracking of tokens
+  case class TokenTracker(var tokens: Seq[Token]) {
+    def next: Token = {
+      val tok = tokens.head
+      tokens = tokens.tail
+      tok
+    }
+
+    def remaining: Int = tokens.length
+  }   
+
+  // to be overridden by type-system-specific subclasses
+  type Domain
+  def injectType(τ: Tree): Domain
+  def extractType(knowledge: Domain): Tree
+  def inferType: PartialFunction[TreeF[Domain], Tape => Status[Domain]]
+  def postulates: PartialFunction[String, Domain]
+
+  // call these.
+  val _postulates = postulates
+  val _inferType = inferType
+
   case object ParagraphExpr extends TopLevelGenus {
     val ops = List(TypeSynonym, Signature, Definition)
   }
@@ -151,6 +174,158 @@ trait Modules extends Syntax {
           dfn.updated(x, t), dfntoks.updated(x, toks))
       case _ =>
         sys error s"undetected parse error on:\n${t.unparse}"
+    }
+
+    // SYNONYM RESOLUTION
+
+    def resolve(τ: Tree): Tree = resolveBy(typeLexicon, τ)
+
+    def resolveBy(word: String, meaning: Tree, τ: Tree): Tree =
+      resolveBy(Map(word -> meaning), τ)
+
+    def resolveBy(lexicon: Map[String, Tree], τ: Tree): Tree =
+      τ.fold[Tree] {
+        case ∙:(FreeTypeVar, α: String) if lexicon contains α =>
+          lexicon(α)
+        case ⊹:(TypeApplication,
+               universal @ ⊹(Universal, _, Annotation.none(), _),
+               σ) =>
+          universal(σ)
+        case otherwise =>
+          Tree(otherwise)
+      }
+
+    lazy val typeLexicon: Map[String, Tree] =
+      syn.foldRight(Map.empty[String, Tree]) {
+        case ((word, definition), lexicon) =>
+          val meaning = resolveBy(lexicon, definition)
+          lexicon.map({
+            case (key, value) =>
+              (key, resolveBy(word, meaning, value))
+          }).updated(word, meaning)
+      }
+
+    lazy val resolvedSignatures: Map[String, Domain] =
+      sig.map(p => (p._1, injectType(resolve(p._2))))
+
+    // TYPE INFERENCE
+
+    // low level type inference
+    def infer(term: Tree, tape: Tape, toks: Seq[Token]):
+        Either[(Problem, TokenTracker), Domain] =
+      infer(
+        term,
+        resolvedSignatures,
+        tape, toks.head, TokenTracker(toks.tail))
+
+    // CAUTION: don't forget the postulates here!
+    def infer(
+      term: Tree, Γ: Map[String, Domain],
+      tape: Tape, tok: Token, toks: TokenTracker):
+        Either[(Problem, TokenTracker), Domain] = term match {
+
+      // TAUT
+      case χ(x) =>
+        type LHS = (Problem, TokenTracker)
+        type RHS = Domain
+        type DOM = Either[LHS, RHS]
+          Γ.orElse(_postulates).andThen[DOM](τ => Right(τ)).
+            orElse[String, DOM]({
+              case _ => Left((Problem(tok, "unknown object"), toks))
+            })(x)
+
+
+      // CAUTION: Binders!
+      //
+      // Binders are tricky because they possess annotations of
+      // unknown genera and can change the context Γ. To handle
+      // a binder, we need 2 cases. 1 to handle their annotations,
+      // 1 to handle themselves & skip over the bound string literal.
+
+      // λ: type annotations
+      case τ if τ.tag == Type =>
+        // call toks.next a suitable number of times
+        τ.preorder.toStream.tail.foreach { _ => toks.next }
+        Right(injectType(resolve(τ)))
+
+      // λ: skip bound name, context update etc.
+      case λ(x, annotation, body) =>
+        toks.next // skip "x"
+        val σ = infer(annotation, Γ, tape, toks.next, toks) match {
+          case Left (_) => sys error s"impossible"
+          case Right(σ) => σ
+        }
+        val τ = infer(body, Γ.updated(x, σ), tape, toks.next, toks) match {
+          case problemSituation @ Left(_) =>
+            return problemSituation
+          case Right(τ) =>
+            τ
+        }
+        doInferType(⊹:(AnnotatedAbstraction, σ, τ), tape, tok, toks)
+
+      // TODO (for Continuation Calculus):
+      // handle Λ here.
+      case ∙(tag, _) =>
+        sys error s"unhandled terminal tag $tag"
+      case ⊹(tag: Binder, _*) =>
+        sys error s"unhandled binder $tag"
+
+      case ⊹(tag, children @ _*) if ! tag.isInstanceOf[Binder] =>
+        val types = children.map(
+          t => infer(t, Γ, tape, toks.next, toks) match {
+            case problemSituation @ Left(_) =>
+                return problemSituation
+            case Right(τ) =>
+              τ
+          })
+        doInferType(⊹:(tag, types: _*), tape, tok, toks)
+    }
+
+    // low level type system invocation
+    def doInferType(datapack: TreeF[Domain],
+      tape: Tape, tok: Token, toks: TokenTracker):
+        Either[(Problem, TokenTracker), Domain] =
+      _inferType(datapack)(tape) match {
+        case Failure(msg) =>
+          return Left((Problem(tok, msg), toks))
+        case Success(τ) =>
+          Right(τ)
+      }
+
+    // high level type error report
+    def typeError: Option[Problem] = {
+      dfn.foreach { case (name, term) =>
+        val toks = dfntoks(name)
+        if (! sig.contains(name))
+          Some(Problem(toks.head, "definition lacks type signature"))
+        val expected = sig(name)
+        val expectedType = Prenex(resolve(expected)).normalize
+        // TODO: swap in the prefix skipping tape when it's done
+        val tape = Nondeterministic.tape
+
+        // find the first type error amongst those that happen
+        // at the latest stage of type checking.
+        var typeError: Problem = null
+        var remainingToks: Int = Int.MaxValue
+
+        val result = tape.find { tape =>
+          infer(term, tape, toks).fold[Boolean](
+            { case (problem, toks) =>
+                val remaining = toks.remaining
+                if (remainingToks > remaining) {
+                  remainingToks = remaining
+                  typeError = problem
+                }
+                false
+            },
+            obj => expectedType α_equiv Prenex(extractType(obj)).normalize
+          )
+        }
+        if (result == None)
+          return Some(typeError)
+      }
+      // no definitions suffer from type error
+      return None
     }
   }
 

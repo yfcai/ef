@@ -29,6 +29,8 @@ trait Nondeterminism {
     }
   }
 
+  // TODO: prefix-skipping tape
+
   private
   class Nondeterministic {
     nondeterministic =>

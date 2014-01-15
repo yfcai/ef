@@ -5,6 +5,7 @@ object Experiments {
     CaptureExperiment
 
   val experiments = List[Experiment](
+    CaptureExperiment,
     NondeterminismExperiment,
     UnificationExperiment,
     PrenexExperiment,
@@ -75,7 +76,14 @@ object Experiments {
       s"${x.parse(s).get.unparse}\n"
   }
 
-  trait ModulesExperiment extends SyntaxExperiment with Modules
+  trait ModulesExperiment extends SyntaxExperiment with Modules {
+    type Domain = Unit
+    def postulates = Map.empty[String, Domain]
+    def injectType(τ: Tree): Domain = ()
+    def extractType(knowledge: Domain): Tree =
+      sys error s"there's no type system"
+    def inferType = Map.empty[TreeF[Domain], Tape => Status[Domain]]
+  }
 
   object ProtoASTExperiment extends Experiment with ProtoAST {
     def leftParens  = Set("(")
@@ -812,5 +820,28 @@ object Experiments {
       }
       dump
     }
+
+    override def expected =
+      """|     f : ∀α. α → α → ⊥
+         |     x : ∀β. β → β
+         |(f x)₀ : ∀β. (β → β) → ⊥
+         |(f x)₁ : ∃β. (β → β) → ⊥
+         |
+         |     f : ∀α. α → α → α → α
+         |     x : ∀β. β → β
+         |(f x)₀ : ∀β. (β → β) → (β → β) → β → β
+         |(f x)₁ : ∃β₁ β₀. ∀β. (β₁ → β₁) → (β₀ → β₀) → β → β
+         |
+         |     f : ∀α. α → (α → ⊥) → α
+         |     x : ∀β. β → β
+         |(f x)₀ : ∀β. ((β → β) → ⊥) → β → β
+         |(f x)₁ : ∀β₀ β. ((β₀ → β₀) → ⊥) → β → β
+         |
+         |     f : ∀α. α → (α → α) → α
+         |     x : ∀β. β → β
+         |(f x)₀ : ∀β. ((β → β) → β → β) → β → β
+         |(f x)₁ : ∀β₁. ∃β₀. ∀β. ((β₁ → β₁) → β₀ → β₀) → β → β
+         |
+         |""".stripMargin
   }
 }
