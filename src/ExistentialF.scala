@@ -10,6 +10,8 @@ trait ExistentialF extends Modules with Unification {
   val Bool = "Bool"
   val globalTypes: Set[String] = Set(ℤ, Bool)
 
+  def isGlobalType: String => Boolean = globalTypes
+
   case class Dom[S](apply: Set[String] => (S, Status[Tree]))
       extends Domain[S] {
     def get: (S, Status[Tree]) = apply(globalTypes)
@@ -34,7 +36,7 @@ trait ExistentialF extends Modules with Unification {
       T => PartialFunction[String, Domain[T]] = nil => {
     val int        = æ(ℤ)
     val bool       = æ(Bool)
-    val intLiteral = """(-)?↓+"""
+    val intLiteral = """(-)?\d+"""
     val intBinOp   = Type(s"$ℤ → $ℤ → $ℤ")
     val absurdity  = Type("∀a̧. a̧")
     val primitives: PartialFunction[String, Tree] = {
@@ -78,9 +80,30 @@ trait ExistentialF extends Modules with Unification {
         }
       }
 
+    // Ascription
+    case ⊹:(Ascription, actual, expected) =>
+      tape => payload => Dom[T] { globalNames =>
+        mapDom(actual, globalNames) { actualType =>
+          mapDom(expected, globalNames) { expectedType =>
+            if (mayAscribe(actualType, expectedType))
+              (payload, Success(expectedType))
+            else
+              (payload, Failure(
+                ascriptionFailure(expectedType, actualType)))
+          }
+        }
+      }
+
     // C-style conditionals
     case ⊹:(CStyleConditional, condition, thenBranch, elseBranch) =>
       ???
+  }
+
+  def mayAscribe(from: Tree, to: Tree): Boolean = {
+    // don't have to worry about capturing here,
+    // it's a one-shot deal
+    val ⊥ = æ(Subscript.newName("⊥", from.freeNames ++ to.freeNames))
+    resultTypeCaptureNone(→(to, ⊥), from).toBoolean
   }
 
   // BLIND INFERENCE TRIALS FOR TESTING

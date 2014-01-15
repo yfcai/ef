@@ -20,11 +20,12 @@ trait Modules extends Prenex with Nondeterminism {
   }
 
   def inject[T](payload: T, τ: Status[Tree]): Domain[T]
+  def isGlobalType: String => Boolean
   def postulates[T]: T => PartialFunction[String, Domain[T]]
   def inferType[T]: PartialFunction[TreeF[Domain[T]],
     Tape => T => Domain[T]]
 
-  lazy val _postulates = postulates[Seq[Token]](Nil)
+  def mayAscribe(from: Tree, to: Tree): Boolean
 
   case object ParagraphExpr extends TopLevelGenus {
     val ops = List(TypeSynonym, Signature, Definition)
@@ -111,6 +112,18 @@ trait Modules extends Prenex with Nondeterminism {
           throw Problem(tok, "recursive definition")
     }
   }
+
+  def ascriptionFailure(expected: Tree, actual: Tree): String =
+    s"""|The type
+        |
+        |  ${actual.unparse}
+        |
+        |cannot be ascribed to
+        |
+        |  ${expected.unparse}
+        |
+        |""".stripMargin
+
 
   case class Module
   ( syn    : Map[String, Tree       ] ,
@@ -220,18 +233,21 @@ trait Modules extends Prenex with Nondeterminism {
         term,
         resolvedSignatures.map(p =>
           p._1 -> inject[Seq[Token]](Nil, Success(p._2))),
+        postulates[Seq[Token]](Nil),
         tape, toks.head, TokenTracker(toks.tail))
 
     // CAUTION: don't forget the postulates here!
     def infer(
-      term: Tree, Γ: Map[String, Domain[Seq[Token]]],
+      term: Tree,
+      Γ: Map[String, Domain[Seq[Token]]],
+      globals: PartialFunction[String, Domain[Seq[Token]]],
       tape: Tape, tok: Token, toks: TokenTracker):
         Domain[Seq[Token]] = term match {
 
       // TAUT
       case χ(x) =>
-        Γ.orElse(_postulates).
-          orElse[String, Domain[Seq[Token]]]({
+        // TODO: make _postulates better. (after this type error.)
+        Γ.orElse(globals).orElse[String, Domain[Seq[Token]]]({
           case _ => inject(tok +: toks, Failure("unknown object"))
         })(x)
 
@@ -244,7 +260,7 @@ trait Modules extends Prenex with Nondeterminism {
       // 1 to handle themselves & skip over the bound string literal.
 
       // λ: type annotations
-      case τ if τ.tag == Type =>
+      case τ if τ.tag.genus == Type =>
         // call toks.next a suitable number of times
         τ.preorder.toStream.tail.foreach { _ => toks.next }
         inject[Seq[Token]](Nil, Success(resolve(τ)))
@@ -253,69 +269,110 @@ trait Modules extends Prenex with Nondeterminism {
       case λ(x, annotation, body) =>
         val mytoks = tok +: toks // extract my tokens before it's too late
         toks.next // skip "x"
-        val σ = infer(annotation, Γ, tape, toks.next, toks)
-        val τ = infer(body, Γ.updated(x, σ), tape, toks.next, toks)
+        val σ = infer(annotation, Γ, globals, tape, toks.next, toks)
+        val τ = infer(body, Γ.updated(x, σ), globals, tape, toks.next, toks)
         inferType(⊹:(AnnotatedAbstraction, σ, τ))(tape)(mytoks)
 
       // TODO (for Continuation Calculus):
       // handle Λ here.
-      case ∙(tag, _) =>
-        sys error s"unhandled terminal tag $tag"
+      case terminal @ ∙(tag, _) =>
+        sys error s"unhandled terminal $terminal"
       case ⊹(tag: Binder, _*) =>
         sys error s"unhandled binder $tag"
 
       case ⊹(tag, children @ _*) if ! tag.isInstanceOf[Binder] =>
         val mytoks = tok +: toks
-        val types = children.map(t => infer(t, Γ, tape, toks.next, toks))
+        val types = children.map(t =>
+          infer(t, Γ, globals, tape, toks.next, toks))
         inferType(⊹:(tag, types: _*))(tape)(mytoks)
     }
 
+    // strip the "LHS" and the "=" away from token stream
+    def getRHSTokens(drop: Int)
+        (tokens: Map[String, Seq[Token]], name: String):
+        Seq[Token] = tokens(name).drop(drop)
+
+    // drop "LHS" & "="
+    def getDFNTokens = getRHSTokens(2) _
+
+    // drop all those tokens associated with annotations:
+    //
+    //  Universal, binder of MyAlias
+    //    ∙(LiteralTag(java.lang.String), MyAlias)
+    //    Annotation
+    //      ∙(Nope, ())
+    //      ∙(Nope, ())
+    //
+    def getSYNTokens = getRHSTokens(5) _
+
+    def sortNames(defs: Map[String, Tree], toks: Map[String, Seq[Token]]):
+        List[String] =
+      defs.keys.toList.sortBy(key => toks(key).head.line)
+
+    // find out undefined type names (only possible error in synonyms)
+    def discoverUnknownTypes: Option[Problem] = {
+      sortNames(syn, syntoks).foreach { typeName =>
+        val typeDef = syn(typeName)
+        val τ = resolve(æ(typeName))
+          (typeDef.preorder.toSeq, getSYNTokens(syntoks, typeName)).
+          zipped.foreach {
+            case (æ(x), tok)
+                if ! syn.contains(x) && ! isGlobalType(x) =>
+              return Some(Problem(tok, "unknown type"))
+            case _ =>
+              ()
+          }
+      }
+      None
+    }
 
     // high level type error report
-    def typeError: Option[Problem] = {
-      dfn.foreach { case (name, term) =>
-        val toks = dfntoks(name)
-        if (! sig.contains(name))
-          Some(Problem(toks.head, "definition lacks type signature"))
-        val expected = sig(name)
-        val expectedType = Prenex(resolve(expected)).normalize
+    def typeError: Option[Problem] = discoverUnknownTypes.
+      fold[Option[Problem]]({
+        sortNames(dfn, dfntoks).foreach { name =>
+          val term = dfn(name)
+          val toks = getDFNTokens(dfntoks, name)
+          if (! sig.contains(name))
+            return Some(Problem(
+              // can't use toks.head: LHS's already dropped
+              dfntoks(name).head,
+              "definition lacks type signature"))
 
-        // TODO: swap in the prefix skipping tape when it's done
-        val tape = Nondeterministic.tape
+          val expected = sig(name)
+          val expectedType = Prenex(resolve(expected)).normalize
 
-        // find the first type error amongst those that happen
-        // at the latest stage of type checking.
-        var typeError: Problem = null
-        var remainingToks: Int = Int.MaxValue
+          // TODO: swap in the prefix skipping tape when it's done
+          val tape = Nondeterministic.tape
 
-        val result = tape.find { tape =>
-          infer(term, tape, toks).get match {
-            case (_, Success(τ0)) =>
-              val τ = Prenex(τ0).normalize
-              val correct = expectedType α_equiv τ
-              if (correct)
-                true
-              else {
-                typeError = Problem(toks.head,
-                  s"""|expect $expected
-                      |actual $τ
-                      |""".stripMargin)
-                // whole definition's scanned without freak-outs
-                remainingToks = 0
+          // find the first type error amongst those that happen
+          // at the latest stage of type checking.
+          var typeError: Problem = null
+          var remainingToks: Int = Int.MaxValue
+
+          val result = tape.find { tape =>
+            infer(term, tape, toks).get match {
+              case (_, Success(τ0)) =>
+                val τ = Prenex(τ0).normalize
+                val correct = mayAscribe(τ, expectedType)
+                if (correct)
+                  true
+                else {
+                  typeError = Problem(toks.head,
+                    ascriptionFailure(expected, τ))
+                  // whole definition's scanned without freak-outs
+                  remainingToks = 0
+                  false
+                }
+              case (toks, Failure(msg)) =>
+                typeError = Problem(toks.head, msg)
+                remainingToks = toks.tail.length
                 false
-              }
-            case (toks, Failure(msg)) =>
-              typeError = Problem(toks.head, msg)
-              remainingToks = toks.tail.length
-              false
+            }
           }
-        }
-        if (result == None)
-          return Some(typeError)
-      }
-      // no definitions suffer from type error
-      return None
-    }
+          if (result == None)
+            return Some(typeError)
+        } ; None
+      })(Some.apply)
   }
 
   object Module {
@@ -323,8 +380,14 @@ trait Modules extends Prenex with Nondeterminism {
       Module(Map.empty, Map.empty, Map.empty,
              Map.empty, Map.empty, Map.empty)
 
+    def apply(source: String): Module =
+      fromParagraphs(Paragraphs(source))
+
     def fromFile(file: String): Module =
-      Paragraphs.fromFile(file).foldLeft(empty) {
+      fromParagraphs(Paragraphs.fromFile(file))
+
+    def fromParagraphs(paragraphs: Iterator[Paragraph]): Module =
+      paragraphs.foldLeft(empty) {
         case (module, paragraph) =>
           val tokens = tokenize(paragraph)
           ParagraphExpr.parse(ProtoAST(tokens)) match {

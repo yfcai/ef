@@ -2,9 +2,10 @@ object Experiments {
   val debug = false
 
   val onTrial: Experiment =
-    CaptureExperiment
+    EFStringExperiment
 
   val experiments = List[Experiment](
+    EFStringExperiment,
     CaptureExperiment,
     NondeterminismExperiment,
     UnificationExperiment,
@@ -69,6 +70,26 @@ object Experiments {
       stream.clear()
       result
     }
+
+    def thisFile: String =
+      new Throwable().getStackTrace().head.getFileName
+
+    def thisDir: String = {
+      val file = thisFile
+      val i = file.lastIndexOf('/')
+      if (i < 0)
+        "" // this file is in root, default relative pathing works
+      else
+        file.substring(0, i + 1) // ensures that it ends with '/'
+    }
+
+    def fromThisDir(path: String): String = s"$thisDir$path"
+
+    def readFileFromRoot(path: String): String =
+      scala.io.Source.fromFile(path).getLines.mkString("\n")
+
+    def readFileFromHere(path: String): String =
+      readFileFromRoot(fromThisDir(path))
   }
 
   trait SyntaxExperiment extends Experiment with Syntax {
@@ -83,12 +104,19 @@ object Experiments {
         Domain[T] =
       noTypeSystem
 
+    def isGlobalType: String => Boolean =
+      noTypeSystem
+
     def postulates[T]:
         T => PartialFunction[String, Domain[T]] =
       noTypeSystem
 
     def inferType[T]:
         PartialFunction[TreeF[Domain[T]], Tape => T => Domain[T]] =
+      noTypeSystem
+
+    def mayAscribe(from: Tree, to: Tree):
+        Boolean =
       noTypeSystem
   }
 
@@ -604,9 +632,7 @@ object Experiments {
   }
 
   object FileParsingExperiment extends ModulesExperiment {
-    def thisFile = new Throwable().getStackTrace().head.getFileName
-    val nats = thisFile.substring(0, thisFile.lastIndexOf('/') + 1) +
-      "../examples/nats.ef"
+    val nats = fromThisDir("../examples/nats.ef")
 
     def run = {
       val module = Module.fromFile(nats)
@@ -848,6 +874,43 @@ object Experiments {
          |     x : ∀β. β → β
          |(f x)₀ : ∀β. ((β → β) → β → β) → β → β
          |(f x)₁ : ∀β₁. ∃β₀. ∀β. ((β₁ → β₁) → β₀ → β₀) → β → β
+         |
+         |""".stripMargin
+  }
+
+  object EFStringExperiment extends Experiment with ExistentialF {
+    val modules = List[String](
+      """|n : ℤ
+         |n = 5
+         |t : Bool
+         |t = false
+         |""".stripMargin,
+      "type X α = α → Y",
+      readFileFromHere("../examples/captures.ef")
+    )
+
+    def run = {
+      modules.zipWithIndex.foreach { case (source, i) =>
+        Module(source).typeError match {
+          case None =>
+            puts(s"module #$i is type correct.\n")
+          case Some(problem) =>
+            puts(s"module #$i has type errors.\n" + problem.getMessage)
+        }
+      }
+      dump
+    }
+
+    override def expected =
+      """|module #0 is type correct.
+         |
+         |module #1 has type errors.
+         |#LINE:1
+         |type X α = α → Y
+         |               ^
+         |unknown type
+         |
+         |module #2 is type correct.
          |
          |""".stripMargin
   }

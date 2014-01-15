@@ -1,5 +1,6 @@
 . TO CAPTURE OR NOT TO CAPTURE, THAT IS THE QUESTION
 
+id : ∀ι. ι → ι
 id = λx : ι. x
 
 
@@ -8,16 +9,16 @@ id = λx : ι. x
   it is better not to capture if in the result type of f1,
   α occurs at a covariant position no more than once.
 
-f1-postulate : ∀α. α → (α → α → α)
-f1 = f1-postulate
+f1 : ∀α. α → (α → α → α)
 
-g1 :   ∃β. ∃γ. ∀δ. (β → β) → (γ → γ) → (δ → δ)
+g1 : ∃β. ∃γ. ∀δ. (β → β) → (γ → γ) → (δ → δ)
 g1 = f1 id
 
-h1-postulate : ∀ε. (ε → ε) → (ε → ε) → (ε → ε)
-h1 = h1-postulate
+h1 : ∀ε. (ε → ε) → (ε → ε) → (ε → ε)
+h1 = f1 id
 
-k1 = h1 : (∀β. β → β) → (∀γ. γ → γ) → (∀δ. δ → δ)
+k1 : (∀β. β → β) → (∀γ. γ → γ) → (∀δ. δ → δ)
+k1 = h1
 
 
 . rant 2: better to capture
@@ -26,17 +27,19 @@ k1 = h1 : (∀β. β → β) → (∀γ. γ → γ) → (∀δ. δ → δ)
   α has multiple covariant occurrences and no contravariant
   occurrence.
 
-f2-postulate : ∀α. α → (α → ℤ) → α
-f2 = f2-postulate
+f2 : ∀α. α → (α → ℤ) → α
 
-g2 :       ∀β. ∀γ. ((β → β) → ℤ) → γ → γ
+g2 : ∀β. ∀γ. ((β → β) → ℤ) → γ → γ
 g2 = f2 id
 
-h2-postulate : ∀ε. ((ε → ε) → ℤ) → ε → ε
-h2 = h2-postulate
+h2 : ∀ε. ((ε → ε) → ℤ) → ε → ε
+h2 = f2 id
 
-j2 = g2 : ∀ε. ((ε → ε) → ℤ) → ε → ε
+. TYPE ERROR: NOT ALPHA EQUIV YOU'RE LOOKING AT
+. HINT: ASCRIPTION
 
+j2 : ∀ε. ((ε → ε) → ℤ) → ε → ε
+j2 = g2
 
 . rant 3: that is the question indeed!
 
@@ -44,17 +47,10 @@ j2 = g2 : ∀ε. ((ε → ε) → ℤ) → ε → ε
   if in the result type of f3, α occurs at multiple covariant
   positions and at least one contravariant position.
 
-f3-postulate : ∀α. α → (α → α) → α
-f3 = f3-postulate
+f3 : ∀α. α → (α → α) → α
 
 g3 :   ∀β. ∃γ. ∀δ. ((β → β) → (γ → γ)) → δ → δ
 g3 = f3 id
 
-h3-postulate : ∀ε. ((ε → ε) → (ε → ε)) → ε → ε
-h3 = h3-postulate
-
-. γ ≢ ε
-. j3 = g3 : ∀ε. ((ε → ε) → (ε → ε)) → ε → ε
-
-. β ≢ δ
-. k3 = h3 : ((∀β. β → β) → (∀γ. γ → γ)) → ∀δ. δ → δ
+h3 : ∀ε. ((ε → ε) → (ε → ε)) → ε → ε
+h3 = f3 id
