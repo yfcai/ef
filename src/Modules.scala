@@ -20,7 +20,7 @@ trait Modules extends Prenex with Nondeterminism {
   }
 
   def inject[T](payload: T, τ: Status[Tree]): Domain[T]
-  def isGlobalType: String => Boolean
+  def globalTypes: PartialFunction[String, Tree]
   def postulates[T]: T => PartialFunction[String, Domain[T]]
   def inferType[T]: PartialFunction[TreeF[Domain[T]],
     Tape => T => Domain[T]]
@@ -221,6 +221,8 @@ trait Modules extends Prenex with Nondeterminism {
       τ.fold[Tree] {
         case ∙:(FreeTypeVar, α: String) if lexicon contains α =>
           lexicon(α)
+        case ∙:(FreeTypeVar, α: String) if globalTypes isDefinedAt α =>
+          globalTypes(α)
         case ⊹:(TypeApplication,
                universal @ ⊹(Universal, _, Annotation.none(), _),
                σ) =>
@@ -326,6 +328,8 @@ trait Modules extends Prenex with Nondeterminism {
     def sortNames(defs: Map[String, Tree], toks: Map[String, Seq[Token]]):
         List[String] =
       defs.keys.toList.sortBy(key => toks(key).head.line)
+
+    def isGlobalType(α: String): Boolean = globalTypes.isDefinedAt(α)
 
     // find out undefined type names (only possible error in synonyms)
     def discoverUnknownTypes: Option[Problem] = {

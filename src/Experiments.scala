@@ -104,7 +104,7 @@ object Experiments {
         Domain[T] =
       noTypeSystem
 
-    def isGlobalType: String => Boolean =
+    def globalTypes: PartialFunction[String, Tree] =
       noTypeSystem
 
     def postulates[T]:
@@ -880,11 +880,11 @@ object Experiments {
 
   object EFStringExperiment extends Experiment with ExistentialF {
     val modules = List[String](
-      """|n : ℤ
-         |n = 5
-         |t : Bool
-         |t = false
-         |""".stripMargin,
+      s"""|n : $ℤ
+          |n = 5
+          |t : $Bool
+          |t = false
+          |""".stripMargin,
       "type X α = α → Y",
       readFileFromHere("../examples/captures.ef")
     )

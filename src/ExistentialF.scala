@@ -6,15 +6,15 @@ trait ExistentialF extends Modules with Unification {
   // Domain is a function from the set of variables that are already
   // bound to a type.
 
-  val ℤ = "ℤ"
+  val ℤ = "Int"
   val Bool = "Bool"
-  val globalTypes: Set[String] = Set(ℤ, Bool)
-
-  def isGlobalType: String => Boolean = globalTypes
+  val globalTypes: Map[String, Tree] = Map(
+    ℤ -> æ(ℤ),
+    Bool -> Type("∀β. β → β → β"))
 
   case class Dom[S](apply: Set[String] => (S, Status[Tree]))
       extends Domain[S] {
-    def get: (S, Status[Tree]) = apply(globalTypes)
+    def get: (S, Status[Tree]) = apply(globalTypes.keySet)
   }
 
   def mapDom[T]
@@ -34,8 +34,8 @@ trait ExistentialF extends Modules with Unification {
 
   def postulates[T]:
       T => PartialFunction[String, Domain[T]] = nil => {
-    val int        = æ(ℤ)
-    val bool       = æ(Bool)
+    val int        = globalTypes(ℤ)
+    val bool       = globalTypes(Bool)
     val intLiteral = """(-)?\d+"""
     val intBinOp   = Type(s"$ℤ → $ℤ → $ℤ")
     val absurdity  = Type("∀a̧. a̧")
