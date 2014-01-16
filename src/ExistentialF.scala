@@ -6,10 +6,12 @@ trait ExistentialF extends Modules with Unification {
   // Domain is a function from the set of variables that are already
   // bound to a type.
 
-  val ℤ = "Int"
+  val ℤ = "ℤ"
   val Bool = "Bool"
+  val ℤ_ascii = "Int"
   val globalTypes: Map[String, Tree] = Map(
     ℤ -> æ(ℤ),
+    ℤ_ascii -> æ(ℤ),
     Bool -> Type("∀β. β → β → β"))
 
   case class Dom[S](apply: Set[String] => (S, Status[Tree]))

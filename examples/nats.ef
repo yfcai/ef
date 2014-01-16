@@ -1,7 +1,5 @@
 . PRELUDE
 
-type ℤ = Int
-
 id    = λx : ι. x
 const = λx : α. λy : β. x
 

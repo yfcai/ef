@@ -1,5 +1,3 @@
-type ℤ = Int
-
 . TO CAPTURE OR NOT TO CAPTURE, THAT IS THE QUESTION
 
 id : ∀ι. ι → ι
