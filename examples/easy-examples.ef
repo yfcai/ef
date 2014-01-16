@@ -2,3 +2,13 @@ id : \all a. a -> a
 id = \abs x : any. x
 
 id (+ ((id +) (id 2) (id 2))) (% 158 40)
+
+if true then true else false
+
+true ? true : false
+
+const : \all a b. a -> b -> a
+const = \abs x : a. \abs y : b. x
+
+. Bool is actually a synonym of the type of Church Booleans.
+if const then true else false

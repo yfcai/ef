@@ -360,19 +360,23 @@ trait Modules extends Prenex with Nondeterminism {
       var typeError: Problem = null
       var remainingToks: Int = Int.MaxValue
 
+      def assignError(err: => Problem, len: Int): Unit =
+        if (len < remainingToks) {
+          remainingToks = len
+          typeError = err
+        }
+
       tape.toStream.findFirst[Tree] { tape =>
         infer(term, tape, toks).get match {
           case (_, Success(τ)) =>
             if (predicate(τ))
               Some(τ)
             else {
-              typeError = Problem(toks.head, errorMessage(τ))
-              remainingToks = 0
+              assignError(Problem(toks.head, errorMessage(τ)), 0)
               None
             }
           case (toks, Failure(msg)) =>
-            typeError = Problem(toks.head, msg)
-            remainingToks = toks.tail.length
+            assignError(Problem(toks.head, msg), toks.tail.length)
             None
         }
       } match {

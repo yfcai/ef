@@ -302,8 +302,9 @@ trait Syntax extends ExpressionGrammar {
     lazy val tryNext = Seq(Seq(FreeVar), typeOps, termOps)
   }
 
-  case object CStyleConditional extends Operator {
-    final val fixity = Infixr("?", ":")
+  trait Conditional extends Operator {
+    def fixity: Fixity
+
     lazy val tryNext =
       Seq(downBelow(this, termOps),
           downBelow(this, termOps),
@@ -311,7 +312,35 @@ trait Syntax extends ExpressionGrammar {
 
     def genus = Term
     override def subgenera = Some(Seq(Term, Term, Term))
-    def cons(children: Seq[Tree]): Tree = ⊹(this, children: _*)
+
+    def cons(children: Seq[Tree]): Tree = children match {
+      case Seq(cnd, thn, els) =>
+        val unit = æ("ℤ")
+        val tt = χ("0")
+        val x = Subscript.newName("_", thn.freeNames ++ els.freeNames)
+        ₋(₋(₋(cnd, λ(x, unit, thn)), λ(x, unit, els)), tt)
+    }
+
+    override
+    def consTokens(tok: Token, children: Seq[List[Token]]):
+        List[Token] = children match {
+      case Seq(cnd, thn, els) =>
+        List.fill(3)(tok) ++ // 3 layers of applications
+        cnd ++
+        List.fill(3)(tok) ++ // λ, x, unit
+        thn ++
+        List.fill(3)(tok) ++ // λ, x, unit
+        els ++
+        List.fill(1)(tok)    // tt
+    }
+  }
+
+  case object IfThenElse extends Conditional {
+    val fixity = Prefixr("if", "then", "else")
+  }
+
+  case object CStyleConditional extends Conditional {
+    val fixity = Infixr("?", ":")
   }
 
   case object TypeList
@@ -657,6 +686,7 @@ trait Syntax extends ExpressionGrammar {
     List(
       TypeAbstraction,
       AnnotatedAbstraction,
+      IfThenElse,
       CStyleConditional,
       Ascription,
       Instantiation,

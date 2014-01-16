@@ -83,8 +83,10 @@ trait Calculi {
             naked.foreach {
               case (t, τ, tok) =>
                 val name = tok.fileLine
+                val xxxx = Array.fill(name.length)(' ').mkString
                 println(s"$name : ${τ.unparse}")
-                println(s"$name = ${c.eval(t, module).unparse}")
+                println(s"$name = ${t.unparse}")
+                println(s"$xxxx = ${c.eval(t, module).unparse}")
                 println()
             }
         }
