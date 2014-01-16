@@ -1,24 +1,4 @@
-id      = λx : α. x
+id : \all a. a -> a
+id = \abs x : any. x
 
-double  = λf : α → α. λx : α. f (f x)
-seven   = double (+ 2) 3
-
-choose  = λx : α. λy : α. x
-choose1 = choose id
-choose2 = choose id id
-
-sid     = selfApp id
-poly    = λf : ∀α. α → α. (f id) (f 5)
-apply   = λf : α → β. λx : α. f x
-revapp  = flip apply
-
-const   = λx : α. λy : β. x
-flip    = λf : α → β → γ. λy : β. λx : α. f x y
-selfApp = λf : ∀α. α → α. f f
-
-hmf0    = apply poly id
-hmf1    = revapp id poly
-
-fourty2 = let x = 6 in let y = 7 in * x y
-
-ascript = id : α → α
+id (+ ((id +) (id 2) (id 2))) (% 158 40)

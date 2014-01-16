@@ -59,10 +59,10 @@ trait Unification extends Syntax with Status {
       // error cases
       case σ ≡ τ :: _ =>
         Failure(
-          """|missing case in monotype unification:
-             |${σ.unparse}
-             |${τ.unparse}"
-             |""".stripMargin)
+          s"""|Cannot unify the following types:
+              |  ${σ.unparse}
+              |  ${τ.unparse}
+              |""".stripMargin)
     }
     loop(constraints.toList)
   }

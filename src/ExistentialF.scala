@@ -125,7 +125,7 @@ trait ExistentialF extends Modules with Unification {
     // rule out absurd operator types at the same time
     val (all_f, ex_f, σ0, τ0) = pf match {
       // operator is absurd, result is equally absurd
-      case Prenex(_, æ(α)) if pf.tagOf(α) == Universal =>
+      case Prenex(_, æ(α)) if pf.isUniversal(α) =>
         return Success(∀(α, Annotation.none(), æ(α)))
       // if operator is not absurd then it must be function type
       case Prenex(prefix, σ → τ) =>

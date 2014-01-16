@@ -2,19 +2,33 @@ object Main extends ARGV0 with Calculi {
   def main(args: Array[String]): Unit =
     if (args.isEmpty)
       System.err.print(
-        s"""|Usage: $argv0 COMMAND [FILE...]
+        s"""|Usage: $argv0 [debug] COMMAND [FILE...]
             |  where
             |    COMMAND = test | run | type | reduce
             |      where
             |        test   : run experiments to verify sanity
             |        run    : type check files, then execute them
+            |        type   : type check files
             |        reduce : reduce naked expressions without
             |                 regard for types and print the result
+            |
+            |  If "debug" is given before COMMAND,
+            |  then errors will produce stacktraces.
             |""".stripMargin)
-    else args.head match {
-      case "type"   => TypeChecker.execute(args.tail)
-      case "test"   => Experiments.run
-      case cmd      => System.err.println(s"unknown command: $cmd")
+    else {
+      val debug = args.head == "debug"
+      val (head, tail) =
+        if (debug)
+          (args.tail.head, args.tail.tail)
+        else
+          (args.head, args.tail)
+      head match {
+        case "test"   => Experiments.run
+        case "run"    => Executioner.execute(tail, debug)
+        case "type"   => TypeChecker.execute(tail, debug)
+        case "reduce" => Reductionist.execute(tail, debug)
+        case cmd      => System.err.println(s"unknown command: $cmd")
+      }
     }
 }
 

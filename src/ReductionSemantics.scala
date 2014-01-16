@@ -11,16 +11,30 @@ trait ReductionSemantics extends Syntax {
     }
   }
 
-  // evaluation context: call-by-value
-  def evalContext(t: Tree): (Tree, Tree => Tree) = t match {
+  /** @return (thing inside context, evalutation context)
+    *
+    * (This is unclear. Investigate how best to implement
+    * evaluation contexts.)
+    */
+  def callByValue(t: Tree)(isRedex: Tree => Boolean):
+      (Tree, Tree => Tree) = t match {
+    case e if isRedex(e) =>
+      (e, x => x)
+    case e0 ₋ e1 if isRedex(e0) =>
+      (e0, x => ₋(x, e1))
     case Val(v) ₋ e =>
-      val (e2, c) = evalContext(e)
+      val (e2, c) = callByValue(e)(isRedex)
       (e2, x => ₋(v, c(x)))
     case e0 ₋ e1 =>
-      val (e2, c) = evalContext(e0)
-      (e2, x => ₋(c(x), e1))
-    case _ =>
-      (t, x => x)
+      val (e2, c) = callByValue(e0)(isRedex)
+      if (isRedex(e2))
+        (e2, x => ₋(c(x), e1))
+      else {
+        val (e3, c) = callByValue(e1)(isRedex)
+        (e3, x => ₋(e0, c(x)))
+      }
+    case e =>
+      (e, x => x)
   }
 
   // untyped β-reduction
@@ -41,5 +55,41 @@ trait ReductionSemantics extends Syntax {
       t
   }
 
-  val delta: Reduction = ???
+  val delta: Reduction = {
+    // arithmetics
+    case (χ("+") ₋ χ(lhs)) ₋ χ(rhs) =>
+      χ((lhs.toInt + rhs.toInt).toString)
+    case (χ("-") ₋ χ(lhs)) ₋ χ(rhs) =>
+      χ((lhs.toInt - rhs.toInt).toString)
+    case (χ("*") ₋ χ(lhs)) ₋ χ(rhs) =>
+      χ((lhs.toInt * rhs.toInt).toString)
+    case (χ("/") ₋ χ(lhs)) ₋ χ(rhs) =>
+      χ((lhs.toInt / rhs.toInt).toString)
+    case (χ("%") ₋ χ(lhs)) ₋ χ(rhs) =>
+      χ((lhs.toInt % rhs.toInt).toString)
+    // Church-encoded Booleans
+    case (χ("true")  ₋ thenBranch) ₋ elseBranch =>
+      thenBranch
+    case (χ("false") ₋ thenBranch) ₋ elseBranch =>
+      elseBranch
+    // absurdity
+    case χ("???") ₋ _ =>
+      sys error s"applying absurdity"
+  }
+
+  val reduction: Reduction = beta orElse delta orElse erasure
+
+  def reduce(t: Tree, env: PartialFunction[String, Tree]):
+      Option[Tree] = {
+    val realReduction: Reduction = reduction orElse {
+      case χ(name) if env.isDefinedAt(name) =>
+        env(name)
+    }
+    val (redex, context) = callByValue(t)(realReduction.isDefinedAt)
+    realReduction.andThen(Some.apply[Tree]).
+      applyOrElse(redex, (_: Tree) => None).map(context)
+  }
+
+  def eval(env: PartialFunction[String, Tree])(t: Tree): Tree =
+    reduce(t, env).fold(t)(eval(env))
 }

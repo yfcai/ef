@@ -18,6 +18,9 @@ trait Prenex extends Syntax with Status {
       (all, ex, body)
     }
 
+    def isUniversal(α: String): Boolean =
+      prefix.find(_.x == α).map(_.tag == Universal).fold(false)(identity)
+
     def tagOf(α: String): Binder = prefix.find(_.x == α).get.tag
 
     def indexOf(α: String): Int =

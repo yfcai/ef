@@ -266,7 +266,6 @@ trait Modules extends Prenex with Nondeterminism {
 
       // TAUT
       case χ(x) =>
-        // TODO: make _postulates better. (after this type error.)
         Γ.orElse(globals).orElse[String, Domain[Seq[Token]]]({
           case _ => inject(tok +: toks, Failure("unknown object"))
         })(x)
