@@ -1,6 +1,4 @@
 object Experiments {
-  val debug = false
-
   val onTrial: Experiment =
     EFStringExperiment
 
@@ -28,23 +26,62 @@ object Experiments {
     SelfReferenceExperiment,
     ProtoASTExperiment).reverse
 
+  val lookup: Map[String, Experiment] =
+    experiments.map(e => (e.toString, e))(collection.breakOut)
+
   def maintenance() = experiments foreach { ex =>
-    if (ex.run != ex.expected) sys error s"failed: $ex"
+    if (!ex.verify) sys error s"failed: $ex"
   }
 
-  def run(): Unit =
-    if (debug)
-      onTrial.debug
-    else {
-      onTrial.trial
+  def run(args: Array[String], debug: Boolean): Unit =
+    if (args.isEmpty) {
+      run(onTrial, debug)
       println("MAINTAINING ...")
       maintenance()
       println("MAINTENANCE SUCCESSFUL")
     }
+    else args.foreach { exp =>
+      lookup.get(exp).fold({
+        System.err.println(s"${exp}Experiment: nonexistent")
+        return
+      })(e => runAndVerify(e, debug))
+    }
+
+  def run(which: Experiment, debug: Boolean): Unit =
+    if (debug)
+      which.debug
+    else
+      which.trial
+
+  def runAndVerify(which: Experiment, debug: Boolean) {
+    run(which, debug)
+    if(! which.verify) {
+      run(which, true)
+      System.err.
+        println("[Debug mode triggered because verification failed]")
+    }
+  }
 
   trait Experiment {
+    override def toString: String = {
+      val fullname = getClass.getName
+      val classname = fullname.substring(fullname.lastIndexOf('.') + 1)
+      val outername = if (classname.endsWith("$"))
+        classname.init
+      else
+        classname
+      val simplename = outername.substring(outername.lastIndexOf('$') + 1)
+      val experiment = "Experiment"
+      if (simplename endsWith experiment)
+        simplename.substring(0, simplename.length - experiment.length)
+      else
+        simplename
+    }
+
     def run: String
     def expected: String = "UNEXPECTED"
+
+    def verify: Boolean = run == expected
 
     def trial(): Unit = print(run)
 
@@ -643,7 +680,7 @@ object Experiments {
     // expectation does nothing,
     // but if this experiment is put on maintenance list,
     // we will catch exceptions.
-    override def expected = run
+    override def verify = true
   }
 
   object AlphaEquivExperiment extends SyntaxExperiment {

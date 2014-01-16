@@ -2,15 +2,16 @@ object Main extends ARGV0 with Calculi {
   def main(args: Array[String]): Unit =
     if (args.isEmpty)
       System.err.print(
-        s"""|Usage: $argv0 [debug] COMMAND [FILE...]
+        s"""|Usage: $argv0 [debug] COMMAND [STUFF...]
             |  where
             |    COMMAND = test | run | type | reduce
             |      where
-            |        test   : run experiments to verify sanity
+            |        test   : run (optionally named) experiments to
+            |                   verify sanity
             |        run    : type check files, then execute them
             |        type   : type check files
-            |        reduce : reduce naked expressions without
-            |                 regard for types and print the result
+            |        reduce : reduce naked expressions without regard
+            |                   for types and print the result
             |
             |  If "debug" is given before COMMAND,
             |  then errors will produce stacktraces.
@@ -23,7 +24,7 @@ object Main extends ARGV0 with Calculi {
         else
           (args.head, args.tail)
       head match {
-        case "test"   => Experiments.run
+        case "test"   => Experiments.run(tail, debug)
         case "run"    => Executioner.execute(tail, debug)
         case "type"   => TypeChecker.execute(tail, debug)
         case "reduce" => Reductionist.execute(tail, debug)
