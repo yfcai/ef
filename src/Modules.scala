@@ -28,7 +28,17 @@ trait Modules extends Prenex with Nondeterminism {
   def mayAscribe(from: Tree, to: Tree): Boolean
 
   case object ParagraphExpr extends TopLevelGenus {
-    val ops = List(TypeSynonym, Signature, Definition)
+    val ops = List(TypeSynonym, Signature, Definition, NakedExpression)
+  }
+
+  case object NakedExpression extends TopLevelGenus {
+    val ops = List(Term)
+
+    def unapply(t: Tree): Option[Tree] =
+      if (t.tag.genus == Term)
+        Some(t)
+      else
+        None
   }
 
   case object TypeSynonym
@@ -131,7 +141,8 @@ trait Modules extends Prenex with Nondeterminism {
     sig    : Map[String, Tree       ] ,
     sigtoks: Map[String, List[Token]] ,
     dfn    : Map[String, Tree       ] ,
-    dfntoks: Map[String, List[Token]] ) {
+    dfntoks: Map[String, List[Token]] ,
+    naked  : Seq[(Tree, List[Token])] ) {
 
     def unparse: String = {
       type Domain = List[(Int, Definitional, String, Tree)]
@@ -175,21 +186,28 @@ trait Modules extends Prenex with Nondeterminism {
         Module(
           syn.updated(α, τ), syntoks.updated(α, toks),
           sig, sigtoks,
-          dfn, dfntoks)
+          dfn, dfntoks,
+          naked)
       case Signature(x, τ) =>
         ensureUnique(sig, x, toks.head)
         Module(
           syn, syntoks,
           sig.updated(x, τ), sigtoks.updated(x, toks),
-          dfn, dfntoks)
+          dfn, dfntoks,
+          naked)
       case Definition(x, t) =>
         ensureUnique(dfn, x, toks.head)
         Module(
           syn, syntoks,
           sig, sigtoks,
-          dfn.updated(x, t), dfntoks.updated(x, toks))
+          dfn.updated(x, t), dfntoks.updated(x, toks),
+          naked)
+      case NakedExpression(e) =>
+        Module(
+          syn, syntoks, sig, sigtoks, dfn, dfntoks,
+          naked.:+((e, toks)))
       case _ =>
-        sys error s"undetected parse error on:\n${t.unparse}"
+        sys error s"undetected parse error on ${t.tag}:\n${t.unparse}"
     }
 
     // SYNONYM RESOLUTION
@@ -326,6 +344,40 @@ trait Modules extends Prenex with Nondeterminism {
       None
     }
 
+    def findFirstType(term: Tree, toks: Seq[Token],
+      predicate: Tree => Boolean = _ => true,
+      errorMessage: Tree => String = _ => "predicate unsatisfied"):
+        Either[Problem, Tree] = {
+
+      // TODO: swap in the prefix skipping tape when it's done
+      val tape = Nondeterministic.tape
+
+      // find the first type error amongst those that happen
+      // at the latest stage of type checking.
+      var typeError: Problem = null
+      var remainingToks: Int = Int.MaxValue
+
+      tape.toStream.findFirst[Tree] { tape =>
+        infer(term, tape, toks).get match {
+          case (_, Success(τ)) =>
+            if (predicate(τ))
+              Some(τ)
+            else {
+              typeError = Problem(toks.head, errorMessage(τ))
+              remainingToks = 0
+              None
+            }
+          case (toks, Failure(msg)) =>
+            typeError = Problem(toks.head, msg)
+            remainingToks = toks.tail.length
+            None
+        }
+      } match {
+        case None => Left(typeError)
+        case Some(τ) => Right(τ)
+      }
+    }
+
     // high level type error report
     def typeErrorInDefinitions: Option[Problem] =
       discoverUnknownTypes.fold[Option[Problem]] {
@@ -337,36 +389,16 @@ trait Modules extends Prenex with Nondeterminism {
             val expected = sig(name)
             val expectedType = Prenex(resolve(expected)).normalize
 
-            // TODO: swap in the prefix skipping tape when it's done
-            val tape = Nondeterministic.tape
-
-            // find the first type error amongst those that happen
-            // at the latest stage of type checking.
-            var typeError: Problem = null
-            var remainingToks: Int = Int.MaxValue
-
-            val result = tape.find { tape =>
-              infer(term, tape, toks).get match {
-                case (_, Success(τ0)) =>
-                  val τ = Prenex(τ0).normalize
-                  val correct = mayAscribe(τ, expectedType)
-                  if (correct)
-                    true
-                  else {
-                    typeError = Problem(toks.head,
-                      ascriptionFailure(expected, τ))
-                    // whole definition's scanned without freak-outs
-                    remainingToks = 0
-                    false
-                  }
-                case (toks, Failure(msg)) =>
-                  typeError = Problem(toks.head, msg)
-                  remainingToks = toks.tail.length
-                  false
-              }
+            findFirstType(
+              term,
+              toks,
+              τ => mayAscribe(Prenex(τ).normalize, expectedType),
+              τ => ascriptionFailure(expected, τ)) match {
+              case Left(typeError) =>
+                return Some(typeError)
+              case Right(_) =>
+                ()
             }
-            if (result == None)
-              return Some(typeError)
           } ; None
         } {
           name => Some(Problem(
@@ -377,12 +409,30 @@ trait Modules extends Prenex with Nondeterminism {
       } {
         Some.apply
       }
+
+    // assume definitions are fine, check naked expressions
+    def typeNakedExpressions: Either[Problem, Seq[(Tree, Tree, Token)]] =
+      Right(naked.map { case (t, toks) =>
+        findFirstType(t, toks) match {
+          case Left(problem) =>
+            return Left(problem)
+          case Right(τ) =>
+            (t, τ, toks.head)
+        }
+      })
+
+    /** @return either a problem or a sequence of naked
+      *         top-level expressions with their types
+      */
+    lazy val typeCheck: Either[Problem, Seq[(Tree, Tree, Token)]] =
+      typeErrorInDefinitions.fold(typeNakedExpressions)(Left.apply)
   }
 
   object Module {
-    def empty: Module =
+    val empty: Module =
       Module(Map.empty, Map.empty, Map.empty,
-             Map.empty, Map.empty, Map.empty)
+             Map.empty, Map.empty, Map.empty,
+             Seq.empty)
 
     def apply(source: String): Module =
       fromParagraphs(Paragraphs(source))

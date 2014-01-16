@@ -1,4 +1,6 @@
 trait Calculi {
+  type Calculus = Modules
+
   object ExistentialFCalculus extends ExistentialF
 
   trait Executable {
@@ -11,7 +13,7 @@ trait Calculi {
   object TypeChecker extends Executable {
     def execute(args: Array[String]): Unit = args.foreach { file =>
       val extension = file.substring(file.lastIndexOf(".") + 1)
-      val calculus: Modules = extension match {
+      val calculus: Calculus = extension match {
         case "ef" => ExistentialFCalculus
         case _ =>
           err(s"$file: unknown extension")
@@ -19,13 +21,20 @@ trait Calculi {
       }
       try {
         val module = calculus.Module.fromFile(file)
-        println(s"Checking $file")
-        module.typeErrorInDefinitions match {
-          case None =>
-            println(s"$file is well-typed.")
-          case Some(problem) =>
+        module.typeCheck match {
+          case Left(problem) =>
             err(problem.getMessage)
             return
+          case Right(naked) if naked.isEmpty =>
+            println(s"$file is well typed.\n")
+          case Right(naked) if ! naked.isEmpty =>
+            naked.foreach {
+              case (t, τ, tok) =>
+                val name = tok.fileLine
+                println(s"$name : ${τ.unparse}")
+                println(s"$name = ${t.unparse}")
+                println()
+            }
         }
         // TODO: type naked expressions
       } catch {

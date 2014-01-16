@@ -1,8 +1,8 @@
 object Main extends ARGV0 with Calculi {
   def main(args: Array[String]): Unit =
     if (args.isEmpty)
-      System.err.println(
-        s"""|Usage: THIS-THING COMMAND [FILE...]
+      System.err.print(
+        s"""|Usage: $argv0 COMMAND [FILE...]
             |  where
             |    COMMAND = test | run | type | reduce
             |      where
@@ -20,11 +20,13 @@ object Main extends ARGV0 with Calculi {
 
 // Based on
 // http://designbygravity.wordpress.com/2009/11/04/argv0-for-java/
-//
-// TODO: read jar's x-bit & manifest to come up with good command
 trait ARGV0 {
   import java.io._
   import java.net._
+
+  // placeholder for now due to Java's disregard of C's tradition
+  // TODO: read jar's x-bit & manifest to come up with good command
+  def argv0: String = "THIS-THING"
 
   def findRootPath(obj: AnyRef): String = {
     val clazz = obj.getClass
