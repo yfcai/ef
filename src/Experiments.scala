@@ -32,15 +32,15 @@ object Experiments {
     if (ex.run != ex.expected) sys error s"failed: $ex"
   }
 
-  def main(args: Array[String]) = {
+  def run(): Unit =
     if (debug)
       onTrial.debug
-    else
+    else {
       onTrial.trial
-    println("MAINTAINING ...")
-    maintenance()
-    println("MAINTENANCE SUCCESSFUL")
-  }
+      println("MAINTAINING ...")
+      maintenance()
+      println("MAINTENANCE SUCCESSFUL")
+    }
 
   trait Experiment {
     def run: String
@@ -891,7 +891,7 @@ object Experiments {
 
     def run = {
       modules.zipWithIndex.foreach { case (source, i) =>
-        Module(source).typeError match {
+        Module(source).typeErrorInDefinitions match {
           case None =>
             puts(s"module #$i is type correct.\n")
           case Some(problem) =>

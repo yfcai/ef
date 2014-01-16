@@ -327,52 +327,56 @@ trait Modules extends Prenex with Nondeterminism {
     }
 
     // high level type error report
-    def typeError: Option[Problem] = discoverUnknownTypes.
-      fold[Option[Problem]]({
-        sortNames(dfn, dfntoks).foreach { name =>
-          val term = dfn(name)
-          val toks = getDFNTokens(dfntoks, name)
-          if (! sig.contains(name))
-            return Some(Problem(
-              // can't use toks.head: LHS's already dropped
-              dfntoks(name).head,
-              "definition lacks type signature"))
+    def typeErrorInDefinitions: Option[Problem] =
+      discoverUnknownTypes.fold[Option[Problem]] {
+        val names = sortNames(dfn, dfntoks)
+        names.find(x => ! sig.contains(x)).fold[Option[Problem]] {
+          names.foreach { name =>
+            val term = dfn(name)
+            val toks = getDFNTokens(dfntoks, name)
+            val expected = sig(name)
+            val expectedType = Prenex(resolve(expected)).normalize
 
-          val expected = sig(name)
-          val expectedType = Prenex(resolve(expected)).normalize
+            // TODO: swap in the prefix skipping tape when it's done
+            val tape = Nondeterministic.tape
 
-          // TODO: swap in the prefix skipping tape when it's done
-          val tape = Nondeterministic.tape
+            // find the first type error amongst those that happen
+            // at the latest stage of type checking.
+            var typeError: Problem = null
+            var remainingToks: Int = Int.MaxValue
 
-          // find the first type error amongst those that happen
-          // at the latest stage of type checking.
-          var typeError: Problem = null
-          var remainingToks: Int = Int.MaxValue
-
-          val result = tape.find { tape =>
-            infer(term, tape, toks).get match {
-              case (_, Success(τ0)) =>
-                val τ = Prenex(τ0).normalize
-                val correct = mayAscribe(τ, expectedType)
-                if (correct)
-                  true
-                else {
-                  typeError = Problem(toks.head,
-                    ascriptionFailure(expected, τ))
-                  // whole definition's scanned without freak-outs
-                  remainingToks = 0
+            val result = tape.find { tape =>
+              infer(term, tape, toks).get match {
+                case (_, Success(τ0)) =>
+                  val τ = Prenex(τ0).normalize
+                  val correct = mayAscribe(τ, expectedType)
+                  if (correct)
+                    true
+                  else {
+                    typeError = Problem(toks.head,
+                      ascriptionFailure(expected, τ))
+                    // whole definition's scanned without freak-outs
+                    remainingToks = 0
+                    false
+                  }
+                case (toks, Failure(msg)) =>
+                  typeError = Problem(toks.head, msg)
+                  remainingToks = toks.tail.length
                   false
-                }
-              case (toks, Failure(msg)) =>
-                typeError = Problem(toks.head, msg)
-                remainingToks = toks.tail.length
-                false
+              }
             }
-          }
-          if (result == None)
-            return Some(typeError)
-        } ; None
-      })(Some.apply)
+            if (result == None)
+              return Some(typeError)
+          } ; None
+        } {
+          name => Some(Problem(
+            // can't use toks.head: LHS's already dropped
+            dfntoks(name).head,
+            "definition lacks type signature"))
+        }
+      } {
+        Some.apply
+      }
   }
 
   object Module {
