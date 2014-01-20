@@ -937,6 +937,7 @@ object Experiments {
     lazy val run = decompose(sugared)
   }
 
+  // objective: try to drop mandatory ascription in nats.ef
   object MatchNatExperiment extends Trial with ExistentialF {
     val nat = Type("∀ν. ν → (ν → ν) → ν")
     val nil = Type("∀β α. α → β → α")
@@ -956,8 +957,11 @@ object Experiments {
     }
 
     lazy val run = {
-      puts("nil to mat: " + mayAscribe(nil, mat))
-      puts("n2n to m2m: " + mayAscribe(n2n, m2m))
+      val t = ∀("α", "β")(→(æ("α"), æ("β")))
+      puts(t.unparse)
+
+      //puts("nil to mat: " + mayAscribe(nil, mat))
+      //puts("n2n to m2m: " + mayAscribe(n2n, m2m))
       dump
     }
   }

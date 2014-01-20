@@ -88,6 +88,10 @@ trait Prenex extends Syntax with Status {
     def close(prefix: Seq[BinderSpec], body: Tree): Tree =
       bind(prefix.filter(body.freeNames contains _.x), body)
 
+    // HORROR: FORGOT TO TAKE INTO ACCOUNT THE ORDER OF QUANTIFIERS!
+    // orderlessness makes type checker accept terms that are
+    // NOT proofs in classical logic; may make system unsound
+    // or inconsistent.
     def normalize(prefix: Seq[BinderSpec], body: Tree): Tree = {
       val topo = topologicalOrder(prefix)
       val specs =

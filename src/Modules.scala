@@ -212,7 +212,7 @@ trait Modules extends Syntax {
 }
 
 // synonym resolution
-trait AliasedModules extends Modules {
+trait Aliasing extends Modules {
   def globalTypes: PartialFunction[String, Tree]
 
   implicit class SynonymResolution(module0: Module) {
@@ -259,7 +259,7 @@ trait TypedModules extends Modules {
 }
 
 trait CompositionallyTypeableModules
-    extends AliasedModules with TypedModules
+    extends TypedModules with Aliasing
        with Prenex with Nondeterminism
 {
   def typeCheck(m: Module): Either[Problem, Seq[(Tree, Tree, Token)]] =
@@ -291,10 +291,11 @@ trait CompositionallyTypeableModules
   def mayAscribe(from: Tree, to: Tree): Boolean
 
 
-  implicit class TypingModules(module0: Module) {
+  implicit class TypingModules(module0: Module)
+      extends SynonymResolution(module0)
+  {
     import module0._
-    val resolution = new SynonymResolution(module0)
-    import resolution._
+
     // TYPE INFERENCE
 
     // low level type inference

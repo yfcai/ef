@@ -457,6 +457,9 @@ trait Syntax extends ExpressionGrammar {
         otherwise
     }
 
+    def apply(xs: String*)(body: Tree): Tree =
+      expand(bind(xs, body))
+
     // duplicate to create a token for each nonexisting nonterminal:
     // one variable is transformed into 5 to stand for
     // 1. the quantification
@@ -487,6 +490,9 @@ trait Syntax extends ExpressionGrammar {
   abstract class QuantificationFactory(binder: Quantification) {
     def apply (α: String, note: Tree, body: Tree): Tree =
       binder.bind(α, note, body)
+
+    def apply(xs: String*)(body: => Tree): Tree =
+      binder.collapsed(xs: _*)(body)
 
     def unapply(t: Tree): Option[(String, Tree, Tree)] =
       binder.unbind(t).map {

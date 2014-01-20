@@ -1,20 +1,13 @@
 /** the type system */
 trait ExistentialF
-    extends CompositionallyTypeableModules with Unification
+    extends CompositionallyTypeableModules
+       with IntsAndBools
+       with Unification
 {
-
   // MODULE OBLIGATIONS
 
   // Domain is a function from the set of variables that are already
   // bound to a type.
-
-  val ℤ = "ℤ"
-  val Bool = "Bool"
-  val ℤ_ascii = "Int"
-  val globalTypes: Map[String, Tree] = Map(
-    ℤ -> æ(ℤ),
-    ℤ_ascii -> æ(ℤ),
-    Bool -> Type("∀β. β → β → β"))
 
   case class Dom[S](apply: Set[String] => (S, Status[Tree]))
       extends Domain[S] {
@@ -37,24 +30,9 @@ trait ExistentialF
   def inject[T](payload: T, τ: Status[Tree]) = Dom[T](_ => (payload, τ))
 
   def postulates[T]:
-      T => PartialFunction[String, Domain[T]] = nil => {
-    val int        = globalTypes(ℤ)
-    val bool       = globalTypes(Bool)
-    val intLiteral = """(-)?\d+"""
-    val intBinOp   = Type(s"$ℤ → $ℤ → $ℤ")
-    val absurdity  = Type("∀a̧. a̧")
-    val primitives: PartialFunction[String, Tree] = {
-      case "+" | "-" | "*" | "/" | "%" =>
-        intBinOp
-      case "true" | "false" =>
-        bool
-      case "???" =>
-        absurdity
-      case n if n matches intLiteral =>
-        int
-    }
-    primitives.andThen[Domain[T]](τ => inject(nil, Success(τ)))
-  }
+      T => PartialFunction[String, Domain[T]] =
+    nil =>
+    primitiveType.andThen[Domain[T]](τ => inject(nil, Success(τ)))
 
   def inferType[T]:
       PartialFunction[TreeF[Domain[T]], Tape => T => Domain[T]] = {

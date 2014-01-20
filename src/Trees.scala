@@ -4,7 +4,7 @@
 
 import scala.language.implicitConversions
 
-trait Trees {
+trait Trees extends Names {
   trait Genus // type, terms, etc
 
   trait Tag {
@@ -59,37 +59,6 @@ trait Trees {
   { def man = manifest[String] }
   trait DeBruijn extends KnownLeafTag[Int]
   { def man = manifest[Int] }
-
-  /** subscript utilities */
-  object Subscript {
-    // Subscript.s
-    val s = "₀₁₂₃₄₅₆₇₈₉"
-
-    def is(c: Char): Boolean = s contains c
-
-    def remove(subscribedName: String): String = {
-      val j = subscribedName.lastIndexWhere(c => ! is(c))
-      if (j >= 0)
-        subscribedName.substring(0, j + 1)
-      else
-        subscribedName
-    }
-
-    def apply(i: Int): String = i.toString map (c => s(c - '0'))
-
-    def newName(default: String, toAvoid: Set[String]): String = {
-      val startingID  = -1
-      val defaultName = remove(default)
-      var i = startingID
-      var x = defaultName
-      while (toAvoid contains x) {
-        i = i + 1
-        if (i == startingID) sys error "ran outta names"
-        x = defaultName + apply(i)
-      }
-      x
-    }
-  }
 
   trait Binder extends Tag {
     def prison        : DeBruijn
