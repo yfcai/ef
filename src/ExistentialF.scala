@@ -1,5 +1,7 @@
 /** the type system */
-trait ExistentialF extends Modules with Unification {
+trait ExistentialF
+    extends CompositionallyTypeableModules with Unification
+{
 
   // MODULE OBLIGATIONS
 
@@ -95,10 +97,6 @@ trait ExistentialF extends Modules with Unification {
           }
         }
       }
-
-    // C-style conditionals
-    case ⊹:(CStyleConditional, condition, thenBranch, elseBranch) =>
-      ???
   }
 
   def mayAscribe(from: Tree, to: Tree): Boolean = {

@@ -24,9 +24,17 @@ trait Lexer {
     def isLeftParen  = body == "("
     def isRightParen = body == ")"
 
-    def residentLines(n: Int): String = {
+    def position: (Int, Int) = {
+      val (_, line, char) = residentLinesInfo(0)
+      (line, char)
+    }
+
+    def residentLines(n: Int): String =
+      residentLinesInfo(n)._1(())
+
+    def residentLinesInfo(n: Int): (Unit => String, Int, Int) = {
       if (paragraph.body.length <= location)
-        return ""
+        ((_: Unit) => "", line, location)
       assert(paragraph.body(location) != '\n')
       def loop(n: Int, start: Int): Int =
         if (start < 0)
@@ -35,15 +43,17 @@ trait Lexer {
           paragraph.body.lastIndexOf('\n', start) + 1
         else
           loop(n - 1, paragraph.body.lastIndexOf('\n', start) - 1)
-      val start: Int = loop(n, location)
-      val end: Int = paragraph.body.indexOf('\n', location)
-      val theLine =
-        (paragraph.body substring (start,
+      val relativeLocation = location - loop(1, location)
+      def theLine: Unit => String = { _ =>
+        val start: Int = loop(n, location)
+        val end: Int = paragraph.body.indexOf('\n', location)
+        val s = (paragraph.body substring (start,
           if (end < 0) paragraph.body.length else end)).lines.dropWhile(
           _.find(! _.isSpace) == None
         ) mkString "\n"
-      val relativeLocation = location - loop(1, location)
-      s"$theLine\n${Array.fill(relativeLocation)(' ').mkString}^"
+        s"$s\n${Array.fill(relativeLocation)(' ').mkString}^"
+      }
+      (theLine, line, relativeLocation)
     }
   }
 

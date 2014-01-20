@@ -1,5 +1,5 @@
 trait Calculi {
-  trait Calculus extends Modules with ReductionSemantics {
+  trait Calculus extends TypedModules with ReductionSemantics {
     def eval(t: Tree, module: Module): Tree = eval(module.dfn)(t)
   }
 
@@ -55,7 +55,7 @@ trait Calculi {
 
   object TypeChecker extends Executable {
     def run(file: String, c: Calculus)(module: c.Module) {
-        module.typeCheck match {
+        c.typeCheck(module) match {
           case Left(problem) =>
             throw problem
           case Right(naked) if naked.isEmpty =>
@@ -74,7 +74,7 @@ trait Calculi {
 
   object Executioner extends Executable {
     def run(file: String, c: Calculus)(module: c.Module) {
-        module.typeCheck match {
+        c.typeCheck(module) match {
           case Left(problem) =>
             throw problem
           case Right(naked) if naked.isEmpty =>

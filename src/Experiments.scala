@@ -140,28 +140,7 @@ object Experiments {
       s"${x.parse(s).get.unparse}\n"
   }
 
-  trait ModulesExperiment extends SyntaxExperiment with Modules {
-    def noTypeSystem = sys error "there's no type system"
-
-    def inject[T](payload: T, τ: Status[Tree]):
-        Domain[T] =
-      noTypeSystem
-
-    def globalTypes: PartialFunction[String, Tree] =
-      noTypeSystem
-
-    def postulates[T]:
-        T => PartialFunction[String, Domain[T]] =
-      noTypeSystem
-
-    def inferType[T]:
-        PartialFunction[TreeF[Domain[T]], Tape => T => Domain[T]] =
-      noTypeSystem
-
-    def mayAscribe(from: Tree, to: Tree):
-        Boolean =
-      noTypeSystem
-  }
+  trait ModulesExperiment extends SyntaxExperiment with Modules
 
   object ProtoASTExperiment extends Experiment with ProtoAST {
     def leftParens  = Set("(")

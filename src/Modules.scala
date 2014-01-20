@@ -1,32 +1,5 @@
 // parse file, produce AST
-trait Modules extends Prenex with Nondeterminism {
-
-  // ensure correct tracking of tokens
-  case class TokenTracker(var tokens: Seq[Token]) {
-    def next: Token = {
-      val tok = tokens.head
-      tokens = tokens.tail
-      tok
-    }
-
-    def remaining: Int = tokens.length
-
-    def +: (tok: Token): Seq[Token] = tok +: tokens
-  }   
-
-  // to be extended by type-system-specific subclasses
-  trait Domain[S] {
-    def get: (S, Status[Tree])
-  }
-
-  def inject[T](payload: T, τ: Status[Tree]): Domain[T]
-  def globalTypes: PartialFunction[String, Tree]
-  def postulates[T]: T => PartialFunction[String, Domain[T]]
-  def inferType[T]: PartialFunction[TreeF[Domain[T]],
-    Tape => T => Domain[T]]
-
-  def mayAscribe(from: Tree, to: Tree): Boolean
-
+trait Modules extends Syntax {
   case object ParagraphExpr extends TopLevelGenus {
     val ops = List(TypeSynonym, Signature, Definition, NakedExpression)
   }
@@ -209,6 +182,41 @@ trait Modules extends Prenex with Nondeterminism {
       case _ =>
         sys error s"undetected parse error on ${t.tag}:\n${t.unparse}"
     }
+  }
+
+  object Module {
+    val empty: Module =
+      Module(Map.empty, Map.empty, Map.empty,
+             Map.empty, Map.empty, Map.empty,
+             Seq.empty)
+
+    def apply(source: String): Module =
+      fromParagraphs(Paragraphs(source))
+
+    def fromFile(file: String): Module =
+      fromParagraphs(Paragraphs.fromFile(file))
+
+    def fromParagraphs(paragraphs: Iterator[Paragraph]): Module =
+      paragraphs.foldLeft(empty) {
+        case (module, paragraph) =>
+          val tokens = tokenize(paragraph)
+          ParagraphExpr.parse(ProtoAST(tokens)) match {
+            case Some((tree, toks)) =>
+              module.add(tree, toks)
+            case None =>
+              throw Problem(tokens.head,
+                s"can't parse this paragraph:\n${paragraph.body}")
+          }
+      }
+  }
+}
+
+// synonym resolution
+trait AliasedModules extends Modules {
+  def globalTypes: PartialFunction[String, Tree]
+
+  implicit class SynonymResolution(module0: Module) {
+    import module0._
 
     // SYNONYM RESOLUTION
 
@@ -243,7 +251,50 @@ trait Modules extends Prenex with Nondeterminism {
 
     lazy val resolvedSignatures: Map[String, Tree] =
       sig.map(p => (p._1, resolve(p._2)))
+  }
+}
 
+trait TypedModules extends Modules {
+  def typeCheck(m: Module): Either[Problem, Seq[(Tree, Tree, Token)]]
+}
+
+trait CompositionallyTypeableModules
+    extends AliasedModules with TypedModules
+       with Prenex with Nondeterminism
+{
+  def typeCheck(m: Module): Either[Problem, Seq[(Tree, Tree, Token)]] =
+    new TypingModules(m).typeCheck
+
+  // ensure correct tracking of tokens
+  case class TokenTracker(var tokens: Seq[Token]) {
+    def next: Token = {
+      val tok = tokens.head
+      tokens = tokens.tail
+      tok
+    }
+
+    def remaining: Int = tokens.length
+
+    def +: (tok: Token): Seq[Token] = tok +: tokens
+  }
+
+  // to be extended by type-system-specific subclasses
+  trait Domain[S] {
+    def get: (S, Status[Tree])
+  }
+
+  def inject[T](payload: T, τ: Status[Tree]): Domain[T]
+  def postulates[T]: T => PartialFunction[String, Domain[T]]
+  def inferType[T]: PartialFunction[TreeF[Domain[T]],
+    Tape => T => Domain[T]]
+
+  def mayAscribe(from: Tree, to: Tree): Boolean
+
+
+  implicit class TypingModules(module0: Module) {
+    import module0._
+    val resolution = new SynonymResolution(module0)
+    import resolution._
     // TYPE INFERENCE
 
     // low level type inference
@@ -431,33 +482,7 @@ trait Modules extends Prenex with Nondeterminism {
     /** @return either a problem or a sequence of naked
       *         top-level expressions with their types
       */
-    lazy val typeCheck: Either[Problem, Seq[(Tree, Tree, Token)]] =
+    def typeCheck: Either[Problem, Seq[(Tree, Tree, Token)]] =
       typeErrorInDefinitions.fold(typeNakedExpressions)(Left.apply)
-  }
-
-  object Module {
-    val empty: Module =
-      Module(Map.empty, Map.empty, Map.empty,
-             Map.empty, Map.empty, Map.empty,
-             Seq.empty)
-
-    def apply(source: String): Module =
-      fromParagraphs(Paragraphs(source))
-
-    def fromFile(file: String): Module =
-      fromParagraphs(Paragraphs.fromFile(file))
-
-    def fromParagraphs(paragraphs: Iterator[Paragraph]): Module =
-      paragraphs.foldLeft(empty) {
-        case (module, paragraph) =>
-          val tokens = tokenize(paragraph)
-          ParagraphExpr.parse(ProtoAST(tokens)) match {
-            case Some((tree, toks)) =>
-              module.add(tree, toks)
-            case None =>
-              throw Problem(tokens.head,
-                s"can't parse this paragraph:\n${paragraph.body}")
-          }
-      }
   }
 }
