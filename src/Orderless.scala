@@ -83,9 +83,14 @@ trait FirstOrderOrderlessness
 
     def isLonerIn(x: String, constraints: List[⊑]): Boolean =
       if (constraints.isEmpty)
-        true
+        false
       else {
         val α = æ(x)
+        // loner has to BE somewhere
+        constraints.find(c =>
+          c.lhs.freeNames.contains(x) ||
+            c.rhs.freeNames.contains(x)) != None &&
+        // but he has to be there alone
         constraints.find(c =>
           (c.lhs != α && c.lhs.freeNames.contains(x)) ||
             (c.rhs != α && c.rhs.freeNames.contains(x))) == None
@@ -108,11 +113,21 @@ trait FirstOrderOrderlessness
           // because of case-ID, we'll not see "loner ⊑ loner" here.
           if (σ == α)
             rhs = τ :: rhs
-          if (τ == α)
+          else if (τ == α)
             lhs = σ :: lhs
-        case otherwise =>
-          rest = otherwise :: rest
+          else
+            rest = σ ⊑ τ :: rest
       }
+
+      // paranoid sanity check
+      if (rest.length == constraints.length) sys error {
+        Contradiction(
+          s"problem extracting the existential loner $loner",
+          Nil,
+          constraints
+        ).getMessage
+      }
+
       Loneliness(lhs, rhs, rest)
     }
 
@@ -260,7 +275,14 @@ trait FirstOrderOrderlessness
     }
 
     def isExistential(x: String, prefix: List[(String, Binder)]): Boolean =
-      ! isUniversal(x, prefix)
+      prefix match {
+        case (y, tag) :: rest if x == y =>
+          tag == Existential
+        case _ :: rest =>
+          isUniversal(x, rest)
+        case Nil =>
+          false
+      }
 
     def isUniversal(x: String, prefix: List[(String, Binder)]): Boolean =
       prefix match {
@@ -269,7 +291,7 @@ trait FirstOrderOrderlessness
         case _ :: rest =>
           isUniversal(x, rest)
         case Nil =>
-          sys error s"can't find $x in prefix.\nprefix = $prefix"
+          false
       }
 
     def verifyResolution(dom: Domain): Option[Contradiction] = {
@@ -300,6 +322,7 @@ trait FirstOrderOrderlessness
           // existential loner.
           val Loneliness(lhs, rhs, rest) =
             dom1.extractLoner(x)
+
           val α = æ(x)
           val unified: Map[String, Tree] = (lhs ++ rhs).map({
             case æ(y) if dom1.isUniversal(y) =>
@@ -309,11 +332,15 @@ trait FirstOrderOrderlessness
                 s"""|the existential $x can't be instantiated
                     |by the nonuniversal thing ${τ.unparse}
                     |""".stripMargin,
-                dom1.prefix, dom1.constraints))
+                dom1.prefix,
+                dom1.constraints))
           })(collection.breakOut)
+          val newConstraints = rest.map {
+            case σ ⊑ τ => (σ subst unified) ⊑ (τ subst unified)
+          }
           contradiction(Domain(
             dom1.prefix.filter(p => ! unified.contains(p._1)),
-            rest,
+            newConstraints,
             // put representative there because we don't care
             // about it at all
             dom1.representative))
@@ -353,6 +380,10 @@ trait FirstOrderOrderlessness
       ascriptionError(gatherConstraints(t), τ) match {
         case None => None
         case Some(contradiction) =>
+          Some(Problem(tok, contradiction.getMessage))
+          /* FIXME
+           * Doing a preorder zip leaks de-bruijn indices.
+           * fix it at Tree level.
           val problem =
             t.preorder.toSeq.zip(toks).reverse.findFirst {
               case (t, tok)
@@ -366,6 +397,7 @@ trait FirstOrderOrderlessness
             Some(Problem(tok, contradiction.getMessage))
           else
             problem
+         */
       }
     }
 

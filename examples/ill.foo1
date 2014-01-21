@@ -1,0 +1,7 @@
+. DEMONSTRATING ILL-TYPED TERMS
+
+f : ∃ε. ε → ε
+f = λx : β. x
+
+. Problem: this isn't found to be ill-typed!
+f 5
