@@ -5,6 +5,9 @@ trait Calculi {
 
   object ExistentialFCalculus extends Calculus with ExistentialF
 
+  // first-order orderless F
+  object FOO1 extends Calculus with FirstOrderOrderlessness
+
   trait Executable {
     def run(file: String, c: Calculus)(module: c.Module): Unit
 
@@ -40,6 +43,7 @@ trait Calculi {
   def calculusOfFile(file: String): Calculus =
     file.substring(file.lastIndexOf(".") + 1) match {
       case "ef" => ExistentialFCalculus
+      case "foo1" => FOO1
       case _    => throw new UnknownExtensionException(file)
     }
 

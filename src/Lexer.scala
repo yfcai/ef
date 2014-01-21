@@ -164,6 +164,14 @@ trait Lexer {
     }
   }
 
+  implicit class UsefulOptionOperations[T](opt: Option[T]) {
+    def plus(that: => Option[T]): Option[T] =
+      if (opt == None)
+        that
+      else
+        opt
+  }
+
   implicit class FindFirstInLine[T](seq: Iterable[T]) {
     def findFirst[R](f: T => Option[R]): Option[R] = {
       var z: Option[R] = None

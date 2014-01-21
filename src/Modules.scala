@@ -182,6 +182,28 @@ trait Modules extends Syntax {
       case _ =>
         sys error s"undetected parse error on ${t.tag}:\n${t.unparse}"
     }
+
+    // strip the "LHS" and the "=" away from token stream
+    def getRHSTokens(drop: Int)
+        (tokens: Map[String, Seq[Token]], name: String):
+        Seq[Token] = tokens(name).drop(drop)
+
+    // drop "LHS" & "="
+    def getDFNTokens = getRHSTokens(2) _
+
+    // drop all those tokens associated with annotations:
+    //
+    //  Universal, binder of MyAlias
+    //    ∙(LiteralTag(java.lang.String), MyAlias)
+    //    Annotation
+    //      ∙(Nope, ())
+    //      ∙(Nope, ())
+    //
+    def getSYNTokens = getRHSTokens(5) _
+
+    def sortNames(defs: Map[String, Tree], toks: Map[String, Seq[Token]]):
+        List[String] =
+      defs.keys.toList.sortBy(key => toks(key).head.line)
   }
 
   object Module {
@@ -214,9 +236,10 @@ trait Modules extends Syntax {
 // synonym resolution
 trait Aliasing extends Modules {
   def globalTypes: PartialFunction[String, Tree]
+  def globalTerms: PartialFunction[String, Tree]
 
-  implicit class SynonymResolution(module0: Module) {
-    import module0._
+  implicit class SynonymResolution(val module: Module) {
+    import module._
 
     // SYNONYM RESOLUTION
 
@@ -251,6 +274,54 @@ trait Aliasing extends Modules {
 
     lazy val resolvedSignatures: Map[String, Tree] =
       sig.map(p => (p._1, resolve(p._2)))
+
+    // USEFUL THINGS INDEPENDENT OF COMPOSITIONAL TYPING
+
+    def isGlobalType(α: String): Boolean = globalTypes.isDefinedAt(α)
+    def isGlobalTerm(x: String): Boolean = globalTerms.isDefinedAt(x)
+
+    // find out undefined type names (only possible error in synonyms)
+    def discoverUnknownInTypes: Option[Problem] = {
+      sortNames(syn, syntoks).foreach { typeName =>
+        val typeDef = syn(typeName)
+        val τ = resolve(æ(typeName))
+        (typeDef.preorder.toSeq, getSYNTokens(syntoks, typeName)).
+          zipped.foreach {
+            case (æ(x), tok)
+                if ! syn.contains(x) && ! isGlobalType(x) =>
+              return Some(Problem(tok, s"unknown type $x"))
+            case _ =>
+              ()
+          }
+      }
+      None
+    }
+
+    // mostly duplicated code...
+    def discoverUnknownInTerms: Option[Problem] = {
+      sortNames(dfn, dfntoks).foreach { termName =>
+        val t = dfn(termName)
+        (t.preorder.toSeq, getDFNTokens(dfntoks, termName)).zipped.foreach {
+          case (χ(x), tok)
+              if ! sig.contains(x) && ! isGlobalTerm(x) =>
+            return Some(Problem(tok, s"unknown term $x"))
+          // if an unknown type happens in an annotation,
+          // then it will be quantified over.
+          case _ =>
+            ()
+        }
+      }
+      None
+    }
+
+    def discoverUnsignedDefinitions: Option[Problem] = {
+      sortNames(dfn, dfntoks).foreach { x =>
+        if (! sig.contains(x))
+          return Some(Problem(dfntoks(x).head,
+            "definition lacks type signature"))
+      }
+      None
+    }
   }
 }
 
@@ -358,47 +429,6 @@ trait CompositionallyTypeableModules
         inferType(⊹:(tag, types: _*))(tape)(mytoks)
     }
 
-    // strip the "LHS" and the "=" away from token stream
-    def getRHSTokens(drop: Int)
-        (tokens: Map[String, Seq[Token]], name: String):
-        Seq[Token] = tokens(name).drop(drop)
-
-    // drop "LHS" & "="
-    def getDFNTokens = getRHSTokens(2) _
-
-    // drop all those tokens associated with annotations:
-    //
-    //  Universal, binder of MyAlias
-    //    ∙(LiteralTag(java.lang.String), MyAlias)
-    //    Annotation
-    //      ∙(Nope, ())
-    //      ∙(Nope, ())
-    //
-    def getSYNTokens = getRHSTokens(5) _
-
-    def sortNames(defs: Map[String, Tree], toks: Map[String, Seq[Token]]):
-        List[String] =
-      defs.keys.toList.sortBy(key => toks(key).head.line)
-
-    def isGlobalType(α: String): Boolean = globalTypes.isDefinedAt(α)
-
-    // find out undefined type names (only possible error in synonyms)
-    def discoverUnknownTypes: Option[Problem] = {
-      sortNames(syn, syntoks).foreach { typeName =>
-        val typeDef = syn(typeName)
-        val τ = resolve(æ(typeName))
-          (typeDef.preorder.toSeq, getSYNTokens(syntoks, typeName)).
-          zipped.foreach {
-            case (æ(x), tok)
-                if ! syn.contains(x) && ! isGlobalType(x) =>
-              return Some(Problem(tok, "unknown type"))
-            case _ =>
-              ()
-          }
-      }
-      None
-    }
-
     def findFirstType(term: Tree, toks: Seq[Token],
       predicate: Tree => Boolean = _ => true,
       errorMessage: Tree => String = _ => "predicate unsatisfied"):
@@ -439,7 +469,7 @@ trait CompositionallyTypeableModules
 
     // high level type error report
     def typeErrorInDefinitions: Option[Problem] =
-      discoverUnknownTypes.fold[Option[Problem]] {
+      discoverUnknownInTypes.fold[Option[Problem]] {
         val names = sortNames(dfn, dfntoks)
         names.find(x => ! sig.contains(x)).fold[Option[Problem]] {
           names.foreach { name =>

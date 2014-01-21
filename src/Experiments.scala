@@ -1,8 +1,9 @@
 object Experiments {
   val onTrial: Experiment =
-    MatchNatExperiment
+    OrderlessExperiment
 
   val experiments = List[Experiment](
+    MatchNatExperiment,
     DesugarExperiment,
     EFStringExperiment,
     CaptureExperiment,
@@ -937,6 +938,7 @@ object Experiments {
     lazy val run = decompose(sugared)
   }
 
+  // UNFINISHED EXPERIMENT
   // objective: try to drop mandatory ascription in nats.ef
   object MatchNatExperiment extends Trial with ExistentialF {
     val nat = Type("∀ν. ν → (ν → ν) → ν")
@@ -962,6 +964,40 @@ object Experiments {
 
       //puts("nil to mat: " + mayAscribe(nil, mat))
       //puts("n2n to m2m: " + mayAscribe(n2n, m2m))
+      dump
+    }
+  }
+
+  object OrderlessExperiment
+      extends Experiment with FirstOrderOrderlessness {
+    val s =
+      s"""|five : ℤ
+          |five = 5
+          |
+          |2+2=5 : ℤ
+          |2+2=5 = true
+          |
+          |id : ∀ι. ι → ι
+          |id = λx : α. x
+          |
+          |absurd-number : ℤ
+          |absurd-number = ???
+          |""".stripMargin
+
+    lazy val run = {
+      val module = Module(s)
+      val typing = new OrderlessTyping(module)
+      module.dfn.foreach {
+        case (x, t) =>
+          val τ = module.sig(x)
+          puts(s"${t.unparse} : ${τ.unparse}")
+          typing.ascriptionError(typing.gatherConstraints(t), τ) match {
+            case None =>
+              puts("is fine\n")
+            case Some(contradiction) =>
+              puts(contradiction.msg)
+          }
+      }
       dump
     }
   }

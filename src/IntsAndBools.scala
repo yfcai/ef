@@ -7,6 +7,8 @@ trait IntsAndBools extends Aliasing {
     ℤ_ascii -> æ(ℤ),
     Bool -> Type("∀β. β → β → β"))
 
+  def globalTerms: PartialFunction[String, Tree] = primitiveType
+
   def primitiveType: PartialFunction[String, Tree] = {
     val int        = globalTypes(ℤ)
     val bool       = globalTypes(Bool)
