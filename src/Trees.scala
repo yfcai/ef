@@ -233,7 +233,8 @@ trait Trees extends Names {
     def apply(xdef: Tree): Tree = tag match {
       case tag: Binder =>
         require(tag.bindingGenus == xdef.tag.genus)
-        tag bodyOf this subst (0, xdef)
+        (tag bodyOf this subst (0, xdef.shift(1, 0))).
+          shift(-1, 1)
       case _ =>
         sys error s"expect binder, got: ${this.print}"
     }
@@ -252,16 +253,25 @@ trait Trees extends Names {
     }
 
     // substitution of free variable
-    def subst(x: ∙[String], xdef: Tree): Tree = fold[Tree] {
-      case ∙:(tag, get) if x.tag == tag && x.get == get =>
+    def subst(x: ∙[String], xdef: Tree): Tree = this match {
+      case ∙(tag, get) if x.tag == tag && x.get == get =>
         xdef
-      case otherwise => Tree(otherwise)
+      case x @ ∙(_, _) =>
+        x
+      case ⊹(binder: Binder, children @ _*) =>
+        val newDef = xdef.shift(1, 0)
+        ⊹(binder, children.map(_.subst(x, newDef)): _*)
+      case ⊹(tag, children @ _*) =>
+        ⊹(tag, children.map(_.subst(x, xdef)): _*)
     }
 
     // substitute all free variables of identical genus
+    // can't handle binders because "fold" is evil......
     def subst(x: String, xdef: Tree): Tree = fold[Tree] {
       case ∙:(tag, get) if tag.genus == this.tag.genus && x == get =>
         xdef
+      case ⊹:(binder: Binder, children @ _*) =>
+        sys error s"unhandled. beware shifts."
       case otherwise => Tree(otherwise)
     }
 

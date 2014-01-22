@@ -1,8 +1,9 @@
 object Experiments {
   val onTrial: Experiment =
-    OrderlessExperiment
+    TypeApplicationExperiment
 
   val experiments = List[Experiment](
+    OrderlessExperiment,
     MatchNatExperiment,
     DesugarExperiment,
     EFStringExperiment,
@@ -999,6 +1000,41 @@ object Experiments {
               puts(contradiction.msg)
           }
       }
+      dump
+    }
+
+    override def expected =
+      s"""|5 : ℤ
+          |is fine
+          |
+          |true : ℤ
+          |irreconciled constraint:
+          |  β → β → β ⊑ ℤ
+          |
+          |λx : α. x : ∀ι. ι → ι
+          |is fine
+          |
+          |??? : ℤ
+          |is fine
+          |
+          |""".stripMargin
+  }
+
+  object TypeApplicationExperiment
+      extends Experiment with Aliasing with IntsAndBools {
+    val s =
+      """|type Pair α β = ∀γ. (α → β → γ) → γ
+         |""".stripMargin
+
+    val t = Type("∀δ ε. Pair δ ε")
+
+    def run = {
+      val mod = Module(s)
+      val syn = new SynonymResolution(mod)
+      import syn._
+      val τ = resolve(t)
+      puts(τ.unparse)
+      puts(t.print)
       dump
     }
   }

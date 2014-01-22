@@ -29,7 +29,7 @@ trait FirstOrderOrderlessness
     import module._
 
     def debugDomain(dom0: Domain, msg: String = "domain") {
-      val c = Contradiction(dom0, s"DEBUGGING $msg")
+      val c = Contradiction(dom0, s"debugging $msg")
       println()
       println(c.getMessage)
       var dom = breakUpConstraints(dom0)
@@ -49,7 +49,7 @@ trait FirstOrderOrderlessness
           case Left(c) =>
             println("contradiction encountered.")
             println(c.getMessage)
-            println("DEBUG OVER\n\n")
+            println("debug over\n\n")
             return
           case Right(d) =>
             dom = d
@@ -58,7 +58,7 @@ trait FirstOrderOrderlessness
         prompt
       }
 
-      println("\nDEBUG OVER\n\n")
+      println("\ndebug over\n\n")
     }
 
     def debugDefinition(name: String) {
@@ -356,8 +356,11 @@ trait FirstOrderOrderlessness
           case Some(_) =>
             val (oo, ps) = ("oo", "ps")
             val oops = æ(oo) ⊑ æ(ps)
-            if (debugFlag && ! dom.constraints.contains(oops))
+            if (debugFlag && ! dom.constraints.contains(oops)) {
               debugDomain(dom, "inconsistent abstraction")
+              // don't debug endlessly
+              debugFlag = false
+            }
 
             // the abstraction is internally inconsistent.
             // generate insoluble constraints.
