@@ -968,8 +968,9 @@ object Experiments {
     }
   }
 
-  object OrderlessExperiment
-      extends Experiment with FirstOrderOrderlessness {
+  trait FOO1Experiment extends Experiment with FirstOrderOrderlessness
+
+  object OrderlessExperiment extends FOO1Experiment {
     val s =
       s"""|five : ℤ
           |five = 5

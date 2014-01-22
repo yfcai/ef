@@ -6,6 +6,8 @@
 trait FirstOrderOrderlessness
     extends TypedModules with IntsAndBools
 {
+  var debugFlag: Boolean = false
+
   def typeCheck(m: Module):
       Either[Problem, Seq[(Tree, Tree, Token)]] = {
     val ord = new OrderlessTyping(m)
@@ -26,18 +28,15 @@ trait FirstOrderOrderlessness
     typing =>
     import module._
 
-    def debugDefinition(name: String) {
-      val t = dfn(name)
-      val τ = resolve(sig(name))
-      val c = Contradiction(t, τ,
-        s"DEBUGGING $name = ${t.unparse}")
+    def debugDomain(dom0: Domain, msg: String = "domain") {
+      val c = Contradiction(dom0, s"DEBUGGING $msg")
       println()
       println(c.getMessage)
-      var dom = breakUpConstraints(gatherConstraints(t, τ))
+      var dom = breakUpConstraints(dom0)
       var i = 1
       val lines = scala.io.Source.stdin.getLines
       def prompt() {
-        print("next? (<RET> = yes, ^D = no) ")
+        print("next?>  ")
         System.out.flush()
       }
       prompt
@@ -60,6 +59,12 @@ trait FirstOrderOrderlessness
       }
 
       println("\nDEBUG OVER\n\n")
+    }
+
+    def debugDefinition(name: String) {
+      val t = dfn(name)
+      val τ = resolve(sig(name))
+      debugDomain(gatherConstraints(t, τ), s"$name = ${t.unparse}")
     }
 
     // INSTANTIATION CONSTRAINTS
@@ -159,6 +164,59 @@ trait FirstOrderOrderlessness
 
       def contradiction: Option[Contradiction] =
         typing.contradiction(this)
+
+      // capture avoidance
+      // (binder interface imposes too much overhead...)
+      def avoid(names: Set[String]): Domain = {
+        val clashed = prefix.flatMap {
+          case (x, _) =>
+            if (names contains x)
+              Some(x)
+            else
+              None
+        }
+        if (clashed.isEmpty)
+          this
+        else {
+          val fresh = ABCSong.newNames(clashed, names ++ freeNames)
+          val refreshName =
+            (clashed.zip(fresh).map(identity)(collection.breakOut):
+                Map[String, String]
+            ).withDefault(identity)
+          val refreshVar =
+            refreshName.map(p => (p._1, æ(p._2))).withDefault(æ.apply)
+          val dom =
+            Domain(
+              prefix.map(p => (refreshName(p._1), p._2)),
+              constraints.map(_ subst refreshVar),
+              representative subst refreshVar)
+          dom
+        }
+      }
+    }
+
+    object Domain {
+      // reconstruct for terms
+      def fromTerm(t: Tree): Domain =
+        typing.gatherConstraints(t)
+
+      // injection
+      def injectType(τ: Tree): Domain =
+        Domain(Nil, Nil, τ)
+
+      def fromApplication(fun0: Domain, arg0: Domain): Domain = {
+        val fun = fun0.avoid(arg0.freeNames)
+        val arg = arg0.avoid(fun.freeNames)
+        val Seq(a, b) =
+          ABCSong.newNames(Seq("a", "b"), fun.freeNames ++ arg.freeNames)
+        Domain(
+          (a, Universal) :: (b, Universal) ::
+            fun.prefix ++ arg.prefix,
+          fun.representative ⊑ →(æ(a), æ(b)) ::
+            arg.representative ⊑ æ(a) ::
+            fun.constraints ++ arg.constraints,
+          æ(b))
+      }
     }
 
     def isLonerIn(x: String, constraints: List[Tree]): Boolean =
@@ -213,28 +271,6 @@ trait FirstOrderOrderlessness
       }
 
       Loneliness(lhs, rhs, rest)
-    }
-
-    object Domain {
-      // reconstruct for terms
-      def fromTerm(t: Tree): Domain =
-        typing.gatherConstraints(t)
-
-      // injection
-      def injectType(τ: Tree): Domain =
-        Domain(Nil, Nil, τ)
-
-      def fromApplication(fun: Domain, arg: Domain): Domain = {
-        val Seq(a, b) =
-          ABCSong.newNames(Seq("a", "b"), fun.freeNames ++ arg.freeNames)
-        Domain(
-          (a, Universal) :: (b, Universal) ::
-            fun.prefix ++ arg.prefix,
-          fun.representative ⊑ →(æ(a), æ(b)) ::
-            arg.representative ⊑ æ(a) ::
-            fun.constraints ++ arg.constraints,
-          æ(b))
-      }
     }
 
     def quantify(prefix: Seq[(String, Binder)], body: Tree): Tree =
@@ -322,9 +358,16 @@ trait FirstOrderOrderlessness
 
           case Some(_) =>
             val (oo, ps) = ("oo", "ps")
+            val oops = æ(oo) ⊑ æ(ps)
+            if (debugFlag && ! dom.constraints.contains(oops))
+              debugDomain(dom, "inconsistent abstraction")
+
+            // the abstraction is internally inconsistent.
+            // generate insoluble constraints.
+
             Domain(
               List((oo, Existential), (ps, Existential)),
-              List(æ(oo) ⊑ æ(ps)),
+              List(oops),
               →(æ(oo), æ(ps)))
         }
 
@@ -338,11 +381,17 @@ trait FirstOrderOrderlessness
           τ)
     }
 
-    def isPrefixedTypeVar(dom: Domain, τ: Tree): Boolean =
-      τ match {
-        case æ(x) => dom.prefix.find(_._1 == τ) != None
-        case _ => false
-      }
+    def isPrefixedTypeVar(dom: Domain, x: String): Boolean =
+        dom.prefix.find(_._1 == x) != None
+
+    def shouldBreakUp(dom: Domain, τ: Tree): Boolean = τ match {
+      case æ(x) if isPrefixedTypeVar(dom, x) =>
+        //true // always break up: fails on matchNat
+        false // never breaks up: fails on (n 0 (+ 1))
+      case _ =>
+        // if τ is not a type var, then it's obvious
+        true // yes, do it
+    }
 
     def flipTag(tag: Binder): Binder = tag match {
       case Universal   => Existential
@@ -365,7 +414,7 @@ trait FirstOrderOrderlessness
         // break up binders only if the other side isn't
         // a prefixed type variable
         case (σ0 @ ⊹(tag: Binder, _*)) ⊑ τ1
-            if ! isPrefixedTypeVar(dom, τ1) => // DECISION POINT
+            if shouldBreakUp(dom, τ1) => // DECISION POINT
           tag.unbind(σ0, avoid) match {
             case Some((æ(x), Seq(_, τ0))) =>
               breakUpConstraints(
@@ -373,7 +422,7 @@ trait FirstOrderOrderlessness
                 avoid + x)
           }
         case τ0 ⊑ (σ1 @ ⊹(tag: Binder, _*))
-            if ! isPrefixedTypeVar(dom, τ0) => // DECISION POINT
+            if shouldBreakUp(dom, τ0) => // DECISION POINT
           tag.unbind(σ1, avoid) match {
             case Some((æ(y), Seq(_, τ1))) =>
               breakUpConstraints(
@@ -589,9 +638,10 @@ trait FirstOrderOrderlessness
         dfn(x),
         resolve(sig(x)),
         dfntoks(x).head,
-        getDFNTokens(dfntoks, x)).map {
-          c => { debugDefinition(x) ; c }
-        }
+        getDFNTokens(dfntoks, x)).map { c => {
+          if (debugFlag) debugDefinition(x)
+          c
+        }}
 
     def typeErrorInNakedExpression(t: Tree, toks: Seq[Token]):
         Option[Problem] =

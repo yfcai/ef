@@ -33,19 +33,15 @@ zz : ℤ
 p1 : ℤ → ℤ
 n : Nat
 
-.debug : ℤ
-.debug = n zz p1
-(n zz p1)
+to_ℤ : Nat → ℤ
+to_ℤ = λn : Nat. n 0 (+ 1)
 
-.to_ℤ : Nat → ℤ
-.to_ℤ = λn : Nat. n 0 (+ 1)
+three : Nat
+three = (succ (succ (succ zero)))
 
-.three : Nat
-.three = (succ (succ (succ zero)))
+to_ℤ (succ (succ (succ zero)))
 
-.to_ℤ (succ (succ (succ zero)))
+pred : Nat → Nat
+pred = λn : Nat. matchNat n ??? id
 
-.pred : Nat → Nat
-.pred = λn : Nat. matchNat n ??? id
-
-.to_ℤ (pred three)
+to_ℤ (pred three)
