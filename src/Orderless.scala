@@ -42,7 +42,7 @@ trait FirstOrderOrderlessness
       prompt
       while (lines.hasNext) {
         lines.next
-        println(Contradiction(dom, s"\nafter $i step").getMessage)
+        println(Contradiction(dom, s"\nafter step $i").getMessage)
         if (i % 2 == 1)
           dom = breakUpConstraints(dom)
         else nextDomain(dom) match {
