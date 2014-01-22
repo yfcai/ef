@@ -29,7 +29,7 @@ trait Nondeterminism {
     }
   }
 
-  // TODO: prefix-skipping tape
+  // possible optimization: prefix-skipping tape
 
   private
   class Nondeterministic {

@@ -47,7 +47,6 @@ trait Trees extends Names {
     override final def subgenera = Some(Nil)
   }
 
-  // TODO: make all leaf tags known
   trait KnownLeafTag[T] extends LeafTag {
     def man: Manifest[T]
     def get(t: Tree): T = t match {

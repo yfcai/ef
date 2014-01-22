@@ -415,8 +415,7 @@ trait CompositionallyTypeableModules
         val τ = infer(body, Γ.updated(x, σ), globals, tape, toks.next, toks)
         inferType(⊹:(AnnotatedAbstraction, σ, τ))(tape)(mytoks)
 
-      // TODO (for Continuation Calculus):
-      // handle Λ here.
+      // Continuation Calculus should handle Λ here.
       case terminal @ ∙(tag, _) =>
         sys error s"unhandled terminal $terminal"
       case ⊹(tag: Binder, _*) =>
@@ -434,7 +433,6 @@ trait CompositionallyTypeableModules
       errorMessage: Tree => String = _ => "predicate unsatisfied"):
         Either[Problem, Tree] = {
 
-      // TODO: swap in the prefix skipping tape when it's done
       val tape = Nondeterministic.tape
 
       // find the first type error amongst those that happen

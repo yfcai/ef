@@ -44,7 +44,7 @@ trait FirstOrderOrderlessness
         lines.next
         println(Contradiction(dom, s"\nafter $i step").getMessage)
         if (i % 2 == 1)
-          dom = breakUpConstraints(dom) // TODO: MAKE THIS ONE STEP
+          dom = breakUpConstraints(dom)
         else nextDomain(dom) match {
           case Left(c) =>
             println("contradiction encountered.")
@@ -283,9 +283,6 @@ trait FirstOrderOrderlessness
 
     // Currently, no effort is expanded toward converting
     // types to prenex form.
-    //
-    // TODO: pull all the covariant universals to the place
-    // where we want them.
     //
     // Question: what about existentials?
     // Answer: If we have a problem, then commit everything,
@@ -648,7 +645,6 @@ trait FirstOrderOrderlessness
       ascriptionError(t, YHWH, toks.head, toks)
 
     lazy val typeError: Option[Problem] =
-      // TODO: discover unsigned definitions
       discoverUnknownInTypes plus
       discoverUnknownInTerms plus
       discoverUnsignedDefinitions plus {
