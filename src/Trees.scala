@@ -1,7 +1,3 @@
-/** Conor McBride and James McKinna:
-  * I am not a number---I am a free variable
-  */
-
 import scala.language.implicitConversions
 
 trait Trees extends Names {
@@ -60,8 +56,8 @@ trait Trees extends Names {
   { def man = manifest[Int] }
 
   trait Binder extends Tag {
-    def prison        : DeBruijn
-    def freeName      : FreeName
+    def prison        : DeBruijn // I am not a number...
+    def freeName      : FreeName // I am a free variable.
     def genus         : Genus
     def extraSubgenera: Seq[Genus] = Nil
     // in subclasses, extraSubgenera should always be a "def", not "val",
@@ -366,10 +362,31 @@ trait Trees extends Names {
     }
 
     // traversals
+
     def preorder: Iterator[Tree] = this match {
       case ∙(_, _) => Iterator(this)
       case ⊹(_, children @ _*) => Iterator(this) ++
         children.flatMap(_.preorder) // ++ is call-by-name for iterators
+    }
+
+    def blindPreorder: Iterator[(Tree, Map[String, Tree])] = {
+      def loop(t: Tree, gamma: Map[String, Tree]):
+          Iterator[(Tree, Map[String, Tree])] = t match {
+        case ∙(_, _) =>
+          Iterator((t, gamma))
+        case ⊹(binder: Binder, _name, _note, _body)
+            if binder.genus == this.tag.genus =>
+          binder.unbind(t).get match {
+            case (x, Seq(note, body)) =>
+              val newGamma = gamma.updated(x.get, note)
+              Iterator((t, gamma)) ++
+              loop(x, newGamma) ++
+              loop(body, newGamma)
+          }
+        case ⊹(_, children @ _*) =>
+          Iterator((t, gamma)) ++ children.flatMap(s => loop(s, gamma))
+      }
+      loop(this, Map.empty)
     }
 
     // count number of occurrences of something

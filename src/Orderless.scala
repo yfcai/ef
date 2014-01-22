@@ -307,12 +307,16 @@ trait FirstOrderOrderlessness
         dom.representative ⊑ τ :: dom.constraints,
         dom.representative)
 
-    def gatherConstraints(term: Tree): Domain =
+    def gatherConstraints(term: Tree, gamma: Map[String, Tree]): Domain =
       gatherConstraints(
         term,
-        sig.map(p => (p._1, resolve(p._2))),
+        (sig ++ gamma).map(p => (p._1, resolve(p._2))),
         globalTypes.keySet,
         primitiveType)
+
+
+    def gatherConstraints(term: Tree): Domain =
+      gatherConstraints(term, Map.empty[String, Tree])
 
     def gatherConstraints(
       term    : Tree,
@@ -610,24 +614,20 @@ trait FirstOrderOrderlessness
               dom1.prefix,
               dom1.constraints)
 
-          Some(Problem(tok, con.getMessage))
-          /* FIXME
-           * Doing a preorder zip leaks de-bruijn indices.
-           * fix it at Tree level.
           val problem =
-            t.preorder.toSeq.zip(toks).reverse.findFirst {
-              case (t, tok)
-                  if t.tag == Application | t.tag == Ascription =>
-                typeErrorInTerm(t, tok)
-              case _ =>
-                None
+            t.blindPreorder.toSeq.zip(toks).reverse.findFirst {
+              case ((t, gamma), tok) =>
+                gatherConstraints(t, gamma).contradiction match {
+                  case None => None
+                  case Some(contradiction) =>
+                    Some(Problem(tok, contradiction.getMessage))
+                }
             }
           // problem happens at top level ascription
           if (problem == None)
             Some(Problem(tok, contradiction.getMessage))
           else
             problem
-         */
       }
     }
 
