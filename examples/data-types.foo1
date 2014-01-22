@@ -1,0 +1,91 @@
+. PRELUDE
+
+auto : (∀ω. ω → ω) → (∀ω. ω → ω)
+auto = λx : ∀ω. ω → ω. x x
+
+const : ∀α β. α → β → α
+const = λx : α. λy : β. x
+
+flip : ∀α β γ. (α → β → γ) → (β → α → γ)
+flip = λf : α → β → γ. λy : β. λx : α. f x y
+
+id : ∀ι. ι → ι
+id = λx : α. x
+
+
+. CONJUNCTION
+
+type Pair α β = ∀γ. (α → β → γ) → γ
+
+pair : ∀α β. α → β → Pair α β
+pair = λx : α. λy : β. λf : α → β → γ. f x y
+
+proj₁ : ∀α β. Pair α β → α
+proj₁ = λp : Pair α β. p const
+
+proj₂ : ∀α β. Pair α β → β
+proj₂ = λp : Pair α β. p (flip const)
+
+
+. DISJUNCTION
+
+type Either α β = ∀γ. (α → γ) → (β → γ) → γ
+
+inj₁ : ∀α β. α → Either α β
+inj₁ = λx : α. λf : α → γ. λg : β → γ. f x
+
+inj₂ : ∀α β. β → Either α β
+inj₂ = λy : β. λf : α → γ. λg : β → γ. g y
+
+. a disjunction is its own elimination form
+
+
+. LIST
+
+type List α = ∀β. β → (α → β → β) → β
+
+. List is desugared to (∀α. List α)
+nil : List
+nil = const
+
+cons : ∀α. α → List α → List α
+cons = λx : α. λxs : List α. λz : β. λf : α → β → β. (f x (xs z f))
+
+. BӦHM-BERADUCCI ENCODING FOR PATTERN MATCHING ON LISTS
+
+type MatchList α = ∀β. β → (α → List α → β) → β
+
+matchList : ∀α. List α → MatchList α
+matchList = λxs : List α.
+  xs const
+     (λx : α. λys : MatchList α. λz : β. λf : α → List α → β.
+       f x (ys
+         (λz : γ. λg : α → γ → γ. z)
+         (λx : α. λxs : List α. λz : γ. λf : α → γ → γ. (f x (xs z f)))))
+
+. USAGE
+
+head : ∀α. List α → α
+head = λxs : List α. xs ??? const
+
+tail : ∀α. List α → List α
+tail = λxs : List α. matchList xs ??? (flip const)
+
+ana-ℤ : ℤ → List ℤ
+ana-ℤ = ???
+
+sum : List ℤ → ℤ
+sum = λns : List ℤ. ns 0 +
+
+sum (cons 1 (cons 2 (cons 3 (cons 4 (cons 5 nil)))))
+
+list1-5 : List ℤ
+list1-5 = cons 1 (cons 2 (cons 3 (cons 4 (cons 5 nil))))
+
+head nil
+
+head list1-5
+
+tail nil
+
+sum (tail list1-5)
