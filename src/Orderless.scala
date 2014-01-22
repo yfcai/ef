@@ -184,11 +184,14 @@ trait FirstOrderOrderlessness
                 Map[String, String]
             ).withDefault(identity)
           val refreshVar =
-            refreshName.map(p => (p._1, æ(p._2))).withDefault(æ.apply)
+            refreshName.map(p => (p._1, æ(p._2)))
           val dom =
             Domain(
               prefix.map(p => (refreshName(p._1), p._2)),
-              constraints.map(_ subst refreshVar),
+              constraints.map {
+                case σ ⊑ τ =>
+                  (σ subst refreshVar) ⊑ (τ subst refreshVar)
+              },
               representative subst refreshVar)
           dom
         }
@@ -207,6 +210,7 @@ trait FirstOrderOrderlessness
       def fromApplication(fun0: Domain, arg0: Domain): Domain = {
         val fun = fun0.avoid(arg0.freeNames)
         val arg = arg0.avoid(fun.freeNames)
+
         val Seq(a, b) =
           ABCSong.newNames(Seq("a", "b"), fun.freeNames ++ arg.freeNames)
         Domain(
@@ -357,7 +361,7 @@ trait FirstOrderOrderlessness
             val (oo, ps) = ("oo", "ps")
             val oops = æ(oo) ⊑ æ(ps)
             if (debugFlag && ! dom.constraints.contains(oops)) {
-              debugDomain(dom, "inconsistent abstraction")
+              debugDomain(dom, s"inconsistent abstraction ${term.unparse}")
               // don't debug endlessly
               debugFlag = false
             }
