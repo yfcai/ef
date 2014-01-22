@@ -925,7 +925,7 @@ object Experiments {
          |#LINE:1
          |type X α = α → Y
          |               ^
-         |unknown type
+         |unknown type Y
          |
          |module #2 is type correct.
          |

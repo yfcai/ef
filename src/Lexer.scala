@@ -703,7 +703,7 @@ trait Operators extends Fixities {
       case ⊹(operator: Operator, _*) =>
         val children = decons(t)
         val tokens = children map (x => x.tag unparse x)
-        val subops = operator.tryNext
+        val subops = operator.tryNextOverride(children.map(x => Seq(x)))
         val parens = ((children map (_.tag), tokens).zipped, subops).zipped.
           map({
             case ((childOp, child), subOps) => childOp match {
@@ -713,14 +713,14 @@ trait Operators extends Fixities {
             }
           }).toSeq
         pack(operator.fixity match {
-          case _: Juxtaposed =>
-            parens
           case p: Prefixr     =>
             prefixLike(p.ops, parens)
           case p: Postfixl    =>
             postfixLike(p.ops, parens)
           case i: Infix      =>
             parens.head +: prefixLike(i.ops, parens.tail)
+          case _ =>
+            parens
         })
       case leaf @ ∙(op: LeafOperator, _) =>
         op unparseLeaf leaf

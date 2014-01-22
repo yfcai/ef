@@ -3,5 +3,9 @@
 f : ∃ε. ε → ε
 f = λx : β. x
 
-. Problem: this isn't found to be ill-typed!
-f 5
+. existential can't be instantiated by the nonunversal thing ℤ
+.f 5
+
+. oo ⊑ ps
+g : ∀γ. ℤ → γ → γ
+g = λn : ℤ. λx : γ. n x

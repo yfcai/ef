@@ -26,20 +26,99 @@ trait FirstOrderOrderlessness
     typing =>
     import module._
 
-    // INSTANTIATION CONSTRAINTS
+    def debugDefinition(name: String) {
+      val t = dfn(name)
+      val τ = resolve(sig(name))
+      val c = Contradiction(t, τ,
+        s"DEBUGGING $name = ${t.unparse}")
+      println()
+      println(c.getMessage)
+      var dom = breakUpConstraints(gatherConstraints(t, τ))
+      var i = 1
+      val lines = scala.io.Source.stdin.getLines
+      def prompt() {
+        print("next? (<RET> = yes, ^D = no) ")
+        System.out.flush()
+      }
+      prompt
+      while (lines.hasNext) {
+        lines.next
+        println(Contradiction(dom, s"\nafter $i step").getMessage)
+        if (i % 2 == 1)
+          dom = breakUpConstraints(dom) // TODO: MAKE THIS ONE STEP
+        else nextDomain(dom) match {
+          case Left(c) =>
+            println("contradiction encountered.")
+            println(c.getMessage)
+            println("DEBUG OVER\n\n")
+            return
+          case Right(d) =>
+            dom = d
+        }
+        i += 1
+        prompt
+      }
 
-    case class ⊑ (lhs: Tree, rhs: Tree) {
-      lazy val freeNames: Set[String] =
-        lhs.freeNames ++ rhs.freeNames
+      println("\nDEBUG OVER\n\n")
     }
 
+    // INSTANTIATION CONSTRAINTS
+
+    case object InstantiationConstraint
+        extends BinaryOperator with Genus {
+      val fixity: Fixity = Infixr("⊑")
+      def lhs = downFrom(FunctionArrow, typeOps)
+      def rhs = downFrom(FunctionArrow, typeOps)
+      def opGenus = BinaryOpGenus(Type, Type, this)
+    }
+
+    case object ConstraintList extends Operator with Genus {
+      val fixity: Fixity = Infixr(",") orElse CompositeItem
+
+      def genus = this
+
+      def tryNext = ???
+      override
+      def tryNextOverride: Seq[Seq[Tree]] => Seq[Seq[Operator]] =
+        _ map (_ => Seq(InstantiationConstraint))
+
+      def cons(children: Seq[Tree]): Tree = ⊹(this, children: _*)
+    }
+
+    case object ConstrainedType extends Operator {
+      def genus = Type
+
+      val fixity: Fixity = Infixl("given")
+      def tryNext = Seq(
+        downFrom(FunctionArrow, typeOps),
+        Seq(ConstraintList))
+
+      def cons(children: Seq[Tree]): Tree = ⊹(this, children: _*)
+
+      def apply(τ: Tree, constraints: Seq[Tree]): Tree = {
+        assert(! constraints.isEmpty) // if empty, can't unparse
+        cons(τ :: ConstraintList.cons(constraints) :: Nil)
+      }
+
+      def unapply(σ: Tree): Option[(Tree, Seq[Tree])] = σ match {
+        case ⊹(ConstrainedType, τ, ⊹(ConstraintList, constraints @ _*)) =>
+          Some((τ, constraints))
+        case _ =>
+          None
+      }
+
+      override def unparse(t: Tree): String =
+        s"(${super.unparse(t)})"
+    }
+
+    object ⊑ extends BinaryFactory(InstantiationConstraint)
     implicit class InstantiationConstrained(σ: Tree) {
-      def ⊑ (τ: Tree) = new ⊑(σ, τ)
+      def ⊑ (τ: Tree) = typing.⊑(σ, τ)
     }
 
     case class Domain(
       prefix: List[(String, Binder)],
-      constraints: List[⊑],
+      constraints: List[Tree],
       representative: Tree
     ) {
       lazy val freeNames: Set[String] =
@@ -47,15 +126,16 @@ trait FirstOrderOrderlessness
           prefix.map(_._1) ++
           constraints.flatMap(_.freeNames)
 
-      def prepend(constrained: Seq[⊑], constraints: List[⊑]): List[⊑] =
+      def prepend(constrained: Seq[Tree], constraints: List[Tree]):
+          List[Tree] =
         constrained.foldRight(constraints) {
           case (x, xs) => x :: xs
         }
 
-      def prepend(constrained: ⊑ *): Domain =
+      def prepend(constrained: Tree *): Domain =
         Domain(prefix, prepend(constrained, constraints), representative)
 
-      def adjust(x: String, tag: Binder, constrained: ⊑ *): Domain =
+      def adjust(x: String, tag: Binder, constrained: Tree *): Domain =
         Domain(
           (x, tag) :: prefix,
           prepend(constrained, constraints),
@@ -81,27 +161,31 @@ trait FirstOrderOrderlessness
         typing.contradiction(this)
     }
 
-    def isLonerIn(x: String, constraints: List[⊑]): Boolean =
+    def isLonerIn(x: String, constraints: List[Tree]): Boolean =
       if (constraints.isEmpty)
         false
       else {
         val α = æ(x)
         // loner has to BE somewhere
-        constraints.find(c =>
-          c.lhs.freeNames.contains(x) ||
-            c.rhs.freeNames.contains(x)) != None &&
+        constraints.find({
+          case lhs ⊑ rhs =>
+            lhs.freeNames.contains(x) ||
+            rhs.freeNames.contains(x)
+        }) != None &&
         // but he has to be there alone
-        constraints.find(c =>
-          (c.lhs != α && c.lhs.freeNames.contains(x)) ||
-            (c.rhs != α && c.rhs.freeNames.contains(x))) == None
+        constraints.find({
+          case lhs ⊑ rhs =>
+          lhs != α && lhs.freeNames.contains(x) ||
+          rhs != α && rhs.freeNames.contains(x)
+        }) == None
       }
 
-    case class Loneliness(lhs: List[Tree], rhs: List[Tree], rest: List[⊑])
+    case class Loneliness(lhs: List[Tree], rhs: List[Tree], rest: List[Tree])
 
-    def extractLoner(loner: String, constraints: List[⊑]): Loneliness = {
+    def extractLoner(loner: String, constraints: List[Tree]): Loneliness = {
       var lhs: List[Tree] = Nil
       var rhs: List[Tree] = Nil
-      var rest: List[⊑] = Nil
+      var rest: List[Tree] = Nil
       val α = æ(loner)
       constraints.reverse.foreach {
         case æ(β) ⊑ æ(γ) if β == γ =>
@@ -153,6 +237,12 @@ trait FirstOrderOrderlessness
       }
     }
 
+    def quantify(prefix: Seq[(String, Binder)], body: Tree): Tree =
+      prefix.foldRight(body) {
+        case ((x, binder), body) =>
+          binder.bind(x, Annotation.none(), body)
+      }
+
     // DOMAIN RECONSTRUCTION
 
     // Currently, no effort is expanded toward converting
@@ -165,6 +255,15 @@ trait FirstOrderOrderlessness
     // Answer: If we have a problem, then commit everything,
     // make a tag. Because it will be an example showing that
     // existentials are necessary.
+    def gatherConstraints(t: Tree, τ: Tree): Domain =
+      gatherConstraints(gatherConstraints(t), τ)
+
+    def gatherConstraints(dom: Domain, τ: Tree): Domain =
+      Domain(
+        dom.prefix,
+        dom.representative ⊑ τ :: dom.constraints,
+        dom.representative)
+
     def gatherConstraints(term: Tree): Domain =
       gatherConstraints(
         term,
@@ -199,10 +298,35 @@ trait FirstOrderOrderlessness
         val new_Γ = Γ.updated(x, σ)
         val new_Δ = Δ ++ toQuantify
         val dom = gatherConstraints(body, new_Γ, new_Δ, globals)
-        Domain(
-          dom.prefix,
-          dom.constraints,
-          ∀(toQuantify.toSeq: _*)(→(σ, dom.representative)))
+
+        // verify internal consistency.
+        // if it does not hold, then generate insoluble constraints
+        dom.contradiction match {
+          case None =>
+            val quantifiedNames =
+              toQuantify.toSeq.map(x => (x, Universal)) ++ dom.prefix
+
+            val monotype = →(σ, dom.representative)
+
+            val myType =
+              if (dom.constraints.isEmpty)
+                quantify(
+                  quantifiedNames,
+                  monotype)
+              else
+                quantify(
+                  quantifiedNames,
+                  ConstrainedType(monotype, dom.constraints))
+
+            Domain(Nil, Nil, myType)
+
+          case Some(_) =>
+            val (oo, ps) = ("oo", "ps")
+            Domain(
+              List((oo, Existential), (ps, Existential)),
+              List(æ(oo) ⊑ æ(ps)),
+              →(æ(oo), æ(ps)))
+        }
 
       // ascription
       case Å(t, τ0) =>
@@ -214,15 +338,21 @@ trait FirstOrderOrderlessness
           τ)
     }
 
-    def breakDownConstraints(dom: Domain): Domain =
-      breakDownConstraints(dom, dom.freeNames)
+    def isPrefixedTypeVar(dom: Domain, τ: Tree): Boolean =
+      τ match {
+        case æ(x) => dom.prefix.find(_._1 == τ) != None
+        case _ => false
+      }
 
     def flipTag(tag: Binder): Binder = tag match {
       case Universal   => Existential
       case Existential => Universal
     }
 
-    def breakDownConstraints(
+    def breakUpConstraints(dom: Domain): Domain =
+      breakUpConstraints(dom, dom.freeNames)
+
+    def breakUpConstraints(
       dom: Domain,
       avoid: Set[String]
     ): Domain =
@@ -230,34 +360,45 @@ trait FirstOrderOrderlessness
         dom
       else dom.constraints.head match {
         case (σ0 → τ0) ⊑ (σ1 → τ1) =>
-          breakDownConstraints(dom.tail.prepend(σ1 ⊑ σ0, τ0 ⊑ τ1), avoid)
-        case (σ0 @ ⊹(tag: Binder, _*)) ⊑ τ1 =>
+          breakUpConstraints(dom.tail.prepend(σ1 ⊑ σ0, τ0 ⊑ τ1), avoid)
+
+        // break up binders only if the other side isn't
+        // a prefixed type variable
+        case (σ0 @ ⊹(tag: Binder, _*)) ⊑ τ1
+            if ! isPrefixedTypeVar(dom, τ1) => // DECISION POINT
           tag.unbind(σ0, avoid) match {
             case Some((æ(x), Seq(_, τ0))) =>
-              breakDownConstraints(
+              breakUpConstraints(
                 dom.tail.adjust(x, tag, τ0 ⊑ τ1),
                 avoid + x)
           }
-        case τ0 ⊑ (σ1 @ ⊹(tag: Binder, _*)) =>
+        case τ0 ⊑ (σ1 @ ⊹(tag: Binder, _*))
+            if ! isPrefixedTypeVar(dom, τ0) => // DECISION POINT
           tag.unbind(σ1, avoid) match {
             case Some((æ(y), Seq(_, τ1))) =>
-              breakDownConstraints(
+              breakUpConstraints(
                 dom.tail.adjust(y, flipTag(tag), τ0 ⊑ τ1),
                 avoid + y)
           }
+        case ConstrainedType(τ0, constraints) ⊑ τ1 =>
+          breakUpConstraints(
+            dom.tail.prepend(τ0 ⊑ τ1 +: constraints: _*))
+        case τ0 ⊑ ConstrainedType(τ1, constraints) =>
+          breakUpConstraints(
+            dom.tail.prepend(τ0 ⊑ τ1 +: constraints: _*))
         case otherwise =>
-          breakDownConstraints(dom.tail, avoid ++ otherwise.freeNames).
+          breakUpConstraints(dom.tail, avoid ++ otherwise.freeNames).
             prepend(otherwise)
       }
 
     case class Contradiction(
       msg: String,
       prefix: List[(String, Binder)],
-      constraints: List[⊑])
+      constraints: List[Tree])
         extends Exception
     {
       override def getMessage: String =
-        s"$msg\n\nconstraints:\n$printPrefix$printConstraints"
+        s"$msg\n$printPrefix$printConstraints"
 
       def printPrefix: String =
         if (prefix.isEmpty)
@@ -272,6 +413,21 @@ trait FirstOrderOrderlessness
         constraints.map({
           case σ ⊑ τ => s"  ${σ.unparse}  ⊑  ${τ.unparse}"
         }).mkString("\n")
+
+      def isEmpty: Boolean = constraints.isEmpty
+    }
+
+    object Contradiction {
+      def apply(dom: Domain, msg: String): Contradiction =
+        Contradiction(msg, dom.prefix, dom.constraints)
+
+      def apply(t: Tree, τ: Tree, msg: String):
+          Contradiction =
+        apply(gatherConstraints(t, τ), msg)
+
+      def apply(t: Tree, msg: String):
+          Contradiction =
+        apply(gatherConstraints(t), msg)
     }
 
     def isExistential(x: String, prefix: List[(String, Binder)]): Boolean =
@@ -295,7 +451,7 @@ trait FirstOrderOrderlessness
       }
 
     def verifyResolution(dom: Domain): Option[Contradiction] = {
-      dom.constraints.find(c => c.lhs != c.rhs).map {
+      dom.constraints.find({ case lhs ⊑ rhs => lhs != rhs }).map {
         case σ ⊑ τ =>
           Contradiction(
             s"""|irreconciled constraint:
@@ -305,13 +461,10 @@ trait FirstOrderOrderlessness
       }
     }
 
-    def contradiction(dom0: Domain): Option[Contradiction] = {
-      if (dom0.constraints.isEmpty) // no constraint, no contradiction
-        return None
-      val dom1 = breakDownConstraints(dom0)
+    def nextDomain(dom1: Domain): Either[Contradiction, Domain] =
       if (dom1.loner == None)
-        return verifyResolution(dom1)
-      dom1.loner.get match {
+        Left(Contradiction("No loner left", Nil, Nil))
+      else dom1.loner.get match {
         case (x, Existential) =>
           // If a loner is existential, then ⊑ relates it only to
           // itself. If anything is related via ⊑ to the loner,
@@ -328,7 +481,7 @@ trait FirstOrderOrderlessness
             case æ(y) if dom1.isUniversal(y) =>
               (y, α)
             case τ =>
-              return Some(Contradiction(
+              return Left(Contradiction(
                 s"""|the existential $x can't be instantiated
                     |by the nonuniversal thing ${τ.unparse}
                     |""".stripMargin,
@@ -338,7 +491,7 @@ trait FirstOrderOrderlessness
           val newConstraints = rest.map {
             case σ ⊑ τ => (σ subst unified) ⊑ (τ subst unified)
           }
-          contradiction(Domain(
+          Right(Domain(
             dom1.prefix.filter(p => ! unified.contains(p._1)),
             newConstraints,
             // put representative there because we don't care
@@ -355,32 +508,51 @@ trait FirstOrderOrderlessness
           // idiosyncratic shade of orderliness must ensure satis-
           // faction of the second "iff".
           val Loneliness(lhs, rhs, rest) = dom1.extractLoner(x)
-          val newConstraints: List[⊑] =
+          val newConstraints: List[Tree] =
             for { σ <- lhs ; τ <- rhs } yield σ ⊑ τ
-          contradiction(Domain(
+          Right(Domain(
             dom1.prefix.filter(_._1 != x),
             newConstraints ++ rest,
             // put representative there because we don't care
             // about it at all
             dom1.representative))
       }
+
+    def contradiction(dom0: Domain): Option[Contradiction] = {
+      if (dom0.constraints.isEmpty) // no constraint, no contradiction
+        return None
+      val dom1 = breakUpConstraints(dom0)
+      if (dom1.loner == None)
+        return verifyResolution(dom1)
+      nextDomain(dom1).fold(Some.apply, contradiction)
     }
 
     def mayAscribe(dom: Domain, τ: Tree): Boolean =
       ascriptionError(dom, τ) == None
 
     def ascriptionError(dom: Domain, τ: Tree): Option[Contradiction] =
-      Domain(
-        dom.prefix,
-        dom.representative ⊑ τ :: dom.constraints,
-        dom.representative).contradiction
+      gatherConstraints(dom, τ).contradiction
 
     def ascriptionError(t: Tree, τ: Tree, tok: Token, toks: Seq[Token]):
         Option[Problem] = {
       ascriptionError(gatherConstraints(t), τ) match {
         case None => None
         case Some(contradiction) =>
-          Some(Problem(tok, contradiction.getMessage))
+
+          // recompute top-level domain for debugging
+          val dom = gatherConstraints(t)
+          val dom1 =
+            Domain(
+              dom.prefix,
+              dom.representative ⊑ τ :: dom.constraints,
+              dom.representative)
+          val con =
+            Contradiction(
+              s"${contradiction.getMessage}\n\nunder top-level constraints",
+              dom1.prefix,
+              dom1.constraints)
+
+          Some(Problem(tok, con.getMessage))
           /* FIXME
            * Doing a preorder zip leaks de-bruijn indices.
            * fix it at Tree level.
@@ -417,7 +589,9 @@ trait FirstOrderOrderlessness
         dfn(x),
         resolve(sig(x)),
         dfntoks(x).head,
-        getDFNTokens(dfntoks, x))
+        getDFNTokens(dfntoks, x)).map {
+          c => { debugDefinition(x) ; c }
+        }
 
     def typeErrorInNakedExpression(t: Tree, toks: Seq[Token]):
         Option[Problem] =

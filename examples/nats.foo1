@@ -16,28 +16,36 @@ zero = const
 
 succ : Nat → Nat
 succ = λn : Nat. λx : σ. λf : σ → σ. f (n x f)
-.rant
-  . PATTERN MATCHING ON NATURAL NUMBERS
 
-  type MatchNat = ∀φ. φ → (Nat → φ) → φ
+. PATTERN MATCHING ON NATURAL NUMBERS
 
-  . first-order orderless F can type this!
-  matchNat : Nat → MatchNat
-  matchNat = λn : Nat.
+type MatchNat = ∀φ. φ → (Nat → φ) → φ
+
+. first-order orderless F can type this!
+matchNat : Nat → MatchNat
+matchNat = λn : Nat.
   n const
-  (λy : MatchNat. λx : ξ. λf : Nat → ξ. f (y zero succ))
+    (λy : MatchNat. λx : ξ. λf : Nat → ξ. f (y zero succ))
 
-  . USAGE
+. USAGE
 
-  to_ℤ : Nat → ℤ
-  to_ℤ = λn : Nat. n 0 (+ 1)
+zz : ℤ
+p1 : ℤ → ℤ
+n : Nat
 
-  three : Nat
-  three = (succ (succ (succ zero)))
+.debug : ℤ
+.debug = n zz p1
+(n zz p1)
 
-  to_ℤ (succ (succ (succ zero)))
+.to_ℤ : Nat → ℤ
+.to_ℤ = λn : Nat. n 0 (+ 1)
 
-  pred : Nat → Nat
-  pred = λn : Nat. matchNat n ??? id
+.three : Nat
+.three = (succ (succ (succ zero)))
 
-  to_ℤ (pred three)
+.to_ℤ (succ (succ (succ zero)))
+
+.pred : Nat → Nat
+.pred = λn : Nat. matchNat n ??? id
+
+.to_ℤ (pred three)
