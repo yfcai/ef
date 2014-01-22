@@ -46,7 +46,7 @@ trait Calculi {
   }
 
   class UnknownExtensionException(file: String)
-      extends Exception(s"$file: unknown extension")
+      extends Exception(s"$file: don't recognize extension of file")
 
   def calculusOfFile(file: String): Calculus =
     file.substring(file.lastIndexOf(".") + 1) match {

@@ -389,9 +389,8 @@ trait FirstOrderOrderlessness
         dom.prefix.find(_._1 == x) != None
 
     def shouldBreakUp(dom: Domain, τ: Tree): Boolean = τ match {
-      case æ(x) if isPrefixedTypeVar(dom, x) =>
-        //true // always break up: fails on matchNat
-        false // never breaks up: fails on (n 0 (+ 1))
+      case æ(x) if dom.isUniversal(x) =>
+        false // never breaks up universals
       case _ =>
         // if τ is not a type var, then it's obvious
         true // yes, do it
