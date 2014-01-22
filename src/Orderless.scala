@@ -69,12 +69,15 @@ trait FirstOrderOrderlessness
 
     // INSTANTIATION CONSTRAINTS
 
-    case object InstantiationConstraint
-        extends BinaryOperator with Genus {
+    case object InstantiationConstraint extends BinaryOperator {
       val fixity: Fixity = Infixr("⊑")
       def lhs = downFrom(FunctionArrow, typeOps)
       def rhs = downFrom(FunctionArrow, typeOps)
-      def opGenus = BinaryOpGenus(Type, Type, this)
+
+      // while it may be hard to imagine the constraint as
+      // a type, it had better be, so that strings are
+      // understood as free type variables.
+      def opGenus = BinaryOpGenus(Type, Type, Type)
     }
 
     case object ConstraintList extends Operator with Genus {
