@@ -348,41 +348,40 @@ trait FirstOrderOrderlessness
 
         // verify internal consistency.
         // if it does not hold, then generate insoluble constraints
-        dom.contradiction match {
-          case None =>
-            val quantifiedNames =
-              toQuantify.toSeq.map(x => (x, Universal)) ++ dom.prefix
+        if (body.tag != AnnotatedAbstraction && dom.contradiction != None) {
+          val (oo, ps) = ("oo", "ps")
+          val oops = æ(oo) ⊑ æ(ps)
+          if (debugFlag && ! dom.constraints.contains(oops)) {
+            debugDomain(dom, s"inconsistent abstraction ${term.unparse}")
+            // one debug session is enough for any run
+            debugFlag = false
+          }
 
-            val monotype = →(σ, dom.representative)
+          // the abstraction is internally inconsistent.
+          // generate insoluble constraints.
 
-            val myType =
-              if (dom.constraints.isEmpty)
-                quantify(
-                  quantifiedNames,
-                  monotype)
-              else
-                quantify(
-                  quantifiedNames,
-                  ConstrainedType(monotype, dom.constraints))
+          Domain(
+            List((oo, Existential), (ps, Existential)),
+            List(oops),
+            →(æ(oo), æ(ps)))
+        }
+        else {
+          val quantifiedNames =
+            toQuantify.toSeq.map(x => (x, Universal)) ++ dom.prefix
 
-            Domain(Nil, Nil, myType)
+          val monotype = →(σ, dom.representative)
 
-          case Some(_) =>
-            val (oo, ps) = ("oo", "ps")
-            val oops = æ(oo) ⊑ æ(ps)
-            if (debugFlag && ! dom.constraints.contains(oops)) {
-              debugDomain(dom, s"inconsistent abstraction ${term.unparse}")
-              // don't debug endlessly
-              debugFlag = false
-            }
+          val myType =
+            if (dom.constraints.isEmpty)
+              quantify(
+                quantifiedNames,
+                monotype)
+            else
+              quantify(
+                quantifiedNames,
+                ConstrainedType(monotype, dom.constraints))
 
-            // the abstraction is internally inconsistent.
-            // generate insoluble constraints.
-
-            Domain(
-              List((oo, Existential), (ps, Existential)),
-              List(oops),
-              →(æ(oo), æ(ps)))
+          Domain(Nil, Nil, myType)
         }
 
       // ascription
