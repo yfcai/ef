@@ -129,7 +129,10 @@ trait FirstOrderOrderlessness
       lazy val freeNames: Set[String] =
         representative.freeNames ++
           prefix.map(_._1) ++
-          constraints.flatMap(_.freeNames)
+          constraints.flatMap({
+            case σ ⊑ τ =>
+              σ.freeNames ++ τ.freeNames
+          })
 
       def prepend(constrained: Seq[Tree], constraints: List[Tree]):
           List[Tree] =

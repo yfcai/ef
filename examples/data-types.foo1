@@ -12,6 +12,9 @@ flip = λf : α → β → γ. λy : β. λx : α. f x y
 id : ∀ι. ι → ι
 id = λx : α. x
 
+compose : ∀α β γ. (β → γ) → (α → β) → (α → γ)
+compose = λg : β → γ. λf : α → β. λx : α. g (f x)
+
 
 . CONJUNCTION
 
@@ -77,6 +80,10 @@ ana-ℤ = ???
 sum : List ℤ → ℤ
 sum = λns : List ℤ. ns 0 +
 
+map : ∀α β. (α → β) → List α → List β
+map = λf : α → β. λxs : List α.
+  xs nil (compose cons f)
+
 sum (cons 1 (cons 2 (cons 3 (cons 4 (cons 5 nil)))))
 
 list1-5 : List ℤ
@@ -89,3 +96,5 @@ head list1-5
 tail nil
 
 sum (tail list1-5)
+
+sum (map (* 2) list1-5)
