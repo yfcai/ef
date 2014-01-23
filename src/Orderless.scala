@@ -4,7 +4,7 @@
   * goal is to get familiar with solving constraints.
   */
 trait FirstOrderOrderlessness
-    extends TypedModules with IntsAndBools
+    extends TypedModules with IntsAndBools with Prenex
 {
   var debugFlag: Boolean = false
 
@@ -64,7 +64,7 @@ trait FirstOrderOrderlessness
     def debugDefinition(name: String) {
       val t = dfn(name)
       val τ = resolve(sig(name))
-      debugDomain(gatherConstraints(t, τ), s"$name = ${t.unparse}")
+      debugDomain(gatherConstraints(t, τ), s"\n  $name = ${t.unparse}")
     }
 
     // INSTANTIATION CONSTRAINTS
@@ -352,7 +352,7 @@ trait FirstOrderOrderlessness
           val (oo, ps) = ("oo", "ps")
           val oops = æ(oo) ⊑ æ(ps)
           if (debugFlag && ! dom.constraints.contains(oops)) {
-            debugDomain(dom, s"inconsistent abstraction ${term.unparse}")
+            debugDomain(dom, s"inconsistent abstraction\n  ${term.unparse}")
             // one debug session is enough for any run
             debugFlag = false
           }
@@ -670,5 +670,38 @@ trait FirstOrderOrderlessness
             typeErrorInNakedExpression(t, toks)
         }
       }
+
+    def quantifyMinimally(τ: Tree): Tree = {
+      val prenex = Prenex(τ)
+      prenex.prefix.foldLeft(prenex.body) {
+        case (body, BinderSpec(quantifier, x, Annotation.none())) =>
+          quantifyMinimally(x, quantifier, body)
+      }
+    }
+
+    def quantifyMinimally(x: String, quantifier: Binder, τ: Tree): Tree =
+      if (τ.freeNames contains x) {
+        τ match {
+          case σ0 → σ1 if ! σ1.freeNames.contains(x) =>
+            →(quantifyMinimally(x, flipTag(quantifier), σ0), σ1)
+
+          case σ0 → σ1 if ! σ0.freeNames.contains(x) =>
+            →(σ0, quantifyMinimally(x, quantifier, σ1))
+
+          case ⊹(binder: Binder,  _*) => binder.unbind(τ).get match {
+            case (y, Seq(Annotation.none(), body)) =>
+              binder.bind(y.get, Annotation.none(),
+                quantifyMinimally(x, quantifier, body))
+          }
+
+          case τ =>
+            quantifier.bind(x, Annotation.none(), τ)
+        }
+      }
+      else
+        τ
+
+    override def resolve(τ: Tree): Tree =
+      quantifyMinimally(super.resolve(τ))
   }
 }
