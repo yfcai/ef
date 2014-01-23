@@ -1,16 +1,9 @@
 trait Calculi {
-  trait Calculus extends TypedModules with ReductionSemantics {
+  trait Calculus extends TypedModules with ReductionSemantics with Flags {
     def eval(t: Tree, module: Module): Tree = eval(module.dfn)(t)
-
-    def debugFlag_= (flag: Boolean): Unit
   }
 
-  trait NoDebugCalculus extends Calculus {
-    // by default, setting the debug flag does nothing
-    def debugFlag_= (flag: Boolean): Unit = ()
-  }
-
-  object ExistentialFCalculus extends NoDebugCalculus with ExistentialF
+  object ExistentialFCalculus extends Calculus with ExistentialF
 
   // first-order orderless F
   object FOO1 extends Calculus with FirstOrderOrderlessness
@@ -21,13 +14,13 @@ trait Calculi {
     def err(s: Any) = System.err.println(s.toString)
     def print(s: Any) = { System.out.print(s) ; System.out.flush() }
 
-    def debug: Boolean = false
+    def traceSet(flags: Set[String]): Boolean = flags("trace")
 
-    def execute(args: Array[String], debug: Boolean): Unit =
+    def execute(args: Array[String], flags: Set[String]): Unit =
       try {
         args.foreach { file =>
           val calculus: Calculus = calculusOfFile(file)
-          calculus.debugFlag_=(debug)
+          calculus.setFlags(flags)
           val module = try {
             calculus.Module.fromFile(file)
           } catch {
@@ -38,7 +31,7 @@ trait Calculi {
         }
       } catch {
         case e: Exception =>
-          if (debug)
+          if (traceSet(flags))
             throw e
           else
             err(e.getMessage)

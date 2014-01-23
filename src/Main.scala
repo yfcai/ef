@@ -1,36 +1,34 @@
 object Main extends ARGV0 with Calculi {
-  def main(args: Array[String]): Unit =
-    if (args.isEmpty)
-      System.err.print(
-        s"""|Usage: $argv0 [debug] COMMAND [STUFF...]
-            |  where
-            |    COMMAND = test | run | type | reduce
-            |      where
-            |        test   : run (optionally named) experiments to
-            |                   verify sanity
-            |        run    : type check files, then execute them
-            |        type   : type check files
-            |        reduce : reduce naked expressions without regard
-            |                   for types and print the result
-            |
-            |  If "debug" is given before COMMAND,
-            |  then errors will produce stacktraces.
-            |""".stripMargin)
-    else {
-      val debug = args.head == "debug"
-      val (head, tail) =
-        if (debug)
-          (args.tail.head, args.tail.tail)
-        else
-          (args.head, args.tail)
-      head match {
-        case "test"   => Experiments.run(tail, debug)
-        case "run"    => Executioner.execute(tail, debug)
-        case "type"   => TypeChecker.execute(tail, debug)
-        case "reduce" => Reductionist.execute(tail, debug)
-        case cmd      => System.err.println(s"unknown command: $cmd")
+  def main(args: Array[String]) {
+      val flags = args.takeWhile(_ startsWith "-").map(_.tail)
+      val rest = args.drop(flags.length)
+      if (rest.isEmpty)
+        System.err.print(
+          s"""|Usage: $argv0 [-FLAG₁ -FLAG₂ ...] COMMAND [STUFF...]
+              |  where
+              |    COMMAND = test | run | type | reduce
+              |      where
+              |        test   : run (optionally named) experiments to
+              |                   verify sanity
+              |        run    : type check files, then execute them
+              |        type   : type check files
+              |        reduce : reduce naked expressions without regard
+              |                   for types and print the result
+              |
+              |Read Flags.scala to see what flags there are.
+              |""".stripMargin)
+      else {
+        val (head, tail) = (rest.head, rest.tail)
+        val flag = Set(flags: _*)
+        head match {
+          case "test"   => Experiments.run(tail, flag("debug"))
+          case "run"    => Executioner.execute(tail, flag)
+          case "type"   => TypeChecker.execute(tail, flag)
+          case "reduce" => Reductionist.execute(tail, flag)
+          case cmd      => System.err.println(s"unknown command: $cmd")
       }
     }
+  }
 }
 
 // Based on

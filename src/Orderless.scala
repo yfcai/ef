@@ -5,9 +5,8 @@
   */
 trait FirstOrderOrderlessness
     extends TypedModules with IntsAndBools with Prenex
+       with Flags
 {
-  var debugFlag: Boolean = false
-
   def typeCheck(m: Module):
       Either[Problem, Seq[(Tree, Tree, Token)]] = {
     val ord = new OrderlessTyping(m)
@@ -427,8 +426,12 @@ trait FirstOrderOrderlessness
         val σ ⊑ τ = dom.constraints.head
         // LAMENT
         // still don't see exactly the decision point...
-        // quantifyMinimally(σ) ⊑ quantifyMinimally(τ)
-        σ ⊑ τ match {
+        val subject =
+          if (mqFlag)
+            quantifyMinimally(σ) ⊑ quantifyMinimally(τ)
+          else
+            σ ⊑ τ
+        subject match {
           case (σ0 → τ0) ⊑ (σ1 → τ1) =>
             breakUpConstraints(dom.tail.prepend(σ1 ⊑ σ0, τ0 ⊑ τ1), avoid)
 
