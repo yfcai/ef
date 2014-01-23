@@ -67,11 +67,32 @@ trait ReductionSemantics extends Syntax {
       χ((lhs.toInt / rhs.toInt).toString)
     case (χ("%") ₋ χ(lhs)) ₋ χ(rhs) =>
       χ((lhs.toInt % rhs.toInt).toString)
+    // integer comparisons
+    case (χ(op) ₋ χ(lhs)) ₋ χ(rhs)
+        if op == "≡" || op == "==" =>
+      χ((lhs.toInt == rhs.toInt).toString)
+    case (χ(op) ₋ χ(lhs)) ₋ χ(rhs)
+        if op == "<" =>
+      χ((lhs.toInt < rhs.toInt).toString)
+    case (χ(op) ₋ χ(lhs)) ₋ χ(rhs)
+        if op == ">" =>
+      χ((lhs.toInt > rhs.toInt).toString)
+    case (χ(op) ₋ χ(lhs)) ₋ χ(rhs)
+        if op == "≤" || op == "<=" =>
+      χ((lhs.toInt <= rhs.toInt).toString)
+    case (χ(op) ₋ χ(lhs)) ₋ χ(rhs)
+        if op == "≥" || op == ">=" =>
+      χ((lhs.toInt >= rhs.toInt).toString)
     // Church-encoded Booleans
     case (χ("true")  ₋ thenBranch) ₋ elseBranch =>
       thenBranch
     case (χ("false") ₋ thenBranch) ₋ elseBranch =>
       elseBranch
+    // loops, coz recursion's too hard
+    case ((χ("iterate") ₋ χ(n)) ₋ z) ₋ f =>
+      Range(n.toInt, 0, -1).foldRight(z) {
+        case (i, body) => ₋(₋(f, χ(i.toString)), body)
+      }
     // absurdity
     case χ("???") ₋ _ =>
       sys error s"applying absurdity"

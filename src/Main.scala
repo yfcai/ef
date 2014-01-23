@@ -1,4 +1,6 @@
 object Main extends ARGV0 with Calculi {
+  def loopSet(flags: Set[String]): Boolean = flags("loop")
+
   def main(args: Array[String]) {
       val flags = args.takeWhile(_ startsWith "-").map(_.tail)
       val rest = args.drop(flags.length)
@@ -10,23 +12,38 @@ object Main extends ARGV0 with Calculi {
               |      where
               |        test   : run (optionally named) experiments to
               |                   verify sanity
+              |
               |        run    : type check files, then execute them
+              |
               |        type   : type check files
+              |
               |        reduce : reduce naked expressions without regard
               |                   for types and print the result
               |
-              |Read Flags.scala to see what flags there are.
+              |Flags
+              |
+              | -debug    step through constraint solving when a type
+              |           error happens in the body of an abstraction
+              |
+              | -loop     run designated command repeatedly
+              |           useful for profiling
+              |
+              | -trace    print stack trace on error of any kind
               |""".stripMargin)
       else {
         val (head, tail) = (rest.head, rest.tail)
         val flag = Set(flags: _*)
-        head match {
-          case "test"   => Experiments.run(tail, flag("debug"))
-          case "run"    => Executioner.execute(tail, flag)
-          case "type"   => TypeChecker.execute(tail, flag)
-          case "reduce" => Reductionist.execute(tail, flag)
-          case cmd      => System.err.println(s"unknown command: $cmd")
-      }
+        val loop = flag("loop")
+        do {
+          head match {
+            case "test"   => Experiments.run(tail, flag("debug"))
+            case "run"    => Executioner.execute(tail, flag)
+            case "type"   => TypeChecker.execute(tail, flag)
+            case "reduce" => Reductionist.execute(tail, flag)
+            case cmd      => System.err.println(s"unknown command: $cmd")
+          }
+        }
+        while (loop)
     }
   }
 }

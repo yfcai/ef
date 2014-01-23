@@ -6,6 +6,9 @@ trait Flags {
   // trace: don't catch exceptions, I want to see stack traces
   def traceFlag = flag("trace")
 
+  // loop: perform designated task repeatedly for profiling
+  def loopFlag = flag("loop")
+
   // debug: step through constraint resolution on type error
   private[this] def debug = "debug"
   def debugFlag: Boolean = flag(debug)

@@ -14,12 +14,18 @@ trait IntsAndBools extends Aliasing {
     val bool       = globalTypes(Bool)
     val intLiteral = """(-)?\d+"""
     val intBinOp   = Type(s"$ℤ → $ℤ → $ℤ")
+    val intComp    = Type(s"$ℤ → $ℤ → (${bool.unparse})")
+    val iterate    = Type(s"ℤ → ∀α. α → (ℤ → α → α) → α")
     val absurdity  = Type("∀a̧. a̧")
     val result: PartialFunction[String, Tree] = {
       case "+" | "-" | "*" | "/" | "%" =>
         intBinOp
+      case "≡" | "≤" | "≥" | "==" | "<" | ">" | "<=" | ">=" =>
+        intComp
       case "true" | "false" =>
         bool
+      case "iterate" =>
+        iterate
       case "???" =>
         absurdity
       case n if n matches intLiteral =>
