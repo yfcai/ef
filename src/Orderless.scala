@@ -423,14 +423,17 @@ trait FirstOrderOrderlessness
       if (dom.constraints.isEmpty)
         dom
       else {
+        // REMARK.
+        // minimal quantification in use.
+        //
+        // also, traversing types σ, τ on every breakup to ensure
+        // minimal quantification is extremely slow. typing
+        // Bӧhm-Berarducci lists takes 13 seconds.
+        //
         val σ ⊑ τ = dom.constraints.head
-        // LAMENT
-        // still don't see exactly the decision point...
         val subject =
-          if (mqFlag)
-            quantifyMinimally(σ) ⊑ quantifyMinimally(τ)
-          else
-            σ ⊑ τ
+          quantifyMinimally(σ, avoid) ⊑ quantifyMinimally(τ, avoid)
+
         subject match {
           case (σ0 → τ0) ⊑ (σ1 → τ1) =>
             breakUpConstraints(dom.tail.prepend(σ1 ⊑ σ0, τ0 ⊑ τ1), avoid)
@@ -684,28 +687,34 @@ trait FirstOrderOrderlessness
         }
       }
 
-    def quantifyMinimally(τ: Tree): Tree = {
-      val prenex = Prenex(τ)
+    def quantifyMinimally(τ: Tree, avoid: Set[String]): Tree = {
+      val (prenex, newAvoid) = Prenex(τ, avoid)
       prenex.prefix.foldLeft(prenex.body) {
         case (body, BinderSpec(quantifier, x, Annotation.none())) =>
-          quantifyMinimally(x, quantifier, body)
+          quantifyMinimally(x, quantifier, body, newAvoid)
       }
     }
 
-    def quantifyMinimally(x: String, quantifier: Binder, τ: Tree): Tree =
+    def quantifyMinimally(
+      x: String,
+      quantifier: Binder,
+      τ: Tree,
+      avoid: Set[String]
+    ): Tree =
       if (τ.freeNames contains x) {
         τ match {
           case σ0 → σ1 if ! σ1.freeNames.contains(x) =>
-            →(quantifyMinimally(x, flipTag(quantifier), σ0), σ1)
+            →(quantifyMinimally(x, flipTag(quantifier), σ0, avoid), σ1)
 
           case σ0 → σ1 if ! σ0.freeNames.contains(x) =>
-            →(σ0, quantifyMinimally(x, quantifier, σ1))
+            →(σ0, quantifyMinimally(x, quantifier, σ1, avoid))
 
-          case ⊹(binder: Binder,  _*) => binder.unbind(τ).get match {
-            case (y, Seq(Annotation.none(), body)) =>
-              binder.bind(y.get, Annotation.none(),
-                quantifyMinimally(x, quantifier, body))
-          }
+          case ⊹(binder: Binder,  _*) =>
+            binder.unbind(τ, avoid).get match {
+              case (y, Seq(Annotation.none(), body)) =>
+                binder.bind(y.get, Annotation.none(),
+                  quantifyMinimally(x, quantifier, body, avoid))
+            }
 
           case τ =>
             quantifier.bind(x, Annotation.none(), τ)
@@ -714,8 +723,11 @@ trait FirstOrderOrderlessness
       else
         τ
 
-    // hm... can't type `matchList` in data-types.foo1
-    // override def resolve(τ: Tree): Tree =
-    //   quantifyMinimally(super.resolve(τ))
+    // REFLEXION.
+    // hm... just MQ types appearing in source code
+    // doesn't seem to be enough.
+    //
+    //override def resolve(τ: Tree): Tree =
+    //  quantifyMinimally(super.resolve(τ), Set.empty)
   }
 }

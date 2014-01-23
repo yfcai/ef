@@ -43,6 +43,7 @@ trait Prenex extends Syntax with Status {
     def apply(τ: Tree, types: Tree*): Seq[Prenex] =
       Prenex(τ +: types, Set.empty[String])._1
 
+    /** @return (prenex, names-in-prefix-and-more) */
     def apply(τ: Tree, toAvoid: Set[String]): (Prenex, Set[String]) = {
       val (prefix, body) = τ.unbindAll(toAvoid, _ => true)
       val undesirables1 = toAvoid ++ prefix.map(_.x)

@@ -12,7 +12,4 @@ trait Flags {
   def debugFlag_=(_debug: Boolean): Unit =
     if (_debug) flag = flag + debug
     else        flag = flag - debug
-
-  // mq: when true, minimally quantify types before breaking them up
-  def mqFlag = flag("mq")
 }

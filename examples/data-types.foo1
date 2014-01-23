@@ -58,10 +58,10 @@ cons = λx : α. λxs : List α. λz : β. λf : α → β → β. (f x (xs z f)
 
 type MatchList η = ∀ξ. ξ → (η → List η → ξ) → ξ
 
-matchList : ∀ε. List ε → MatchList ε
-matchList = λxs : List χ.
+matchList : ∀α. List α → MatchList α
+matchList = λxs : List α.
   xs const
-     (λx : χ. λys : MatchList χ. λz : ω. λf : χ → List χ → ω.
+     (λx : α. λys : MatchList α. λz : β. λf : α → List α → β.
        f x (ys nil cons))
 
 . USAGE
@@ -78,8 +78,8 @@ ana-ℤ = ???
 sum : List ℤ → ℤ
 sum = λns : List ℤ. ns 0 +
 
-map : ∀σ τ. (σ → τ) → List σ → List τ
-map = λf : κ → θ. λxs : List κ.
+map : ∀α β. (α → β) → List α → List β
+map = λf : α → β. λxs : List α.
   xs nil (compose cons f)
 
 sum (cons 1 (cons 2 (cons 3 (cons 4 (cons 5 nil)))))
