@@ -3,7 +3,7 @@
 auto : (∀ω. ω → ω) → (∀ω. ω → ω)
 auto = λx : ∀ω. ω → ω. x x
 
-const : ∀α β. α → β → α
+const : ∀γ δ. γ → δ → γ
 const = λx : α. λy : β. x
 
 flip : ∀α β γ. (α → β → γ) → (β → α → γ)
@@ -56,12 +56,12 @@ cons = λx : α. λxs : List α. λz : β. λf : α → β → β. (f x (xs z f)
 
 . BӦHM-BERADUCCI ENCODING FOR PATTERN MATCHING ON LISTS
 
-type MatchList α = ∀β. β → (α → List α → β) → β
+type MatchList η = ∀ξ. ξ → (η → List η → ξ) → ξ
 
-matchList : ∀α. List α → MatchList α
-matchList = λxs : List α.
+matchList : ∀ε. List ε → MatchList ε
+matchList = λxs : List χ.
   xs const
-     (λx : α. λys : MatchList α. λz : β. λf : α → List α → β.
+     (λx : χ. λys : MatchList χ. λz : ω. λf : χ → List χ → ω.
        f x (ys nil cons))
 
 . USAGE
@@ -78,8 +78,8 @@ ana-ℤ = ???
 sum : List ℤ → ℤ
 sum = λns : List ℤ. ns 0 +
 
-map : ∀α β. (α → β) → List α → List β
-map = λf : α → β. λxs : List α.
+map : ∀σ τ. (σ → τ) → List σ → List τ
+map = λf : κ → θ. λxs : List κ.
   xs nil (compose cons f)
 
 sum (cons 1 (cons 2 (cons 3 (cons 4 (cons 5 nil)))))
