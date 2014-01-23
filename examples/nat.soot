@@ -29,19 +29,26 @@ matchNat = λn : Nat.
 
 . USAGE
 
-zz : ℤ
-p1 : ℤ → ℤ
-n : Nat
+to-ℤ : Nat → ℤ
+to-ℤ = λn : Nat. n 0 (+ 1)
 
-to_ℤ : Nat → ℤ
-to_ℤ = λn : Nat. n 0 (+ 1)
+. type checker catches it when I forgot `const`
+from-ℤ : ℤ → Nat
+from-ℤ = λn : ℤ. iterate n zero (const succ)
 
-three : Nat
-three = (succ (succ (succ zero)))
+. managed with a loop because recursion's less trivial to support
+sum-to : ℤ → ℤ
+sum-to = λn : ℤ. iterate n 0 +
 
-to_ℤ (succ (succ (succ zero)))
+to-ℤ (succ (succ (succ zero)))
 
 pred : Nat → Nat
 pred = λn : Nat. matchNat n ??? id
 
-to_ℤ (pred three)
+three : Nat
+three = succ (succ (succ zero))
+
+to-ℤ (pred (from-ℤ 3))
+
+. reduction takes 1 second
+sum-to 100

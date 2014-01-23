@@ -64,6 +64,21 @@ matchList = λxs : List α.
      (λx : α. λys : MatchList α. λz : β. λf : α → List α → β.
        f x (ys nil cons))
 
+map : ∀α β. (α → β) → List α → List β
+map = λf : α → β. λxs : List α.
+  xs nil (compose cons f)
+
+concat : ∀α. List α → List α → List α
+concat = λxs : List α. λys : List α. xs ys cons
+
+concatMap : ∀α β. (α → List β) → List α → List β
+concatMap = λf : α → List β. λxs : List α.
+  xs nil (λx : α. concat (f x))
+
+filter : ∀α. (α → Bool) → List α → List α
+filter = λp : α → Bool. λxs : List α.
+  xs nil (λx : α. if p x then cons x else id)
+
 . USAGE
 
 head : ∀α. List α → α
@@ -73,19 +88,15 @@ tail : ∀α. List α → List α
 tail = λxs : List α. matchList xs ??? (flip const)
 
 ana-ℤ : ℤ → List ℤ
-ana-ℤ = ???
+ana-ℤ = λn : ℤ. iterate n nil cons
 
 sum : List ℤ → ℤ
 sum = λns : List ℤ. ns 0 +
 
-map : ∀α β. (α → β) → List α → List β
-map = λf : α → β. λxs : List α.
-  xs nil (compose cons f)
-
 sum (cons 1 (cons 2 (cons 3 (cons 4 (cons 5 nil)))))
 
 list1-5 : List ℤ
-list1-5 = cons 1 (cons 2 (cons 3 (cons 4 (cons 5 nil))))
+list1-5 = ana-ℤ 5
 
 head nil
 
@@ -96,3 +107,7 @@ tail nil
 sum (tail list1-5)
 
 sum (map (* 2) list1-5)
+
+sum (concatMap (λx : ℤ. cons x (cons x nil)) list1-5)
+
+sum (filter (λn : ℤ. ≡ 0 (% n 2)) list1-5)

@@ -28,18 +28,18 @@ matchNat = λn : Nat.
 
 . USAGE
 
-to_ℤ : Nat → ℤ
-to_ℤ = λn : Nat. n 0 (+ 1)
+to-ℤ : Nat → ℤ
+to-ℤ = λn : Nat. n 0 (+ 1)
 
 three : Nat
 three = (succ (succ (succ zero)))
 
-to_ℤ (succ (succ (succ zero)))
+to-ℤ (succ (succ (succ zero)))
 
 pred : Nat → Nat
 pred = λn : Nat. matchNat n ??? id
 
-to_ℤ (pred three)
+to-ℤ (pred three)
 
 . rant about overcapturing
 
