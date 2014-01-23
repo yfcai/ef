@@ -3,6 +3,7 @@ object Experiments {
     TypeApplicationExperiment
 
   val experiments = List[Experiment](
+    TypeApplicationExperiment,
     OrderlessExperiment,
     MatchNatExperiment,
     DesugarExperiment,
@@ -651,7 +652,7 @@ object Experiments {
   }
 
   object FileParsingExperiment extends ModulesExperiment with Trial {
-    val nats = fromThisDir("../examples/nats.ef")
+    val nats = fromThisDir("../examples/nat.ef")
 
     lazy val run = {
       val module = Module.fromFile(nats)
@@ -904,7 +905,7 @@ object Experiments {
           |t = false
           |""".stripMargin,
       "type X α = α → Y",
-      readFileFromHere("../examples/captures.ef")
+      readFileFromHere("../examples/capture.ef")
     )
 
     lazy val run = {
@@ -969,9 +970,9 @@ object Experiments {
     }
   }
 
-  trait FOO1Experiment extends Experiment with FirstOrderOrderlessness
+  trait SootExperiment extends Experiment with SecondOrderOrderlessTypes
 
-  object OrderlessExperiment extends FOO1Experiment {
+  object OrderlessExperiment extends SootExperiment {
     val s =
       s"""|five : ℤ
           |five = 5
@@ -1026,16 +1027,19 @@ object Experiments {
       """|type Pair α β = ∀γ. (α → β → γ) → γ
          |""".stripMargin
 
-    val t = Type("∀δ ε. Pair δ ε")
+    val src = "∀δ ε. Pair δ ε"
+    val t = Type(src)
 
     def run = {
       val mod = Module(s)
       val syn = new SynonymResolution(mod)
       import syn._
       val τ = resolve(t)
-      puts(τ.unparse)
-      puts(t.print)
+      puts(s"$src = ${τ.unparse}")
       dump
     }
+
+    override def expected =
+      "∀δ ε. Pair δ ε = ∀δ ε γ. (δ → ε → γ) → γ\n"
   }
 }

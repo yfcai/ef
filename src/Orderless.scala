@@ -3,7 +3,7 @@
   * may be inconsistent, may be unsound;
   * goal is to get familiar with solving constraints.
   */
-trait FirstOrderOrderlessness
+trait SecondOrderOrderlessTypes
     extends TypedModules with IntsAndBools with Prenex
        with Flags
 {
