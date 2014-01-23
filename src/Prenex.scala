@@ -74,11 +74,17 @@ trait Prenex extends Syntax with Status {
           |should be able to refine each occurrence of it.
           |""".stripMargin
 
-      case ⊹(tag, _) =>
+
+      /* TODO: DELETE ME
+      case ⊹(tag, _*) =>
         sys error s"object Prenex isn't aware of $tag"
 
       case leaf @ ∙(_, _) =>
         (Prenex(Nil, leaf), toAvoid)
+      */
+
+      case otherwise =>
+        (Prenex(Nil, otherwise), toAvoid)
     }
 
     def bind(prefix: Seq[BinderSpec], body: Tree): Tree =

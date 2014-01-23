@@ -115,8 +115,12 @@ trait FirstOrderOrderlessness
           None
       }
 
-      override def unparse(t: Tree): String =
-        s"(${super.unparse(t)})"
+      override def unparse(t: Tree): String = t match {
+        case ConstrainedType(τ, constraints) =>
+          val unparsedConstraints =
+            constraints.map(_.unparse).mkString(", ")
+          s"(${τ.unparse} given ${unparsedConstraints})"
+      }
     }
 
     object ⊑ extends BinaryFactory(InstantiationConstraint)
@@ -419,37 +423,43 @@ trait FirstOrderOrderlessness
     ): Domain =
       if (dom.constraints.isEmpty)
         dom
-      else dom.constraints.head match {
-        case (σ0 → τ0) ⊑ (σ1 → τ1) =>
-          breakUpConstraints(dom.tail.prepend(σ1 ⊑ σ0, τ0 ⊑ τ1), avoid)
+      else {
+        val σ ⊑ τ = dom.constraints.head
+        // LAMENT
+        // still don't see exactly the decision point...
+        // quantifyMinimally(σ) ⊑ quantifyMinimally(τ)
+        σ ⊑ τ match {
+          case (σ0 → τ0) ⊑ (σ1 → τ1) =>
+            breakUpConstraints(dom.tail.prepend(σ1 ⊑ σ0, τ0 ⊑ τ1), avoid)
 
-        // break up binders only if the other side isn't
-        // a prefixed type variable
-        case (σ0 @ ⊹(tag: Binder, _*)) ⊑ τ1
-            if shouldBreakUp(dom, τ1) => // DECISION POINT
-          tag.unbind(σ0, avoid) match {
-            case Some((æ(x), Seq(_, τ0))) =>
-              breakUpConstraints(
-                dom.tail.adjust(x, tag, τ0 ⊑ τ1),
-                avoid + x)
-          }
-        case τ0 ⊑ (σ1 @ ⊹(tag: Binder, _*))
-            if shouldBreakUp(dom, τ0) => // DECISION POINT
-          tag.unbind(σ1, avoid) match {
-            case Some((æ(y), Seq(_, τ1))) =>
-              breakUpConstraints(
-                dom.tail.adjust(y, flipTag(tag), τ0 ⊑ τ1),
-                avoid + y)
-          }
-        case ConstrainedType(τ0, constraints) ⊑ τ1 =>
-          breakUpConstraints(
-            dom.tail.prepend(τ0 ⊑ τ1 +: constraints: _*))
-        case τ0 ⊑ ConstrainedType(τ1, constraints) =>
-          breakUpConstraints(
-            dom.tail.prepend(τ0 ⊑ τ1 +: constraints: _*))
-        case otherwise =>
-          breakUpConstraints(dom.tail, avoid ++ otherwise.freeNames).
-            prepend(otherwise)
+          // break up binders only if the other side isn't
+          // a prefixed type variable
+          case (σ0 @ ⊹(tag: Binder, _*)) ⊑ τ1
+              if shouldBreakUp(dom, τ1) => // DECISION POINT
+            tag.unbind(σ0, avoid) match {
+              case Some((æ(x), Seq(_, τ0))) =>
+                breakUpConstraints(
+                  dom.tail.adjust(x, tag, τ0 ⊑ τ1),
+                  avoid + x)
+            }
+          case τ0 ⊑ (σ1 @ ⊹(tag: Binder, _*))
+              if shouldBreakUp(dom, τ0) => // DECISION POINT
+            tag.unbind(σ1, avoid) match {
+              case Some((æ(y), Seq(_, τ1))) =>
+                breakUpConstraints(
+                  dom.tail.adjust(y, flipTag(tag), τ0 ⊑ τ1),
+                  avoid + y)
+            }
+          case ConstrainedType(τ0, constraints) ⊑ τ1 =>
+            breakUpConstraints(
+              dom.tail.prepend(τ0 ⊑ τ1 +: constraints: _*))
+          case τ0 ⊑ ConstrainedType(τ1, constraints) =>
+            breakUpConstraints(
+              dom.tail.prepend(τ0 ⊑ τ1 +: constraints: _*))
+          case otherwise =>
+            breakUpConstraints(dom.tail, avoid ++ otherwise.freeNames).
+              prepend(otherwise)
+        }
       }
 
     case class Contradiction(
@@ -701,7 +711,8 @@ trait FirstOrderOrderlessness
       else
         τ
 
-    override def resolve(τ: Tree): Tree =
-      quantifyMinimally(super.resolve(τ))
+    // hm... can't type `matchList` in data-types.foo1
+    // override def resolve(τ: Tree): Tree =
+    //   quantifyMinimally(super.resolve(τ))
   }
 }

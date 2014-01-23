@@ -6,6 +6,31 @@ f = λx : β. x
 . existential can't be instantiated by the nonunversal thing ℤ
 .f 5
 
-. oo ⊑ ps
-g : ∀γ. ℤ → γ → γ
-g = λn : ℤ. λx : γ. n x
+. irreconciled constraint: ℤ ⊑ a → b
+.g : ∀γ. ℤ → γ → γ
+.g = λn : ℤ. λx : γ. n x
+
+. it's okay to push a quantifier in.
+h1 : ∀α. (α → ℤ) → ℤ
+h2 : ((∀α. α) → ℤ) → ℤ
+h2 = h1
+
+. it's okay to pull a quantifier back out.
+h3 : ∀α. (α → ℤ) → ℤ
+h3 = h2
+
+h5 : (∀α. α) → ℤ
+h6 : ∃α. α → ℤ
+h6 = h5
+
+h7 : (∃α. α) → ℤ
+h8 : ∀α. α → ℤ
+h8 = h7
+
+. can swap quantifiers (is beyond classical logic)
+i1 : ∀α. ∃β. α → β
+i2 : ∃β. ∀α. α → β
+i2 = i1
+
+i3 : ∀α. ∃β. α → β
+i3 = i2

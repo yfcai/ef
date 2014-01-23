@@ -43,9 +43,10 @@ h2 = f2 id
 
 f3 : ∀α. α → (α → α) → α
 
-. g3 is an example showcasing the necessity of minimal quantification.
+. g3 is an example showcasing the possible existence of
+. decision points. its counterpart is matchList.
 . debug this. it's really really fun.
-.g3 : ∀β. ∃γ. ∀δ. ((β → β) → (γ → γ)) → δ → δ
+.g3 : ∀β. ∀δ. ∃γ. ((β → β) → (γ → γ)) → δ → δ
 .g3 = f3 id
 
 g3 : ((∀β. β → β) → (∀γ. γ → γ)) → ∀δ. δ → δ

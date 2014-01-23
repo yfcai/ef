@@ -62,9 +62,7 @@ matchList : ∀α. List α → MatchList α
 matchList = λxs : List α.
   xs const
      (λx : α. λys : MatchList α. λz : β. λf : α → List α → β.
-       f x (ys
-         (λz : γ. λg : α → γ → γ. z)
-         (λx : α. λxs : List α. λz : γ. λf : α → γ → γ. (f x (xs z f)))))
+       f x (ys nil cons))
 
 . USAGE
 
