@@ -4,7 +4,7 @@
   * goal is to get familiar with solving constraints.
   */
 trait FirstOrderOrderlessness
-    extends TypedModules with IntsAndBools
+    extends TypedModules with IntsAndBools with Prenex
 {
   var debugFlag: Boolean = false
 
@@ -670,5 +670,36 @@ trait FirstOrderOrderlessness
             typeErrorInNakedExpression(t, toks)
         }
       }
+
+    def quantifyMinimally(τ: Tree): Tree = {
+      val prenex = Prenex(τ)
+      prenex.prefix.foldRight(prenex.body) {
+        case (BinderSpec(quantifier, x, _), body) =>
+          quantifyMinimally(x, quantifier, body)
+      }
+    }
+
+    def quantifyMinimally(x: String, quantifier: Binder, τ: Tree): Tree =
+      if (τ.freeNames contains x) {
+        τ match {
+          case σ0 → σ1 if ! σ1.freeNames.contains(x) =>
+            →(quantifyMinimally(x, flipTag(quantifier), σ0), σ1)
+
+          case σ0 → σ1 if ! σ0.freeNames.contains(x) =>
+            →(σ0, quantifyMinimally(x, quantifier, σ1))
+
+          case ⊹(tag: Binder, children @ _*) =>
+            ⊹(tag,
+              children.map(σ => quantifyMinimally(x, quantifier, σ)): _*)
+
+          case τ =>
+            quantifier.bind(x, Annotation.none(), τ)
+        }
+      }
+      else
+        τ
+
+    override def resolve(τ: Tree): Tree =
+      quantifyMinimally(super.resolve(τ))
   }
 }
