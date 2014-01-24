@@ -11,22 +11,24 @@ object Main extends ARGV0 with Calculi {
               |    COMMAND = test | run | type | reduce
               |      where
               |        test   : run (optionally named) experiments to
-              |                   verify sanity
+              |                 verify sanity
               |
               |        run    : type check files, then execute them
               |
               |        type   : type check files
               |
-              |        reduce : reduce naked expressions without regard
-              |                   for types and print the result
+              |        reduce : reduce naked expressions without
+              |                 regard for types and print the result
               |
               |Flags
               |
-              | -debug    step through constraint solving when a type
-              |           error happens in the body of an abstraction
+              | -debug    step through constraint solver on type error
               |
-              | -loop     run designated command repeatedly
+              | -loop     run designated command repeatedly useful for
               |           useful for profiling
+              |
+              | -recurse  permits recursion (currently puts type
+              |           checker in an infinite loop)
               |
               | -trace    print stack trace on error of any kind
               |""".stripMargin)

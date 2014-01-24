@@ -1,5 +1,5 @@
 // parse file, produce AST
-trait Modules extends Syntax {
+trait Modules extends Syntax with Flags {
   case object ParagraphExpr extends TopLevelGenus {
     val ops = List(TypeSynonym, Signature, Definition, NakedExpression)
   }
@@ -89,11 +89,13 @@ trait Modules extends Syntax {
     override def precondition(items: Seq[Tree]) =
       items.take(2).length == 2 && fixity.hasBody(items(1), defSymbol)
 
-    def sanityCheck(t: Tree, tok: Token): Unit = t match {
-      case ⊹(_, x, xdef) =>
-        if (xdef.count(x) != 0)
-          throw Problem(tok, "recursive definition")
-    }
+    def sanityCheck(t: Tree, tok: Token): Unit =
+      if (dontRecurseFlag)
+        t match {
+          case ⊹(_, x, xdef) =>
+            if (xdef.count(x) != 0)
+              throw Problem(tok, "recursive definition")
+        }
   }
 
   def ascriptionFailure(expected: Tree, actual: Tree): String =

@@ -15,4 +15,10 @@ trait Flags {
   def debugFlag_=(_debug: Boolean): Unit =
     if (_debug) flag = flag + debug
     else        flag = flag - debug
+
+  // recurse: permit recursion (causes inf loop in type checker now)
+  def recurseFlag: Boolean = flag("recurse")
+
+  // dont-recurse: forbid recursion
+  def dontRecurseFlag: Boolean = ! recurseFlag
 }

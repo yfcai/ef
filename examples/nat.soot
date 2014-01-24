@@ -6,6 +6,18 @@ id = λx : ι. x
 const : ∀α β. α → β → α
 const = λx : α. λy : β. x
 
+. rant
+
+  set -recurse flag to permit recursion.
+
+  ./a.out -recurse reduce <this-file> # works
+  ./a.out -recurse type   <this-file> # loops
+
+  iterate : ∀α. ℤ → α → (ℤ → α → α) → α
+  iterate = λn : ℤ. λz : α. λf : ℤ → α → α.
+    if ≡ n 0
+    then z
+    else f n (iterate (- n 1) z f)
 
 . NATURAL NUMBERS
 

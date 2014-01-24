@@ -5,7 +5,6 @@
   */
 trait SecondOrderOrderlessTypes
     extends TypedModules with IntsAndBools with Prenex
-       with Flags
 {
   def typeCheck(m: Module):
       Either[Problem, Seq[(Tree, Tree, Token)]] = {
@@ -354,11 +353,6 @@ trait SecondOrderOrderlessTypes
         if (dom.contradiction != None) {
           val (oo, ps) = ("oo", "ps")
           val oops = æ(oo) ⊑ æ(ps)
-          if (debugFlag && ! dom.constraints.contains(oops)) {
-            debugDomain(dom, s"inconsistent abstraction\n  ${term.unparse}")
-            // one debug session is enough for any run
-            debugFlag = false
-          }
 
           // the abstraction is internally inconsistent.
           // generate insoluble constraints.
@@ -632,9 +626,20 @@ trait SecondOrderOrderlessTypes
           val problem =
             t.blindPreorder.toSeq.zip(toks).reverse.findFirst {
               case ((t, gamma), tok) =>
-                gatherConstraints(t, gamma).contradiction match {
+                val dom = gatherConstraints(t, gamma)
+                dom.contradiction match {
                   case None => None
                   case Some(contradiction) =>
+
+                    if (debugFlag) {
+                      println(tok.residentLines(2))//DEBUG
+                      println(t.tag)
+
+                      debugDomain(dom, s"type error in\n  ${t.unparse}")
+                      // one debug session is enough for any run
+                      debugFlag = false
+                    }
+
                     Some(Problem(tok, contradiction.getMessage))
                 }
             }
