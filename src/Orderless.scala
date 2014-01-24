@@ -610,18 +610,18 @@ trait SecondOrderOrderlessTypes
         case None => None
         case Some(contradiction) =>
 
-          def debug(dom: Domain) {
+          def debug(dom: Domain, msg: String, t: Tree) {
             if (debugFlag) {
               println(tok.residentLines(2))
-              debugDomain(dom, s"type error in\n  ${t.unparse}")
+              debugDomain(dom, s"type error in $msg\n  ${t.unparse}")
               // one debug session is enough for any run
               debugFlag = false
             }
           }
 
           // recompute top-level domain for debugging
-          val dom = gatherConstraints(t)
-          val dom1 = dom.prepend(dom.representative ⊑ τ)
+          val dom0 = gatherConstraints(t)
+          val dom1 = dom0.prepend(dom0.representative ⊑ τ)
           val con =
             Contradiction(
               s"${contradiction.getMessage}\n\nunder top-level constraints",
@@ -630,12 +630,12 @@ trait SecondOrderOrderlessTypes
 
           val problem =
             t.blindPreorder.toSeq.zip(toks).reverse.findFirst {
-              case ((t, gamma), tok) if t.tag == Term =>
+              case ((t, gamma), tok) if t.tag.genus == Term =>
                 val dom = gatherConstraints(t, gamma)
                 dom.contradiction match {
                   case None => None
                   case Some(contradiction) =>
-                    debug(dom)
+                    debug(dom, "subterm", t)
                     Some(Problem(tok, contradiction.getMessage))
                 }
               case _ =>
@@ -643,7 +643,7 @@ trait SecondOrderOrderlessTypes
             }
           // problem happens at top level ascription
           if (problem == None) {
-            debug(dom1)
+            debug(dom1, "ascription", t)
             Some(Problem(tok,
               s"""|definition cannot be ascripted to type
                   |  ${τ.unparse}""".stripMargin))
