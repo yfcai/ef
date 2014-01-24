@@ -135,7 +135,14 @@ trait Trees extends Names {
       body.imprison(prison, x, 0)
 
     // name discovery in a namespace
-    def nameOf(t: Tree): String = nameOf(t, Set.empty)
+    def nameOf(t: Tree): String = t.shadowlessName match {
+      case Some(name) =>
+        name
+      case None =>
+        val name = nameOf(t, Set.empty)
+        t.shadowlessName = Some(name)
+        name
+    }
 
     def nameOf(t: Tree, _toAvoid: Set[String]): String =
       Subscript.newName(
@@ -441,6 +448,9 @@ trait Trees extends Names {
         case _ =>
           (Nil, this)
       }
+
+    // cache shadowing-avoiding name for performance
+    var shadowlessName: Option[String] = None
   }
 
   // literals
