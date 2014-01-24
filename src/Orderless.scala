@@ -126,6 +126,13 @@ trait SecondOrderOrderlessTypes
       def ⊑ (τ: Tree) = typing.⊑(σ, τ)
     }
 
+    // due to performance concerns, we have to ensure that every
+    // constraint in a Domain instance is minimally quantified.
+    // this is more efficient than minimally quantify each
+    // constraint on inspection. thus, be careful when you call
+    // the case class constructor of Domain. alternative
+    // constructors like `prepend`, `adjust`, `tail` have the
+    // MQ check baked in & can be more convenient to use.
     case class Domain(
       prefix: List[(String, Binder)],
       constraints: List[Tree],
@@ -140,10 +147,7 @@ trait SecondOrderOrderlessTypes
           })
 
       def prepend(constrained: Seq[Tree], constraints: List[Tree]):
-          List[Tree] =
-        constrained.foldRight(constraints) {
-          case (x, xs) => x :: xs
-        }
+          List[Tree] = Domain.prepend(constrained, constraints, freeNames)
 
       def prepend(constrained: Tree *): Domain =
         Domain(prefix, prepend(constrained, constraints), representative)
@@ -151,7 +155,10 @@ trait SecondOrderOrderlessTypes
       def adjust(x: String, tag: Binder, constrained: Tree *): Domain =
         Domain(
           (x, tag) :: prefix,
-          prepend(constrained, constraints),
+          Domain.prepend(
+            constrained, constraints,
+            freeNames ++ constrained.map(_.freeNames).
+              fold(Set.empty[String])(_ ++ _)),
           representative)
 
       def tail: Domain =
@@ -215,18 +222,38 @@ trait SecondOrderOrderlessTypes
       def injectType(τ: Tree): Domain =
         Domain(Nil, Nil, τ)
 
+      def prepend(
+        constrained: Seq[Tree],
+        constraints: List[Tree],
+        avoid: Set[String]
+      ):
+          List[Tree] =
+        constrained.foldRight(constraints) {
+          case (σ ⊑ τ, xs) =>
+            quantifyMinimally(σ, avoid) ⊑
+            quantifyMinimally(τ, avoid) :: xs
+        }
+
       def fromApplication(fun0: Domain, arg0: Domain): Domain = {
         val fun = fun0.avoid(arg0.freeNames)
         val arg = arg0.avoid(fun.freeNames)
 
-        val Seq(a, b) =
-          ABCSong.newNames(Seq("a", "b"), fun.freeNames ++ arg.freeNames)
+
+        var avoid = fun.freeNames ++ arg.freeNames
+
+        val Seq(a, b) = ABCSong.newNames(Seq("a", "b"), avoid)
+
+        avoid = avoid + a + b
+
         Domain(
           (a, Universal) :: (b, Universal) ::
             fun.prefix ++ arg.prefix,
-          fun.representative ⊑ →(æ(a), æ(b)) ::
-            arg.representative ⊑ æ(a) ::
+          prepend(
+            Seq(
+              fun.representative ⊑ →(æ(a), æ(b)),
+              arg.representative ⊑ æ(a)),
             fun.constraints ++ arg.constraints,
+            avoid),
           æ(b))
       }
     }
@@ -300,25 +327,35 @@ trait SecondOrderOrderlessTypes
     // Answer: If we have a problem, then commit everything,
     // make a tag. Because it will be an example showing that
     // existentials are necessary.
+
+    class GatheringException(s: String) extends Exception(s)
+
     def gatherConstraints(t: Tree, τ: Tree): Domain =
       gatherConstraints(gatherConstraints(t), τ)
 
     def gatherConstraints(dom: Domain, τ: Tree): Domain =
-      Domain(
-        dom.prefix,
-        dom.representative ⊑ τ :: dom.constraints,
-        dom.representative)
+        dom.prepend(dom.representative ⊑ τ)
 
     def gatherConstraints(term: Tree, gamma: Map[String, Tree]): Domain =
-      gatherConstraints(
-        term,
-        (sig ++ gamma).map(p => (p._1, resolve(p._2))),
-        globalTypes.keySet,
-        primitiveType)
+      try {
+        gatherConstraints(
+          term,
+          (sig ++ gamma).map(p => (p._1, resolve(p._2))),
+          globalTypes.keySet,
+          primitiveType)
+      }
+      catch {
+        case e: MatchError =>
+          if (traceFlag)
+            throw e
+          else
+            throw new GatheringException(
+              s"leaked non-term ${e.getMessage} on ${term.unparse}")
+      }
 
 
     def gatherConstraints(term: Tree): Domain =
-      gatherConstraints(term, Map.empty[String, Tree])
+        gatherConstraints(term, Map.empty[String, Tree])
 
     def gatherConstraints(
       term    : Tree,
@@ -387,7 +424,7 @@ trait SecondOrderOrderlessTypes
         val dom = gatherConstraints(t, Γ, Δ, globals)
         Domain(
           dom.prefix,
-          dom.representative ⊑ τ :: dom.constraints,
+          dom.prepend(Seq(dom.representative ⊑ τ), dom.constraints),
           τ)
     }
 
@@ -417,16 +454,7 @@ trait SecondOrderOrderlessTypes
       if (dom.constraints.isEmpty)
         dom
       else {
-        // REMARK.
-        // minimal quantification in use.
-        //
-        // also, traversing types σ, τ on every breakup to ensure
-        // minimal quantification is extremely slow. typing
-        // Bӧhm-Berarducci lists takes 13 seconds.
-        //
-        val σ ⊑ τ = dom.constraints.head
-        val subject =
-          quantifyMinimally(σ, avoid) ⊑ quantifyMinimally(τ, avoid)
+        val subject = dom.constraints.head
 
         subject match {
           case (σ0 → τ0) ⊑ (σ1 → τ1) =>
@@ -564,7 +592,11 @@ trait SecondOrderOrderlessTypes
           }
           Right(Domain(
             dom1.prefix.filter(p => ! unified.contains(p._1)),
+
+            // new constraints are minimally quantified because
+            // substitution preserves minimal quantification
             newConstraints,
+
             // put representative there because we don't care
             // about it at all
             dom1.representative))
@@ -583,7 +615,7 @@ trait SecondOrderOrderlessTypes
             for { σ <- lhs ; τ <- rhs } yield σ ⊑ τ
           Right(Domain(
             dom1.prefix.filter(_._1 != x),
-            newConstraints ++ rest,
+            dom1.prepend(newConstraints, rest),
             // put representative there because we don't care
             // about it at all
             dom1.representative))
@@ -610,13 +642,18 @@ trait SecondOrderOrderlessTypes
         case None => None
         case Some(contradiction) =>
 
+          def debug(dom: Domain) {
+            if (debugFlag) {
+              println(tok.residentLines(2))
+              debugDomain(dom, s"type error in\n  ${t.unparse}")
+              // one debug session is enough for any run
+              debugFlag = false
+            }
+          }
+
           // recompute top-level domain for debugging
           val dom = gatherConstraints(t)
-          val dom1 =
-            Domain(
-              dom.prefix,
-              dom.representative ⊑ τ :: dom.constraints,
-              dom.representative)
+          val dom1 = dom.prepend(dom.representative ⊑ τ)
           val con =
             Contradiction(
               s"${contradiction.getMessage}\n\nunder top-level constraints",
@@ -625,27 +662,24 @@ trait SecondOrderOrderlessTypes
 
           val problem =
             t.blindPreorder.toSeq.zip(toks).reverse.findFirst {
-              case ((t, gamma), tok) =>
+              case ((t, gamma), tok) if t.tag == Term =>
                 val dom = gatherConstraints(t, gamma)
                 dom.contradiction match {
                   case None => None
                   case Some(contradiction) =>
-
-                    if (debugFlag) {
-                      println(tok.residentLines(2))//DEBUG
-                      println(t.tag)
-
-                      debugDomain(dom, s"type error in\n  ${t.unparse}")
-                      // one debug session is enough for any run
-                      debugFlag = false
-                    }
-
+                    debug(dom)
                     Some(Problem(tok, contradiction.getMessage))
                 }
+              case _ =>
+                None
             }
           // problem happens at top level ascription
-          if (problem == None)
-            Some(Problem(tok, contradiction.getMessage))
+          if (problem == None) {
+            debug(dom1)
+            Some(Problem(tok,
+              s"""|definition cannot be ascripted to type
+                  |  ${τ.unparse}""".stripMargin))
+          }
           else
             problem
       }
@@ -663,14 +697,23 @@ trait SecondOrderOrderlessTypes
     }
 
     def typeErrorInDefinition(x: String): Option[Problem] =
-      ascriptionError(
-        dfn(x),
-        resolve(sig(x)),
-        dfntoks(x).head,
-        getDFNTokens(dfntoks, x)).map { c => {
-          if (debugFlag) debugDefinition(x)
-          c
-        }}
+      try {
+        ascriptionError(
+          dfn(x),
+          resolve(sig(x)),
+          dfntoks(x).head,
+          getDFNTokens(dfntoks, x)).map { c => {
+            if (debugFlag) debugDefinition(x)
+            c
+          }}
+      }
+      catch {
+        case e: GatheringException =>
+          if (traceFlag)
+            throw e
+          else
+            sys error s"${dfntoks(x).head.fileLine}: ${e.getMessage}"
+      }
 
     def typeErrorInNakedExpression(t: Tree, toks: Seq[Token]):
         Option[Problem] =
@@ -727,12 +770,5 @@ trait SecondOrderOrderlessTypes
       }
       else
         τ
-
-    // REFLEXION.
-    // hm... just MQ types appearing in source code
-    // doesn't seem to be enough.
-    //
-    //override def resolve(τ: Tree): Tree =
-    //  quantifyMinimally(super.resolve(τ), Set.empty)
   }
 }
