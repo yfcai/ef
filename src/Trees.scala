@@ -169,8 +169,18 @@ trait Trees extends Names {
     def computeCrossedNames(t: Tree, i: Int): Option[Set[String]] =
       t match {
         case ⊹(tag: Binder, children @ _*) =>
-          collectOptions(children.map(x =>
-            computeCrossedNames(x, i + 1)))(_ ++ _).
+          collectOptions(
+            // would write:
+            //
+            //   children.map(x => computeCrossedNames(x, i + 1))
+            //
+            // have to write the following to save 1 sec on lists
+            // because `sizeHint` is a hotspot (lol)
+            children.foldRight[List[Option[Set[String]]]](Nil) {
+              case (x, acc) =>
+                computeCrossedNames(x, i + 1) :: acc
+            }
+          )(_ ++ _).
             map { x =>
               if (tag.prison == this.prison) // name-spacing
                 x + tag.nameOf(t)
