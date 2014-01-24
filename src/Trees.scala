@@ -193,8 +193,12 @@ trait Trees extends Names {
                 x
             }
         case ⊹(tag, children @ _*) =>
-          collectOptions(children map { x =>
-            computeCrossedNames(x, i) })
+          collectOptions(
+            // children map (x => computeCrossedNames(x, i))
+            children.foldRight[List[Option[Set[String]]]](Nil) {
+              case (x, acc) =>
+                computeCrossedNames(x, i) :: acc
+            })
         case ∙(tag: DeBruijn, j) if j == i =>
           Some(Set.empty[String])
         case _ =>
@@ -292,9 +296,19 @@ trait Trees extends Names {
     // substitution of bound variable
     def subst(i: Int, xdef: Tree): Tree = this match {
       case ⊹(tag: Binder, children @ _*) =>
-        ⊹(tag, children map (_.subst(i + 1, xdef)): _*)
+        ⊹(tag,
+          //children map (_.subst(i + 1, xdef))
+          children.foldRight[List[Tree]](Nil) { (s, acc) =>
+            s.subst(i + 1, xdef) :: acc
+          }
+              : _*)
       case ⊹(tag, children @ _*) =>
-        ⊹(tag, children map (_.subst(i, xdef)): _*)
+        ⊹(tag,
+          //children map (_.subst(i, xdef))
+          children.foldRight[List[Tree]](Nil) { (s, acc) =>
+            s.subst(i, xdef) :: acc
+          }
+              : _*)
       case ∙(tag: DeBruijn, j: Int) if i == j =>
         require(xdef.tag.genus == tag.genus)
         xdef.shift(i, 0)
@@ -310,9 +324,19 @@ trait Trees extends Names {
         x
       case ⊹(binder: Binder, children @ _*) =>
         val newDef = xdef.shift(1, 0)
-        ⊹(binder, children.map(_.subst(x, newDef)): _*)
+        ⊹(binder,
+          //children.map(_.subst(x, newDef))
+          children.foldRight[List[Tree]](Nil) { (s, acc) =>
+            s.subst(x, newDef) :: acc
+          }
+              : _*)
       case ⊹(tag, children @ _*) =>
-        ⊹(tag, children.map(_.subst(x, xdef)): _*)
+        ⊹(tag,
+          //children.map(_.subst(x, xdef))
+          children.foldRight[List[Tree]](Nil) { (s, acc) =>
+            s.subst(x, xdef) :: acc
+          }
+              : _*)
     }
 
     // substitute all free variables of identical genus
@@ -337,9 +361,19 @@ trait Trees extends Names {
     def imprison(prison: DeBruijn, x: String, i: Int): Tree =
       this match {
         case ⊹(tag: Binder, children @ _*) =>
-          ⊹(tag, children map (_.imprison(prison, x, i + 1)): _*)
+          ⊹(tag,
+            //children map (_.imprison(prison, x, i + 1))
+            children.foldRight[List[Tree]](Nil) { (s, acc) =>
+              s.imprison(prison, x, i + 1) :: acc
+            }
+                : _*)
         case ⊹(tag, children @ _*) =>
-          ⊹(tag, children map (_.imprison(prison, x, i)): _*)
+          ⊹(tag,
+            //children map (_.imprison(prison, x, i))
+            children.foldRight[List[Tree]](Nil) { (s, acc) =>
+              s.imprison(prison, x, i) :: acc
+            }
+                : _*)
         case ∙(tag: FreeName, get) if get == x =>
           require(tag.genus == prison.genus) // shan't bind typevar by λ
           ∙(prison, i)
@@ -350,9 +384,19 @@ trait Trees extends Names {
     // d-place shift of this above cutoff c
     def shift(d: Int, c: Int): Tree = this match {
       case ⊹(tag: Binder, children @ _*) =>
-        ⊹(tag, children map (_.shift(d, c + 1)): _*)
+        ⊹(tag,
+          //children map (_.shift(d, c + 1))
+          children.foldRight[List[Tree]](Nil) { (s, acc) =>
+            s.shift(d, c + 1) :: acc
+          }
+              : _*)
       case ⊹(tag, children @ _*) =>
-        ⊹(tag, children map (_.shift( d, c)): _*)
+        ⊹(tag,
+          //children map (_.shift(d, c))
+          children.foldRight[List[Tree]](Nil) { (s, acc) =>
+            s.shift(d, c) :: acc
+          }
+              : _*)
       case ∙(tag: DeBruijn, j: Int) if j >= c =>
         ∙(tag, j + d)
       case otherwise =>
