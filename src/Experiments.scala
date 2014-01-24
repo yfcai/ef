@@ -1,6 +1,6 @@
 object Experiments {
   val onTrial: Experiment =
-    TypeApplicationExperiment
+    AbsLocationExperiment
 
   val experiments = List[Experiment](
     TypeApplicationExperiment,
@@ -346,8 +346,8 @@ object Experiments {
   trait Decomposition extends SyntaxExperiment {
     def decompose(s: String): String = {
       val (t, toks) = Term.parse(ProtoAST(s)).get
-      withTokens(t, toks).fold[Unit] {
-        case (tf, tok) =>
+      t.blindPreorder.toSeq.zip(toks).foreach {
+        case ((tf, _), tok) =>
           puts(Problem(tok, tf.tag.toString, 1).getMessage)
       }
       dump
@@ -364,27 +364,32 @@ object Experiments {
       """|#LINE:1
          |Λγ. λx : ∀α β. F (∃ε = α. ∃η = {}. ∃ζ = η {ε, β}. ∃ξ = {ζ}. ξ). x
          | ^
+         |TypeAbstraction
+         |
+         |#LINE:1
+         |Λγ. λx : ∀α β. F (∃ε = α. ∃η = {}. ∃ζ = η {ε, β}. ∃ξ = {ζ}. ξ). x
+         | ^
          |LiteralTag(java.lang.String)
+         |
+         |#LINE:1
+         |Λγ. λx : ∀α β. F (∃ε = α. ∃η = {}. ∃ζ = η {ε, β}. ∃ξ = {ζ}. ξ). x
+         |    ^
+         |AnnotatedAbstraction
          |
          |#LINE:1
          |Λγ. λx : ∀α β. F (∃ε = α. ∃η = {}. ∃ζ = η {ε, β}. ∃ξ = {ζ}. ξ). x
          |     ^
-         |LiteralTag(java.lang.String)
+         |FreeVar
+         |
+         |#LINE:1
+         |Λγ. λx : ∀α β. F (∃ε = α. ∃η = {}. ∃ζ = η {ε, β}. ∃ξ = {ζ}. ξ). x
+         |          ^
+         |Universal
          |
          |#LINE:1
          |Λγ. λx : ∀α β. F (∃ε = α. ∃η = {}. ∃ζ = η {ε, β}. ∃ξ = {ζ}. ξ). x
          |          ^
          |LiteralTag(java.lang.String)
-         |
-         |#LINE:1
-         |Λγ. λx : ∀α β. F (∃ε = α. ∃η = {}. ∃ζ = η {ε, β}. ∃ξ = {ζ}. ξ). x
-         |          ^
-         |Nope
-         |
-         |#LINE:1
-         |Λγ. λx : ∀α β. F (∃ε = α. ∃η = {}. ∃ζ = η {ε, β}. ∃ξ = {ζ}. ξ). x
-         |          ^
-         |Nope
          |
          |#LINE:1
          |Λγ. λx : ∀α β. F (∃ε = α. ∃η = {}. ∃ζ = η {ε, β}. ∃ξ = {ζ}. ξ). x
@@ -393,28 +398,53 @@ object Experiments {
          |
          |#LINE:1
          |Λγ. λx : ∀α β. F (∃ε = α. ∃η = {}. ∃ζ = η {ε, β}. ∃ξ = {ζ}. ξ). x
+         |          ^
+         |Nope
+         |
+         |#LINE:1
+         |Λγ. λx : ∀α β. F (∃ε = α. ∃η = {}. ∃ζ = η {ε, β}. ∃ξ = {ζ}. ξ). x
+         |          ^
+         |Nope
+         |
+         |#LINE:1
+         |Λγ. λx : ∀α β. F (∃ε = α. ∃η = {}. ∃ζ = η {ε, β}. ∃ξ = {ζ}. ξ). x
+         |            ^
+         |Universal
+         |
+         |#LINE:1
+         |Λγ. λx : ∀α β. F (∃ε = α. ∃η = {}. ∃ζ = η {ε, β}. ∃ξ = {ζ}. ξ). x
          |            ^
          |LiteralTag(java.lang.String)
          |
          |#LINE:1
          |Λγ. λx : ∀α β. F (∃ε = α. ∃η = {}. ∃ζ = η {ε, β}. ∃ξ = {ζ}. ξ). x
          |            ^
-         |Nope
-         |
-         |#LINE:1
-         |Λγ. λx : ∀α β. F (∃ε = α. ∃η = {}. ∃ζ = η {ε, β}. ∃ξ = {ζ}. ξ). x
-         |            ^
-         |Nope
-         |
-         |#LINE:1
-         |Λγ. λx : ∀α β. F (∃ε = α. ∃η = {}. ∃ζ = η {ε, β}. ∃ξ = {ζ}. ξ). x
-         |            ^
          |Annotation
+         |
+         |#LINE:1
+         |Λγ. λx : ∀α β. F (∃ε = α. ∃η = {}. ∃ζ = η {ε, β}. ∃ξ = {ζ}. ξ). x
+         |            ^
+         |Nope
+         |
+         |#LINE:1
+         |Λγ. λx : ∀α β. F (∃ε = α. ∃η = {}. ∃ζ = η {ε, β}. ∃ξ = {ζ}. ξ). x
+         |            ^
+         |Nope
+         |
+         |#LINE:1
+         |Λγ. λx : ∀α β. F (∃ε = α. ∃η = {}. ∃ζ = η {ε, β}. ∃ξ = {ζ}. ξ). x
+         |               ^
+         |TypeApplication
          |
          |#LINE:1
          |Λγ. λx : ∀α β. F (∃ε = α. ∃η = {}. ∃ζ = η {ε, β}. ∃ξ = {ζ}. ξ). x
          |               ^
          |FreeTypeVar
+         |
+         |#LINE:1
+         |Λγ. λx : ∀α β. F (∃ε = α. ∃η = {}. ∃ζ = η {ε, β}. ∃ξ = {ζ}. ξ). x
+         |                  ^
+         |Existential
          |
          |#LINE:1
          |Λγ. λx : ∀α β. F (∃ε = α. ∃η = {}. ∃ζ = η {ε, β}. ∃ξ = {ζ}. ξ). x
@@ -424,7 +454,7 @@ object Experiments {
          |#LINE:1
          |Λγ. λx : ∀α β. F (∃ε = α. ∃η = {}. ∃ζ = η {ε, β}. ∃ξ = {ζ}. ξ). x
          |                       ^
-         |TypeVar
+         |Annotation
          |
          |#LINE:1
          |Λγ. λx : ∀α β. F (∃ε = α. ∃η = {}. ∃ζ = η {ε, β}. ∃ξ = {ζ}. ξ). x
@@ -434,12 +464,17 @@ object Experiments {
          |#LINE:1
          |Λγ. λx : ∀α β. F (∃ε = α. ∃η = {}. ∃ζ = η {ε, β}. ∃ξ = {ζ}. ξ). x
          |                       ^
-         |Nope
+         |TypeVar
          |
          |#LINE:1
          |Λγ. λx : ∀α β. F (∃ε = α. ∃η = {}. ∃ζ = η {ε, β}. ∃ξ = {ζ}. ξ). x
          |                       ^
-         |Annotation
+         |Nope
+         |
+         |#LINE:1
+         |Λγ. λx : ∀α β. F (∃ε = α. ∃η = {}. ∃ζ = η {ε, β}. ∃ξ = {ζ}. ξ). x
+         |                          ^
+         |Existential
          |
          |#LINE:1
          |Λγ. λx : ∀α β. F (∃ε = α. ∃η = {}. ∃ζ = η {ε, β}. ∃ξ = {ζ}. ξ). x
@@ -449,6 +484,11 @@ object Experiments {
          |#LINE:1
          |Λγ. λx : ∀α β. F (∃ε = α. ∃η = {}. ∃ζ = η {ε, β}. ∃ξ = {ζ}. ξ). x
          |                               ^
+         |Annotation
+         |
+         |#LINE:1
+         |Λγ. λx : ∀α β. F (∃ε = α. ∃η = {}. ∃ζ = η {ε, β}. ∃ξ = {ζ}. ξ). x
+         |                               ^
          |Nope
          |
          |#LINE:1
@@ -458,8 +498,8 @@ object Experiments {
          |
          |#LINE:1
          |Λγ. λx : ∀α β. F (∃ε = α. ∃η = {}. ∃ζ = η {ε, β}. ∃ξ = {ζ}. ξ). x
-         |                               ^
-         |Annotation
+         |                                   ^
+         |Existential
          |
          |#LINE:1
          |Λγ. λx : ∀α β. F (∃ε = α. ∃η = {}. ∃ζ = η {ε, β}. ∃ξ = {ζ}. ξ). x
@@ -469,11 +509,21 @@ object Experiments {
          |#LINE:1
          |Λγ. λx : ∀α β. F (∃ε = α. ∃η = {}. ∃ζ = η {ε, β}. ∃ξ = {ζ}. ξ). x
          |                                        ^
-         |TypeVar
+         |Annotation
          |
          |#LINE:1
          |Λγ. λx : ∀α β. F (∃ε = α. ∃η = {}. ∃ζ = η {ε, β}. ∃ξ = {ζ}. ξ). x
          |                                        ^
+         |Yeah
+         |
+         |#LINE:1
+         |Λγ. λx : ∀α β. F (∃ε = α. ∃η = {}. ∃ζ = η {ε, β}. ∃ξ = {ζ}. ξ). x
+         |                                        ^
+         |TypeVar
+         |
+         |#LINE:1
+         |Λγ. λx : ∀α β. F (∃ε = α. ∃η = {}. ∃ζ = η {ε, β}. ∃ξ = {ζ}. ξ). x
+         |                                          ^
          |Yeah
          |
          |#LINE:1
@@ -488,13 +538,8 @@ object Experiments {
          |
          |#LINE:1
          |Λγ. λx : ∀α β. F (∃ε = α. ∃η = {}. ∃ζ = η {ε, β}. ∃ξ = {ζ}. ξ). x
-         |                                          ^
-         |Yeah
-         |
-         |#LINE:1
-         |Λγ. λx : ∀α β. F (∃ε = α. ∃η = {}. ∃ζ = η {ε, β}. ∃ξ = {ζ}. ξ). x
-         |                                        ^
-         |Annotation
+         |                                                  ^
+         |Existential
          |
          |#LINE:1
          |Λγ. λx : ∀α β. F (∃ε = α. ∃η = {}. ∃ζ = η {ε, β}. ∃ξ = {ζ}. ξ). x
@@ -504,12 +549,12 @@ object Experiments {
          |#LINE:1
          |Λγ. λx : ∀α β. F (∃ε = α. ∃η = {}. ∃ζ = η {ε, β}. ∃ξ = {ζ}. ξ). x
          |                                                       ^
-         |Nope
+         |Annotation
          |
          |#LINE:1
          |Λγ. λx : ∀α β. F (∃ε = α. ∃η = {}. ∃ζ = η {ε, β}. ∃ξ = {ζ}. ξ). x
-         |                                                        ^
-         |TypeVar
+         |                                                       ^
+         |Nope
          |
          |#LINE:1
          |Λγ. λx : ∀α β. F (∃ε = α. ∃η = {}. ∃ζ = η {ε, β}. ∃ξ = {ζ}. ξ). x
@@ -518,8 +563,8 @@ object Experiments {
          |
          |#LINE:1
          |Λγ. λx : ∀α β. F (∃ε = α. ∃η = {}. ∃ζ = η {ε, β}. ∃ξ = {ζ}. ξ). x
-         |                                                       ^
-         |Annotation
+         |                                                        ^
+         |TypeVar
          |
          |#LINE:1
          |Λγ. λx : ∀α β. F (∃ε = α. ∃η = {}. ∃ζ = η {ε, β}. ∃ξ = {ζ}. ξ). x
@@ -528,53 +573,8 @@ object Experiments {
          |
          |#LINE:1
          |Λγ. λx : ∀α β. F (∃ε = α. ∃η = {}. ∃ζ = η {ε, β}. ∃ξ = {ζ}. ξ). x
-         |                                                  ^
-         |Existential
-         |
-         |#LINE:1
-         |Λγ. λx : ∀α β. F (∃ε = α. ∃η = {}. ∃ζ = η {ε, β}. ∃ξ = {ζ}. ξ). x
-         |                                   ^
-         |Existential
-         |
-         |#LINE:1
-         |Λγ. λx : ∀α β. F (∃ε = α. ∃η = {}. ∃ζ = η {ε, β}. ∃ξ = {ζ}. ξ). x
-         |                          ^
-         |Existential
-         |
-         |#LINE:1
-         |Λγ. λx : ∀α β. F (∃ε = α. ∃η = {}. ∃ζ = η {ε, β}. ∃ξ = {ζ}. ξ). x
-         |                  ^
-         |Existential
-         |
-         |#LINE:1
-         |Λγ. λx : ∀α β. F (∃ε = α. ∃η = {}. ∃ζ = η {ε, β}. ∃ξ = {ζ}. ξ). x
-         |               ^
-         |TypeApplication
-         |
-         |#LINE:1
-         |Λγ. λx : ∀α β. F (∃ε = α. ∃η = {}. ∃ζ = η {ε, β}. ∃ξ = {ζ}. ξ). x
-         |            ^
-         |Universal
-         |
-         |#LINE:1
-         |Λγ. λx : ∀α β. F (∃ε = α. ∃η = {}. ∃ζ = η {ε, β}. ∃ξ = {ζ}. ξ). x
-         |          ^
-         |Universal
-         |
-         |#LINE:1
-         |Λγ. λx : ∀α β. F (∃ε = α. ∃η = {}. ∃ζ = η {ε, β}. ∃ξ = {ζ}. ξ). x
          |                                                                ^
-         |Var
-         |
-         |#LINE:1
-         |Λγ. λx : ∀α β. F (∃ε = α. ∃η = {}. ∃ζ = η {ε, β}. ∃ξ = {ζ}. ξ). x
-         |    ^
-         |AnnotatedAbstraction
-         |
-         |#LINE:1
-         |Λγ. λx : ∀α β. F (∃ε = α. ∃η = {}. ∃ζ = η {ε, β}. ∃ξ = {ζ}. ξ). x
-         | ^
-         |TypeAbstraction
+         |FreeVar
          |
          |""".stripMargin
   }
@@ -1041,5 +1041,11 @@ object Experiments {
 
     override def expected =
       "∀δ ε. Pair δ ε = ∀δ ε γ. (δ → ε → γ) → γ\n"
+  }
+
+  object AbsLocationExperiment extends Decomposition {
+    def s = "λm : ℤ. m"
+
+    def run = decompose(s)
   }
 }

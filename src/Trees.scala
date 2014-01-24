@@ -381,6 +381,7 @@ trait Trees extends Names {
               val newGamma = gamma.updated(x.get, note)
               Iterator((t, gamma)) ++
               loop(x, newGamma) ++
+              loop(note, gamma) ++
               loop(body, newGamma)
           }
         case ⊹(_, children @ _*) =>
