@@ -241,11 +241,23 @@ trait Trees extends Names {
         |$this
         |""".stripMargin
     override def toString = s"∙($tag, $get)"
+
+    def computeFreeNames: Set[String] =
+      if (tag.isInstanceOf[FreeName])
+        Set(get.asInstanceOf[String])
+      else
+        Set.empty[String]
   }
   class ⊹(tag: Tag, children: Tree*)
       extends ⊹:[Tree](tag, children: _*) with Tree {
     override def toString =
       s"⊹($tag, ${children.map(_.toString).mkString(", ")})"
+
+    def computeFreeNames: Set[String] = {
+      val builder = Set.newBuilder[String]
+      children.foreach (builder ++= _.freeNames)
+      builder.result
+    }
   }
 
   object ∙ {
@@ -439,28 +451,9 @@ trait Trees extends Names {
     }
 
     // collect free names with tag equal to mine
-    lazy val freeNames: Set[String] = fold[Set[String]] {
-      case ∙:(tag: FreeName, get: String) if tag.genus == this.tag.genus =>
-        Set(get)
-      case ∙:(tag, get) =>
-        Set.empty
-      case otherwise =>
-        allFreeNamesAlgebra(otherwise)
-    }
+    val freeNames: Set[String] = computeFreeNames
 
-    // collect all free names
-    lazy val allFreeNames: Set[String] = fold(allFreeNamesAlgebra)
-
-    def allFreeNamesAlgebra: TreeF[Set[String]] => Set[String] = {
-      case ⊹:(tag, children @ _*) =>
-        val builder = Set.newBuilder[String]
-        children.foreach (builder ++= _)
-        builder.result
-      case ∙:(tag: FreeName, get: String) =>
-        Set(get)
-      case _ =>
-        Set.empty
-    }
+    def computeFreeNames: Set[String]
 
     // traversals
 
