@@ -351,7 +351,7 @@ trait SecondOrderOrderlessTypes
 
         // verify internal consistency.
         // if it does not hold, then generate insoluble constraints
-        if (body.tag != AnnotatedAbstraction && dom.contradiction != None) {
+        if (dom.contradiction != None) {
           val (oo, ps) = ("oo", "ps")
           val oops = æ(oo) ⊑ æ(ps)
           if (debugFlag && ! dom.constraints.contains(oops)) {

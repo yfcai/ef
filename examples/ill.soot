@@ -34,3 +34,7 @@ i2 = i1
 
 i3 : ∀α. ∃β. α → β
 i3 = i2
+
+. hiding ill-typed application inside layers of abstractions won't
+. prevent its detection
+λz : ℤ. λm : ℤ. λn : ℤ. m n
