@@ -417,18 +417,7 @@ trait SecondOrderOrderlessTypes
       if (dom.constraints.isEmpty)
         dom
       else {
-        // REMARK.
-        // minimal quantification in use.
-        //
-        // also, traversing types σ, τ on every breakup to ensure
-        // minimal quantification is extremely slow. typing
-        // Bӧhm-Berarducci lists takes 13 seconds.
-        //
-        val σ ⊑ τ = dom.constraints.head
-        val subject =
-          quantifyMinimally(σ, avoid) ⊑ quantifyMinimally(τ, avoid)
-
-        subject match {
+        def doBreakUp(subject: Tree): Domain = subject match {
           case (σ0 → τ0) ⊑ (σ1 → τ1) =>
             breakUpConstraints(dom.tail.prepend(σ1 ⊑ σ0, τ0 ⊑ τ1), avoid)
 
@@ -459,6 +448,20 @@ trait SecondOrderOrderlessTypes
           case otherwise =>
             breakUpConstraints(dom.tail, avoid ++ otherwise.freeNames).
               prepend(otherwise)
+        }
+
+        // optimization: try to requantify as infrequently as possible
+
+        dom.constraints.head match {
+          case σ ⊑ τ =>
+            def shouldMinimize(σ: Tree, τ: Tree) =
+              σ.tag.isInstanceOf[Binder] && shouldBreakUp(dom, τ)
+            def minimize(σ: Tree, τ: Tree) =
+              if (shouldMinimize(σ, τ))
+                quantifyMinimally(σ, avoid)
+              else
+                σ
+            doBreakUp(minimize(σ, τ) ⊑ minimize(τ, σ))
         }
       }
 
