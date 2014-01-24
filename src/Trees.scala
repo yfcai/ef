@@ -272,13 +272,14 @@ trait Trees extends Names {
   }
 
   trait Tree extends TreeF[Tree] {
-    // dynamic type safety, may disable for performance
-    if (tag._subgenera != None &&
-        children.map(_.tag.genus) != tag._subgenera.get)
-      sys error s"""|subgenera mismatch
-        |${tag.subgenera.get.toString}
-        |${this.print}
-        |""".stripMargin
+    // dynamic type safety, disabled for performance
+    //
+    // if (tag._subgenera != None &&
+    //     children.map(_.tag.genus) != tag._subgenera.get)
+    //   sys error s"""|subgenera mismatch
+    //     |${tag.subgenera.get.toString}
+    //     |${this.print}
+    //     |""".stripMargin
 
     def fold[S](f: TreeF[S] => S): S = f(this map (_ fold f))
 
@@ -452,7 +453,9 @@ trait Trees extends Names {
 
     def allFreeNamesAlgebra: TreeF[Set[String]] => Set[String] = {
       case ⊹:(tag, children @ _*) =>
-        children.fold(Set.empty[String])(_ ++ _)
+        val builder = Set.newBuilder[String]
+        children.foreach (builder ++= _)
+        builder.result
       case ∙:(tag: FreeName, get: String) =>
         Set(get)
       case _ =>
