@@ -610,13 +610,18 @@ trait SecondOrderOrderlessTypes
         case None => None
         case Some(contradiction) =>
 
+          def debug(dom: Domain) {
+            if (debugFlag) {
+              println(tok.residentLines(2))
+              debugDomain(dom, s"type error in\n  ${t.unparse}")
+              // one debug session is enough for any run
+              debugFlag = false
+            }
+          }
+
           // recompute top-level domain for debugging
           val dom = gatherConstraints(t)
-          val dom1 =
-            Domain(
-              dom.prefix,
-              dom.representative ⊑ τ :: dom.constraints,
-              dom.representative)
+          val dom1 = dom.prepend(dom.representative ⊑ τ)
           val con =
             Contradiction(
               s"${contradiction.getMessage}\n\nunder top-level constraints",
@@ -625,27 +630,24 @@ trait SecondOrderOrderlessTypes
 
           val problem =
             t.blindPreorder.toSeq.zip(toks).reverse.findFirst {
-              case ((t, gamma), tok) =>
+              case ((t, gamma), tok) if t.tag == Term =>
                 val dom = gatherConstraints(t, gamma)
                 dom.contradiction match {
                   case None => None
                   case Some(contradiction) =>
-
-                    if (debugFlag) {
-                      println(tok.residentLines(2))//DEBUG
-                      println(t.tag)
-
-                      debugDomain(dom, s"type error in\n  ${t.unparse}")
-                      // one debug session is enough for any run
-                      debugFlag = false
-                    }
-
+                    debug(dom)
                     Some(Problem(tok, contradiction.getMessage))
                 }
+              case _ =>
+                None
             }
           // problem happens at top level ascription
-          if (problem == None)
-            Some(Problem(tok, contradiction.getMessage))
+          if (problem == None) {
+            debug(dom1)
+            Some(Problem(tok,
+              s"""|definition cannot be ascripted to type
+                  |  ${τ.unparse}""".stripMargin))
+          }
           else
             problem
       }
