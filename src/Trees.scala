@@ -25,7 +25,12 @@ trait Trees extends Names {
 
     def map[S](f: T => S): TreeF[S] = this match {
       case ∙:(tag, get) => ∙:(tag, get)
-      case ⊹:(tag, children @ _*) => ⊹:(tag, children map f: _*)
+      case ⊹:(tag, children @ _*) =>
+        ⊹:(tag,
+          // for performance, systematically rewrite maps into folds
+          // children map f
+          children.foldRight[List[S]](Nil)((x, acc) => f(x) :: acc)
+              : _*)
     }
 
     // unsafe
@@ -180,7 +185,7 @@ trait Trees extends Names {
               case (x, acc) =>
                 computeCrossedNames(x, i + 1) :: acc
             }
-          )(_ ++ _).
+          ).
             map { x =>
               if (tag.prison == this.prison) // name-spacing
                 x + tag.nameOf(t)
@@ -189,19 +194,34 @@ trait Trees extends Names {
             }
         case ⊹(tag, children @ _*) =>
           collectOptions(children map { x =>
-            computeCrossedNames(x, i) })(_ ++ _)
+            computeCrossedNames(x, i) })
         case ∙(tag: DeBruijn, j) if j == i =>
           Some(Set.empty[String])
         case _ =>
           None
       }
 
-    def collectOptions[S](x: Seq[Option[S]])(op: (S, S) => S): Option[S] = {
-      val existing = x withFilter (_ != None) map (_.get)
-      if (existing.isEmpty)
-        None
+    // spec of collectOptions
+    // we write an optimized version below
+    // def collectOptions[S](x: Seq[Option[S]])(op: (S, S) => S): Option[S] = {
+    //   val existing = x withFilter (_ != None) map (_.get)
+    //   if (existing.isEmpty)
+    //     None
+    //   else
+    //     Some(existing.tail.fold(existing.head)(op))
+    // }
+    def collectOptions(x: Seq[Option[Set[String]]]):
+        Option[Set[String]] = {
+      var hasSome: Boolean = false
+      val builder = Set.newBuilder[String]
+      x.withFilter(_ != None).foreach { opt =>
+        hasSome = true
+        builder ++= opt.get
+      }
+      if (hasSome)
+        Some(builder.result)
       else
-        Some(existing.tail.fold(existing.head)(op))
+        None
     }
   }
 
