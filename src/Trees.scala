@@ -152,22 +152,39 @@ trait Trees extends Names {
 
     // names of binders crossing a back-reference path
     // with the same prison
-    def crossedNames(t: Tree, i: Int): Option[Set[String]] = t match {
-      case ⊹(tag: Binder, children @ _*) =>
-        collectOptions(children.map(x => crossedNames(x, i + 1)))(_ ++ _).
-          map { x =>
-            if (tag.prison == this.prison) // name-spacing
-              x + tag.nameOf(t)
-            else
-              x
-          }
-      case ⊹(tag, children @ _*) =>
-        collectOptions(children map { x => crossedNames(x, i) })(_ ++ _)
-      case ∙(tag: DeBruijn, j) if j == i =>
-        Some(Set.empty[String])
-      case _ =>
-        None
-    }
+    def crossedNames(t: Tree, i: Int): Option[Set[String]] =
+      if (i == 0) {
+        t.crossedNames0 match {
+          case Some(names) =>
+            names
+          case None =>
+            val names = computeCrossedNames(t, i)
+            t.crossedNames0 = Some(names)
+            names
+        }
+      }
+      else
+        computeCrossedNames(t, i)
+
+    def computeCrossedNames(t: Tree, i: Int): Option[Set[String]] =
+      t match {
+        case ⊹(tag: Binder, children @ _*) =>
+          collectOptions(children.map(x =>
+            computeCrossedNames(x, i + 1)))(_ ++ _).
+            map { x =>
+              if (tag.prison == this.prison) // name-spacing
+                x + tag.nameOf(t)
+              else
+                x
+            }
+        case ⊹(tag, children @ _*) =>
+          collectOptions(children map { x =>
+            computeCrossedNames(x, i) })(_ ++ _)
+        case ∙(tag: DeBruijn, j) if j == i =>
+          Some(Set.empty[String])
+        case _ =>
+          None
+      }
 
     def collectOptions[S](x: Seq[Option[S]])(op: (S, S) => S): Option[S] = {
       val existing = x withFilter (_ != None) map (_.get)
@@ -451,6 +468,9 @@ trait Trees extends Names {
 
     // cache shadowing-avoiding name for performance
     var shadowlessName: Option[String] = None
+
+    // cache crossedNames for performance
+    var crossedNames0: Option[Option[Set[String]]] = None
   }
 
   // literals
