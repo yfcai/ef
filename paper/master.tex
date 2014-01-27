@@ -713,6 +713,43 @@ This section proves theorem~\ref{thm:faith}.
 \section{Unification of quantified names}
 \label{sec:unify}
 
+\section{Prenex Calculus}
+
+\nc\Monotypes{
+&&&\mbox{monotypes} \\
+M, N
+&::=& \alpha & \mbox{type variable} \\
+&\Or& M \rightarrow N & \mbox{function type} \\
+}
+
+\nc\Prenexes{
+&&&\mbox{prenexes} \\
+P, Q
+&::=& M \\
+&\Or& \forall A.\exists E. M \\
+\\
+&&&\mbox{sequences of type variables} \\
+A, E
+&::=& \epsilon \Or \alpha, A \\
+}
+
+\[
+\begin{array}{lclr}
+% types
+\Monotypes\\
+\Prenexes
+\\
+&&&\mbox{terms}\\
+s, t
+& ::= & x & \mbox{variable} \\
+&\Or& \Abs{x:P}t  & \mbox{lambda abstraction} \\
+&\Or& s~t & \mbox{function application} \\
+&\Or& \Tabs\alpha t & \mbox{prenex abstraction} \\
+&\Or& t~[Q] & \mbox{prenex application} \\
+\end{array}
+\]
+
+
 \section{Future work}
 
 Support algebraic data types.
