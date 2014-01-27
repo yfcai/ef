@@ -654,10 +654,14 @@ object Experiments {
   object FileParsingExperiment extends ModulesExperiment with Trial {
     val nats = fromThisDir("../examples/nat.ef")
 
-    lazy val run = {
+    lazy val run = try {
       val module = Module.fromFile(nats)
       puts(module.unparse)
       dump
+    } catch {
+      case e: java.io.FileNotFoundException =>
+        // we're not in the source repo, giving up
+        e.getMessage
     }
 
     // expectation does nothing,
@@ -904,8 +908,7 @@ object Experiments {
           |t : $Bool
           |t = false
           |""".stripMargin,
-      "type X α = α → Y",
-      readFileFromHere("../examples/capture.ef")
+      "type X α = α → Y"
     )
 
     lazy val run = {
@@ -928,8 +931,6 @@ object Experiments {
          |type X α = α → Y
          |               ^
          |unknown type Y
-         |
-         |module #2 is type correct.
          |
          |""".stripMargin
   }
