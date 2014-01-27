@@ -450,8 +450,8 @@ trait Trees extends Names {
       }
     }
 
-    // collect free names with tag equal to mine
-    val freeNames: Set[String] = computeFreeNames
+    // collect all free names
+    lazy val freeNames: Set[String] = computeFreeNames
 
     def computeFreeNames: Set[String]
 
