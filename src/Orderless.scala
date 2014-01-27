@@ -78,10 +78,10 @@ trait SecondOrderOrderlessTypes
       def opGenus = BinaryOpGenus(Type, Type, Type)
     }
 
-    case object ConstraintList extends Operator with Genus {
+    case object ConstraintList extends Operator {
       val fixity: Fixity = Infixr(",") orElse CompositeItem
 
-      def genus = this
+      def genus = Type
 
       def tryNext = ???
       override
@@ -216,12 +216,14 @@ trait SecondOrderOrderlessTypes
       def injectType(τ: Tree): Domain =
         Domain(Nil, Nil, τ)
 
-      def fromApplication(fun0: Domain, arg0: Domain): Domain = {
+      def fromApplication(fun0: Domain, arg0: Domain, Δ: Set[String]):
+          Domain = {
         val fun = fun0.avoid(arg0.freeNames)
         val arg = arg0.avoid(fun.freeNames)
 
         val Seq(a, b) =
-          ABCSong.newNames(Seq("a", "b"), fun.freeNames ++ arg.freeNames)
+          ABCSong.newNames(Seq("a", "b"),
+            fun.freeNames ++ arg.freeNames ++ Δ)
         Domain(
           (a, Universal) :: (b, Universal) ::
             fun.prefix ++ arg.prefix,
@@ -340,7 +342,7 @@ trait SecondOrderOrderlessTypes
       case fun ₋ arg =>
         Domain.fromApplication(
           gatherConstraints(fun, Γ, Δ, globals),
-          gatherConstraints(arg, Γ, Δ, globals))
+          gatherConstraints(arg, Γ, Δ, globals), Δ)
 
       case λ(x, σ0, body) =>
         val σ = resolve(σ0)
