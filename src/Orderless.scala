@@ -160,6 +160,7 @@ trait SecondOrderOrderlessTypes
       // a type variable is a loner if it always occur alone on
       // either side of ⊑ in all constraints
       def isLoner(x: String): Boolean =
+        isUniversal(x) && // trial condition: never eliminate existentials
         isLonerIn(x, constraints)
 
       lazy val loner: Option[(String,  Binder)] =
@@ -539,38 +540,6 @@ trait SecondOrderOrderlessTypes
       if (dom1.loner == None)
         Left(Contradiction("No loner left", Nil, Nil))
       else dom1.loner.get match {
-        case (x, Existential) =>
-          // If a loner is existential, then ⊑ relates it only to
-          // itself. If anything is related via ⊑ to the loner,
-          // then they have to be able to instantiate to the loner;
-          // only universally quantified type variables can do that.
-          // If it is true that the loner relates only to universals,
-          // then proceed by identifying those universals with the
-          // existential loner.
-          val Loneliness(lhs, rhs, rest) =
-            dom1.extractLoner(x)
-
-          val α = æ(x)
-          val unified: Map[String, Tree] = (lhs ++ rhs).map({
-            case æ(y) if dom1.isUniversal(y) =>
-              (y, α)
-            case τ =>
-              return Left(Contradiction(
-                s"""|the existential $x can't be instantiated
-                    |by the nonuniversal thing ${τ.unparse}
-                    |""".stripMargin,
-                dom1.prefix,
-                dom1.constraints))
-          })(collection.breakOut)
-          val newConstraints = rest.map {
-            case σ ⊑ τ => (σ subst unified) ⊑ (τ subst unified)
-          }
-          Right(Domain(
-            dom1.prefix.filter(p => ! unified.contains(p._1)),
-            newConstraints,
-            // put representative there because we don't care
-            // about it at all
-            dom1.representative))
         case (x, Universal) =>
           // If a loner is universal, then it should be able to
           // instantiate to something satisfying all constraints
