@@ -491,8 +491,11 @@ trait Syntax extends ExpressionGrammar {
     def apply (α: String, note: Tree, body: Tree): Tree =
       binder.bind(α, note, body)
 
-    def apply(xs: String*)(body: => Tree): Tree =
+    def apply(xs: Seq[String], body: Tree): Tree =
       binder.collapsed(xs: _*)(body)
+
+    def apply(xs: String*)(body: => Tree): Tree =
+      apply(xs, body)
 
     def unapply(t: Tree): Option[(String, Tree, Tree)] =
       binder.unbind(t).map {

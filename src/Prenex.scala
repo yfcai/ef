@@ -172,3 +172,58 @@ trait Prenex extends Syntax with Status {
     }
   }
 }
+
+// prenex for prenex calculus
+trait OrderlessPrenex extends Syntax with Status {
+  // use the same class name on purpose so that none can mix
+  // in Prenex and OrderlessPrenex at the same time
+  case class Prenex(all: List[String], ex: List[String], body: Tree) {
+    def toType: Tree = ∀(all, ∃(ex, body))
+
+    lazy val usedNames: Set[String] =
+      body.freeNames ++ all ++ ex
+  }
+
+  object Prenex {
+    def apply(τ: Tree): Prenex =
+      Prenex(τ, Set.empty[String])._1
+
+    def apply(τ: Tree, types: Tree*): Seq[Prenex] =
+      Prenex(τ +: types, Set.empty[String])._1
+
+    /** @return (prenex, names-in-prefix-and-more) */
+    def apply(τ: Tree, avoid0: Set[String]): (Prenex, Set[String]) =
+      τ match {
+        case α @ æ(_) =>
+          (Prenex(Nil, Nil, α), avoid0)
+        case σ → τ =>
+          val (Prenex(all_σ, ex_σ, body_σ), avoid1) = Prenex(σ, avoid0)
+          val (Prenex(all_τ, ex_τ, body_τ), avoid2) = Prenex(τ, avoid1)
+          (Prenex(ex_σ ++ all_τ, all_σ ++ ex_τ, →(body_σ, body_τ)), avoid2)
+        case σ @ ⊹(quantifier: Quantification, _*) =>
+          quantifier.unbind(σ, avoid0) match {
+            case Some((æ(α), Seq(Annotation.none(), body0))) =>
+              val universal = σ.tag == Universal
+              val (Prenex(all, ex, body1), avoid1) =
+                Prenex(body0, avoid0 + α)
+              // line break, else scala thinks the expr below is another
+              // argument list of expr above.
+              (Prenex(
+                if (universal) α :: all else all,
+                if (universal) ex else α :: ex,
+                body1), avoid1)
+          }
+        case otherwise =>
+          sys error ("orderless prenex acknowledges ∀, → but not " +
+            otherwise.unparse)
+      }
+
+    def apply(types: Seq[Tree], toAvoid: Set[String]):
+        (Seq[Prenex], Set[String]) =
+      types.foldRight[(Seq[Prenex], Set[String])]((Nil, toAvoid)) {
+        case (τ, (prenexes, toAvoid)) =>
+          val (prenex, undesirables) = Prenex(τ, toAvoid)
+          (prenex +: prenexes, undesirables)
+      }
+  }
+}
