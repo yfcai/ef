@@ -225,7 +225,7 @@ trait Syntax extends ExpressionGrammar {
   object χ extends AtomicFactory(FreeVar)
   object ₋ extends BinaryFactory(Application)
   object □ extends BinaryFactory(Instantiation)
-  object Å extends BinaryFactory(Ascription)
+  object Ascr extends BinaryFactory(Ascription)
   object λ extends AnnotatedBinderFactory(AnnotatedAbstraction)
 
   case object FreeTypeVar extends Atomic   { def genus = Type }

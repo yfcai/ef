@@ -48,7 +48,7 @@ trait ReductionSemantics extends Syntax {
     case t if t.tag == TypeAbstraction =>
       TypeAbstraction.bodyOf(t)
     // ascription
-    case Å(t, τ) =>
+    case Ascr(t, τ) =>
       t
     // instantiation
     case □(t, σ) =>

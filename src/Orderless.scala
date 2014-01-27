@@ -385,7 +385,7 @@ trait SecondOrderOrderlessTypes
         }
 
       // ascription
-      case Å(t, τ0) =>
+      case Ascr(t, τ0) =>
         val τ = resolve(τ0)
         val dom = gatherConstraints(t, Γ, Δ, globals)
         Domain(
