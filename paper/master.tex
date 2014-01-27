@@ -713,7 +713,7 @@ This section proves theorem~\ref{thm:faith}.
 \section{Unification of quantified names}
 \label{sec:unify}
 
-\section{Prenex Calculus}
+\section{Orderless Prenex Calculus}
 
 \nc\Monotypes{
 &&&\mbox{monotypes} \\
@@ -723,14 +723,19 @@ M, N
 }
 
 \nc\Prenexes{
-&&&\mbox{prenexes} \\
-P, Q
-&::=& M \\
-&\Or& \forall A.\exists E. M \\
-\\
 &&&\mbox{sequences of type variables} \\
 A, E
 &::=& \epsilon \Or \alpha, A \\
+&&&\mbox{prenexes} \\
+P, Q
+&::=& M \\
+&\Or& \All A \Ex E M \\
+\\
+&&&\mbox{instantiators} \\
+J, K
+&::=& p_i & \mbox{pointer to one's own quantifiers} \\
+&\Or& \cdots & \mbox{monotypes \& prenexes} \\
+\\
 }
 
 \[
@@ -745,7 +750,7 @@ s, t
 &\Or& \Abs{x:P}t  & \mbox{lambda abstraction} \\
 &\Or& s~t & \mbox{function application} \\
 &\Or& \Tabs\alpha t & \mbox{prenex abstraction} \\
-&\Or& t~[Q] & \mbox{prenex application} \\
+&\Or& t~[J] & \mbox{instantiation} \\
 \end{array}
 \]
 
