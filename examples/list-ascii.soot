@@ -43,6 +43,7 @@ inj2 = \abs y : b. \abs f : a -> c. \abs g : b -> c. g y
 . a disjunction is its own elimination form
 
 
+
 . LIST
 
 type List a = \all b. b -> (a -> b -> b) -> b
@@ -54,9 +55,9 @@ nil = const
 cons : \all a. a -> List a -> List a
 cons = \abs x : a. \abs xs : List a. \abs z : b. \abs f : a -> b -> b. (f x (xs z f))
 
-. BӦHM-BERADUCCI ENCODING FOR PATTERN MATCHING ON LISTS
+. BOEHM-BERADUCCI ENCODING FOR PATTERN MATCHING ON LISTS
 
-type MatchList η = \all xi. xi -> (η -> List η -> xi) -> xi
+type MatchList phi· = \all xi. xi -> (phi· -> List phi· -> xi) -> xi
 
 matchList : \all a. List a -> MatchList a
 matchList = \abs xs : List a.
@@ -110,4 +111,4 @@ sum (map (* 2) list1-5)
 
 sum (concatMap (\abs x : Int. cons x (cons x nil)) list1-5)
 
-sum (filter (\abs n : Int. ≡ 0 (% n 2)) list1-5)
+sum (filter (\abs n : Int. == 0 (% n 2)) list1-5)
