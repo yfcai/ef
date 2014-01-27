@@ -1,4 +1,4 @@
-trait Names {
+trait Names extends Flags {
   trait NameGenerator {
     def mkName(prefix: String, index: Int): String
 
@@ -33,7 +33,9 @@ trait Names {
   /** subscript utilities */
   object Subscript extends NameGenerator {
     // Subscript.s
-    val s = "₀₁₂₃₄₅₆₇₈₉"
+    def s =
+      if (I_hate_unicode) "0123456789"
+      else "₀₁₂₃₄₅₆₇₈₉"
 
     def is(c: Char): Boolean = s contains c
 
@@ -55,8 +57,12 @@ trait Names {
   object ABCSong extends NameGenerator {
     override def startingID(default: String) = 0
 
-    val umlauts = "äëïöüû"
-    val lyrics = "abcdefghijklmnopqrstuvwxyz" + umlauts
+    def umlauts =
+      if (I_hate_unicode)
+        "$!#%@^"
+      else
+        "äëïöüû"
+    def lyrics = "abcdefghijklmnopqrstuvwxyz" + umlauts
 
     assert(lyrics.length == (1 << 5))
 

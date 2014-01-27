@@ -1,0 +1,66 @@
+. PRELUDE
+
+id : \all i. i -> i
+id = \abs x : i. x
+
+const : \all a b. a -> b -> a
+const = \abs x : a. \abs y : b. x
+
+. rant
+
+  set -recurse flag to permit recursion.
+
+  ./a.out -recurse reduce <this-file> # works
+  ./a.out -recurse type   <this-file> # loops
+
+  iterate : \all a. Int -> a -> (Int -> a -> a) -> a
+  iterate = \abs n : Int. \abs z : a. \abs f : Int -> a -> a.
+    if ≡ n 0
+    then z
+    else f n (iterate (- n 1) z f)
+
+. NATURAL NUMBERS
+
+type Nat = \all n. n -> (n -> n) -> n
+
+zero : Nat
+zero = const
+
+succ : Nat -> Nat
+succ = \abs n : Nat. \abs x : σ. \abs f : σ -> σ. f (n x f)
+
+. PATTERN MATCHING ON NATURAL NUMBERS
+
+type MatchNat = \all phi. phi -> (Nat -> phi) -> phi
+
+. first-order orderless F can type this!
+matchNat : Nat -> MatchNat
+matchNat = \abs n : Nat.
+  n const
+    (\abs y : MatchNat. \abs x : xi. \abs f : Nat -> xi. f (y zero succ))
+
+. USAGE
+
+to-Int : Nat -> Int
+to-Int = \abs n : Nat. n 0 (+ 1)
+
+. type checker catches it when I forgot `const`
+from-Int : Int -> Nat
+from-Int = \abs n : Int. iterate n zero (const succ)
+
+. managed with a loop because recursion's less trivial to support
+sum-to : Int -> Int
+sum-to = \abs n : Int. iterate n 0 +
+
+to-Int (succ (succ (succ zero)))
+
+pred : Nat -> Nat
+pred = \abs n : Nat. matchNat n ??? id
+
+three : Nat
+three = succ (succ (succ zero))
+
+to-Int (pred (from-Int 3))
+
+. reduction takes 1 second
+sum-to 100

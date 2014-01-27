@@ -2,10 +2,24 @@ trait IntsAndBools extends Aliasing {
   val ℤ = "ℤ"
   val Bool = "Bool"
   val ℤ_ascii = "Int"
+
+  val realIntType =
+    æ(if (I_hate_unicode)
+      ℤ_ascii
+    else
+      ℤ)
+
+  // don't worry about opchars. they're dispensible.
+  val realBoolType =
+    if (I_hate_unicode)
+      Type("∀beta. beta → beta → beta")
+    else
+      Type("∀β. β → β → β")
+
   val globalTypes: Map[String, Tree] = Map(
-    ℤ -> æ(ℤ),
-    ℤ_ascii -> æ(ℤ),
-    Bool -> Type("∀β. β → β → β"))
+    ℤ -> realIntType,
+    ℤ_ascii -> realIntType,
+    Bool -> realBoolType)
 
   def globalTerms: PartialFunction[String, Tree] = primitiveType
 
@@ -15,8 +29,16 @@ trait IntsAndBools extends Aliasing {
     val intLiteral = """(-)?\d+"""
     val intBinOp   = Type(s"$ℤ → $ℤ → $ℤ")
     val intComp    = Type(s"$ℤ → $ℤ → (${bool.unparse})")
-    val iterate    = Type(s"ℤ → ∀α. α → (ℤ → α → α) → α")
-    val absurdity  = Type("∀a̧. a̧")
+    val iterate    =
+      if (I_hate_unicode)
+        Type(s"ℤ → ∀a. a → (ℤ → a → a) → a")
+      else
+        Type(s"ℤ → ∀α. α → (ℤ → α → α) → α")
+    val absurdity  =
+      if (I_hate_unicode)
+        Type("∀absurd. absurd")
+      else
+        Type("∀a̧. a̧")
     val result: PartialFunction[String, Tree] = {
       case "+" | "-" | "*" | "/" | "%" =>
         intBinOp

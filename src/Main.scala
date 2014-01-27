@@ -22,6 +22,8 @@ object Main extends ARGV0 with Calculi {
               |
               |Flags
               |
+              | -ascii    do not print unicode
+              |
               | -debug    step through constraint solver on type error
               |
               | -loop     run designated command repeatedly useful for
@@ -31,6 +33,8 @@ object Main extends ARGV0 with Calculi {
               |           checker in an infinite loop)
               |
               | -trace    print stack trace on error of any kind
+              |
+              | -unicode  print unicode (overrides -ascii)
               |""".stripMargin)
       else {
         val (head, tail) = (rest.head, rest.tail)
@@ -38,11 +42,21 @@ object Main extends ARGV0 with Calculi {
         val loop = flag("loop")
         do {
           head match {
-            case "test"   => Experiments.run(tail, flag("debug"))
-            case "run"    => Executioner.execute(tail, flag)
-            case "type"   => TypeChecker.execute(tail, flag)
-            case "reduce" => Reductionist.execute(tail, flag)
-            case cmd      => System.err.println(s"unknown command: $cmd")
+            case "test" =>
+              Experiments.setFlags(flag)
+              Experiments.run(tail, flag("debug"))
+
+            case "run" =>
+              Executioner.execute(tail, flag)
+
+            case "type" =>
+              TypeChecker.execute(tail, flag)
+
+            case "reduce" =>
+              Reductionist.execute(tail, flag)
+
+            case cmd =>
+              System.err.println(s"unknown command: $cmd")
           }
         }
         while (loop)

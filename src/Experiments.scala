@@ -1,8 +1,9 @@
-object Experiments {
+object Experiments extends Flags {
   val onTrial: Experiment =
     AbsLocationExperiment
 
   val experiments = List[Experiment](
+    AbsLocationExperiment,
     TypeApplicationExperiment,
     OrderlessExperiment,
     MatchNatExperiment,
@@ -35,6 +36,7 @@ object Experiments {
       map(e => (e.toString, e))(collection.breakOut)
 
   def maintenance() = experiments foreach { ex =>
+    ex.copyFlags(this)
     if (!ex.verify) sys error s"failed: $ex"
   }
 
@@ -52,11 +54,13 @@ object Experiments {
       })(e => runAndVerify(e, debug))
     }
 
-  def run(which: Experiment, debug: Boolean): Unit =
+  def run(which: Experiment, debug: Boolean): Unit = {
+    which.copyFlags(this)
     if (debug)
       which.debug
     else
       which.trial
+  }
 
   def runAndVerify(which: Experiment, debug: Boolean) {
     run(which, debug)
@@ -67,7 +71,7 @@ object Experiments {
     }
   }
 
-  trait Experiment {
+  trait Experiment extends Flags {
     override def toString: String = {
       val fullname = getClass.getName
       val classname = fullname.substring(fullname.lastIndexOf('.') + 1)
@@ -86,7 +90,14 @@ object Experiments {
     def run: String
     def expected: String = "UNEXPECTED"
 
-    def verify: Boolean = run == expected
+    def verify: Boolean = {
+      // always produce unicode during verification
+      val unicode = unicodeFlag
+      unicodeFlag = true
+      val result = run == expected
+      unicodeFlag = unicode
+      result
+    }
 
     def trial(): Unit = print(run)
 
@@ -158,7 +169,7 @@ object Experiments {
 
     case object TopLevel extends UnclassifiedTag
 
-    lazy val run: String = {
+    def run: String = {
       trees foreach { tree =>
         try {
           val t = ⊹(TopLevel, ProtoAST(tokenize(tree)): _*)
@@ -217,7 +228,7 @@ object Experiments {
   }
 
   object SelfReferenceExperiment extends Experiment with Syntax {
-    lazy val run: String = {
+    def run: String = {
       puts(TypeApplication.lhs.toList)
       puts(Application.opGenus)
       puts(Instantiation.opGenus)
@@ -231,7 +242,7 @@ object Experiments {
   }
 
   object ApplicationExperiment extends SyntaxExperiment {
-    lazy val run: String = {
+    def run: String = {
       val s = "a (b (c d) e) f"
       puts(TypeApplication.parse(s).get.print)
       puts(Application.parse(s).get.print)
@@ -270,12 +281,12 @@ object Experiments {
 
     override
     def expected = normalize(FunctionArrow, ascii  )
-    lazy val run = normalize(FunctionArrow, unicode)
+    def run = normalize(FunctionArrow, unicode)
   }
 
   object AscriptionExperiment extends SyntaxExperiment {
     val s = "x : σ0 → σ1 : τ"
-    lazy val run = {
+    def run = {
       puts((Ascription parse s).get.print)
       dump
     }
@@ -293,7 +304,7 @@ object Experiments {
 
   object AtomListExperiment extends SyntaxExperiment {
     val s = " a b c d e "
-    lazy val run = {
+    def run = {
       puts(AtomList.parse(s).get.print)
       dump
     }
@@ -303,7 +314,7 @@ object Experiments {
   object CollapsedBinderExperiment extends SyntaxExperiment {
     val s = """\all β. α -> \ex α. α -> β"""
 
-    lazy val run = {
+    def run = {
       val t = Type.parse(s).get
       puts(t.unparse)
       puts(t.print)
@@ -339,7 +350,7 @@ object Experiments {
       ⊹(Universal, §("α"), Annotation.none(),
       ₌(∙(TypeVar, 1), ₌(∙(TypeVar, 2), ∙(TypeVar, 3))))))))
 
-    lazy val run = { puts(t.unparse) ; dump }
+    def run = { puts(t.unparse) ; dump }
     override def expected = "∀α α₂ α₁ α₀ α. α₀ (α₁ α₂)\n"
   }
 
@@ -358,7 +369,7 @@ object Experiments {
     val s =
       "Λγ. λx : ∀α β. F (∃ε = α. ∃η = {}. ∃ζ = η {ε, β}. ∃ξ = {ζ}. ξ). x"
 
-    lazy val run = decompose(s)
+    def run = decompose(s)
 
     override def expected =
       """|#LINE:1
@@ -582,7 +593,7 @@ object Experiments {
   object AbstractionsExperiment extends SyntaxExperiment {
     val s = "Λα β. λx : α → β . x"
 
-    lazy val run = {
+    def run = {
       val t = Term.parse(s).get
       puts(t.unparse)
       val u = t(æ("ℤ"))(æ("ℚ"))
@@ -602,7 +613,7 @@ object Experiments {
   object CStyleConditionalExperiment extends SyntaxExperiment with Trial {
     val s = "a ? b : c ? d : e"
 
-    lazy val run = s"${Term.parse(s).get.print}\n"
+    def run = s"${Term.parse(s).get.print}\n"
   }
 
   object DeclarationsExperiment extends ModulesExperiment {
@@ -625,7 +636,7 @@ object Experiments {
         case (x, body) => puts(op.unparse(x, body))
       }
 
-    lazy val run = {
+    def run = {
       expectSuccess(TypeSynonym, either)
       expectProblem(TypeSynonym, recList)
       expectSuccess(Definition, id)
@@ -654,7 +665,7 @@ object Experiments {
   object FileParsingExperiment extends ModulesExperiment with Trial {
     val nats = fromThisDir("../examples/nat.ef")
 
-    lazy val run = try {
+    def run = try {
       val module = Module.fromFile(nats)
       puts(module.unparse)
       dump
@@ -673,7 +684,7 @@ object Experiments {
     val s = "∀α β. β → β. α → α"
     val t = "∀γ δ. δ → δ. γ → γ"
 
-    lazy val run = {
+    def run = {
       val (σ, τ) = (Type.parse(s).get, Type.parse(t).get)
       puts(σ α_equiv τ)
       dump
@@ -684,7 +695,7 @@ object Experiments {
 
   object AnnotatedBinderExperiment extends SyntaxExperiment {
     val t = λ("f", Type("α → β"), λ("x", Type("α"), Term("f x")))
-    lazy val run = {
+    def run = {
       puts(s"t = ${t.unparse}")
       t match {
         case λ(f, α → β, λ(x, α0, f0 ₋ x0)) =>
@@ -710,7 +721,7 @@ object Experiments {
          |{α → β, ∀γ. γ, List β}
          |""".stripMargin
 
-    lazy val run = {
+    def run = {
       lines.lines.foreach { line => test(line) }
       dump
     }
@@ -727,7 +738,7 @@ object Experiments {
          |((∀α. α → α) → (∀α. α → α)) → ((∀α. α → α) → (∀α. α → α))
          |""".stripMargin
 
-    lazy val run = {
+    def run = {
       types.lines.foreach { line =>
         val τ = Type(line)
         puts(τ.unparse)
@@ -753,7 +764,7 @@ object Experiments {
       "α → α" -> "(β → β) → (γ → γ)"
     )
 
-    lazy val run = {
+    def run = {
       types.foreach {
         case (type1, type2) =>
           val (σ, τ) = (Type(type1), Type(type2))
@@ -784,7 +795,7 @@ object Experiments {
   // important scoping exercise
   // assumed during capturing of family heads
   object ScopingExperiment extends Experiment with ExistentialF {
-    lazy val run = {
+    def run = {
       val β = "β"
       val γ = "γ"
       val τ =
@@ -822,7 +833,7 @@ object Experiments {
   object AnnotationExperiment extends SyntaxExperiment {
     val s = "∀α = {}. ∀δ ε. ∃η ζ. ∃β = α {δ, ε, η, ζ}. ∀γ = β. γ"
 
-    lazy val run = {
+    def run = {
       val τ = Type(s)
       puts(τ.unparse)
       dump
@@ -832,7 +843,7 @@ object Experiments {
   }
 
   object NondeterminismExperiment extends Experiment with Nondeterminism {
-    lazy val run = {
+    def run = {
       var i = 0
       val tape = Nondeterministic.tape
       while (tape.hasNext) {
@@ -861,7 +872,7 @@ object Experiments {
 
     def normalize(τ: Tree): Tree = Prenex(τ).normalize
 
-    lazy val run = {
+    def run = {
       types.foreach {
         case (operator, operand) =>
           val fun = Type(operator)
@@ -911,7 +922,7 @@ object Experiments {
       "type X α = α → Y"
     )
 
-    lazy val run = {
+    def run = {
       modules.zipWithIndex.foreach { case (source, i) =>
         Module(source).typeErrorInDefinitions match {
           case None =>
@@ -938,7 +949,7 @@ object Experiments {
   object DesugarExperiment extends Trial with Decomposition {
     val sugared   = "cond ? then : else"
 
-    lazy val run = decompose(sugared)
+    def run = decompose(sugared)
   }
 
   // UNFINISHED EXPERIMENT
@@ -961,7 +972,7 @@ object Experiments {
       dump
     }
 
-    lazy val run = {
+    def run = {
       val t = ∀("α", "β")(→(æ("α"), æ("β")))
       puts(t.unparse)
 
@@ -988,7 +999,7 @@ object Experiments {
           |absurd-number = ???
           |""".stripMargin
 
-    lazy val run = {
+    def run = {
       val module = Module(s)
       val typing = new OrderlessTyping(module)
       module.dfn.foreach {
@@ -1044,7 +1055,7 @@ object Experiments {
       "∀δ ε. Pair δ ε = ∀δ ε γ. (δ → ε → γ) → γ\n"
   }
 
-  object AbsLocationExperiment extends Decomposition {
+  object AbsLocationExperiment extends Decomposition with Trial {
     def s = "λm : ℤ. m"
 
     def run = decompose(s)

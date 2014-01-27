@@ -408,9 +408,10 @@ trait Syntax extends ExpressionGrammar {
 
     def dot = "."
 
-    def getSymbol: String = symbol match {
-      case s: String => s
-      case y: Seq[_] => y.head.toString
+    def getSymbol: String = {
+      val s = opToString(symbol)
+      if (leftParens(s)) s
+      else s"$s "
     }
   }
 

@@ -1,4 +1,4 @@
-trait Lexer {
+trait Lexer extends Flags {
   def leftParens : Set[String]
   def rightParens: Set[String]
 
@@ -739,18 +739,24 @@ trait Operators extends Fixities {
           List(" ", after)
       })).mkString
 
+    // public
+    def opToString(op: Any): String = op match {
+      case op: String =>
+        op
+      case op: Seq[_] =>
+        (if (I_hate_unicode) op.last else op.head).toString
+    }
+
     private[this]
     def prefixLike(ops: Seq[Any], children: Seq[String]): Seq[String] =
       (ops, children).zipped flatMap {
-        case (op: String, child) => List(op, child)
-        case (op: Seq[_], child) => List(op.head.toString, child)
+        case (op, child) => List(opToString(op), child)
       }
 
     private[this]
     def postfixLike(ops: Seq[Any], children: Seq[String]): Seq[String] =
       (ops, children).zipped flatMap {
-        case (op: String, child) => List(child, op)
-        case (op: Seq[_], child) => List(child, op.head.toString)
+        case (op, child) => List(child, opToString(op))
       }
   }
 

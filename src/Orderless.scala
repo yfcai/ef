@@ -625,7 +625,11 @@ trait SecondOrderOrderlessTypes
       }
     }
 
-    val YHWH = Type("∃ӭ. ӭ")
+    def YHWH =
+      if (I_hate_unicode)
+        Type("""\ex me. me""")
+      else
+        Type("∃ӭ. ӭ")
 
     // lacking means to reconstruct types, we test merely that
     // the term t has no internal consistencies.

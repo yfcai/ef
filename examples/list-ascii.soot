@@ -1,0 +1,113 @@
+. PRELUDE
+
+auto : (\all omg. omg -> omg) -> (\all omg. omg -> omg)
+auto = \abs x : \all omg. omg -> omg. x x
+
+const : \all c d. c -> d -> c
+const = \abs x : a. \abs y : b. x
+
+flip : \all a b c. (a -> b -> c) -> (b -> a -> c)
+flip = \abs f : a -> b -> c. \abs y : b. \abs x : a. f x y
+
+id : \all i. i -> i
+id = \abs x : a. x
+
+compose : \all a b c. (b -> c) -> (a -> b) -> (a -> c)
+compose = \abs g : b -> c. \abs f : a -> b. \abs x : a. g (f x)
+
+
+. CONJUNCTION
+
+type Pair a b = \all c. (a -> b -> c) -> c
+
+pair : \all a b. a -> b -> Pair a b
+pair = \abs x : a. \abs y : b. \abs f : a -> b -> c. f x y
+
+proj1 : \all a b. Pair a b -> a
+proj1 = \abs p : Pair a b. p const
+
+proj2 : \all a b. Pair a b -> b
+proj2 = \abs p : Pair a b. p (flip const)
+
+
+. DISJUNCTION
+
+type Either a b = \all c. (a -> c) -> (b -> c) -> c
+
+inj1 : \all a b. a -> Either a b
+inj1 = \abs x : a. \abs f : a -> c. \abs gg : b -> c. f x
+
+inj2 : \all a b. b -> Either a b
+inj2 = \abs y : b. \abs f : a -> c. \abs g : b -> c. g y
+
+. a disjunction is its own elimination form
+
+
+. LIST
+
+type List a = \all b. b -> (a -> b -> b) -> b
+
+. List is desugared to (\all a. List a)
+nil : List
+nil = const
+
+cons : \all a. a -> List a -> List a
+cons = \abs x : a. \abs xs : List a. \abs z : b. \abs f : a -> b -> b. (f x (xs z f))
+
+. BӦHM-BERADUCCI ENCODING FOR PATTERN MATCHING ON LISTS
+
+type MatchList η = \all xi. xi -> (η -> List η -> xi) -> xi
+
+matchList : \all a. List a -> MatchList a
+matchList = \abs xs : List a.
+  xs const
+     (\abs x : a. \abs ys : MatchList a. \abs z : b. \abs f : a -> List a -> b.
+       f x (ys nil cons))
+
+map : \all a b. (a -> b) -> List a -> List b
+map = \abs f : a -> b. \abs xs : List a.
+  xs nil (compose cons f)
+
+concat : \all a. List a -> List a -> List a
+concat = \abs xs : List a. \abs ys : List a. xs ys cons
+
+concatMap : \all a b. (a -> List b) -> List a -> List b
+concatMap = \abs f : a -> List b. \abs xs : List a.
+  xs nil (\abs x : a. concat (f x))
+
+filter : \all a. (a -> Bool) -> List a -> List a
+filter = \abs p : a -> Bool. \abs xs : List a.
+  xs nil (\abs x : a. if p x then cons x else id)
+
+. USAGE
+
+head : \all a. List a -> a
+head = \abs xs : List a. xs ??? const
+
+tail : \all a. List a -> List a
+tail = \abs xs : List a. matchList xs ??? (flip const)
+
+ana-Int : Int -> List Int
+ana-Int = \abs n : Int. iterate n nil cons
+
+sum : List Int -> Int
+sum = \abs ns : List Int. ns 0 +
+
+sum (cons 1 (cons 2 (cons 3 (cons 4 (cons 5 nil)))))
+
+list1-5 : List Int
+list1-5 = ana-Int 5
+
+head nil
+
+head list1-5
+
+tail nil
+
+sum (tail list1-5)
+
+sum (map (* 2) list1-5)
+
+sum (concatMap (\abs x : Int. cons x (cons x nil)) list1-5)
+
+sum (filter (\abs n : Int. ≡ 0 (% n 2)) list1-5)
