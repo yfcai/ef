@@ -29,8 +29,6 @@ trait Nondeterminism {
     }
   }
 
-  // possible optimization: prefix-skipping tape
-
   private
   class Nondeterministic {
     nondeterministic =>
@@ -82,6 +80,64 @@ trait Nondeterminism {
           nondeterministic.hasNext = true
         result
       }
+    }
+  }
+
+  object DepthFirstSearch {
+    private[this]
+    def backtrack(log: List[Boolean]): DepthFirstSearch =
+      DepthFirstSearch(log.length, log)
+
+    private[this]
+    def freshStart(log: List[Boolean]): DepthFirstSearch =
+      DepthFirstSearch(0, log)
+  }
+
+  case class DepthFirstSearch(
+    var backtrack: Int,
+    var log: List[Boolean]
+  ) extends Tape {
+    // can always read a DFS tape, it just takes forever sometimes
+    def readable: Boolean = true
+
+    // starting point of next iteration
+    def prefix: List[Boolean] = log.drop(backtrack)
+
+    def ZERO = true
+    def ONE  = false
+
+    def hasNext: Boolean = prefix.contains(ZERO)
+    def next(): Tape = {
+      increment()
+      rewind()
+      this
+    }
+
+    def rewind() { backtrack = 0 }
+
+    def read: Boolean =
+      if (backtrack > 0) {
+        backtrack -= 1
+        val result = log(backtrack)
+        result
+      }
+      else {
+        log = ZERO :: log
+        ZERO
+      }
+
+    def increment() {
+      log = increment(prefix)
+    }
+
+    def increment(input: List[Boolean]): List[Boolean] = input match {
+      case bit :: bits =>
+        if (bit == ZERO)
+          ONE :: bits
+        else
+          ZERO :: increment(bits)
+      case Nil =>
+        sys error "set carry bit"
     }
   }
 }
