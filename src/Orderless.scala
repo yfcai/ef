@@ -68,7 +68,7 @@ trait SecondOrderOrderlessTypes
     // INSTANTIATION CONSTRAINTS
 
     case object InstantiationConstraint extends BinaryOperator {
-      val fixity: Fixity = Infixr("⊑")
+      val fixity: Fixity = Infixr(Seq("⊑", "<precedes>"))
       def lhs = downFrom(FunctionArrow, typeOps)
       def rhs = downFrom(FunctionArrow, typeOps)
 
