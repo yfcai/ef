@@ -185,6 +185,16 @@ trait ExpressionGrammar extends Operators {
     }
   }
 
+  abstract class BinderFactory(binder: Binder) {
+    def apply(x: String, body: Tree): Tree =
+      binder.bind(x, body)
+
+    def unapplySeq(t: ⊹): Option[(String, Seq[Tree])] =
+      binder.unbind(t) map {
+        case (∙(_, x), seq) => (x, seq)
+      }
+  }
+
   // for λs
   trait AnnotatedBinderOp extends BinderOperator {
     def symbol: Seq[String]
@@ -213,7 +223,12 @@ trait ExpressionGrammar extends Operators {
   }
 }
 
-trait Syntax extends ExpressionGrammar {
+// avoiding problem with case insensitivity
+trait Syntax extends Presyntax {
+  object Λ extends BinderFactory(TypeAbstraction)
+}
+
+trait Presyntax extends ExpressionGrammar {
   case object Type extends TopLevelGenus { def ops = typeOps }
   object æ extends AtomicFactory(FreeTypeVar)
   object ₌ extends BinaryFactory(TypeApplication)

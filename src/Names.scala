@@ -54,6 +54,16 @@ trait Names extends Flags {
   }
 
   /** purely generative name generator */
+  class GlobalNameGenerator {
+    var i: Int = 0
+    def reset() { i = 0 }
+    def next: String = {
+      val result = "x%X".format(i)
+      i += 1
+      result
+    }
+  }
+
   object ABCSong extends NameGenerator {
     override def startingID(default: String) = 0
 

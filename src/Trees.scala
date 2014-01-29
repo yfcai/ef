@@ -19,6 +19,8 @@ trait Trees extends Names {
   // tag for variadic untyped trees
   trait UnclassifiedTag extends Tag with Genus { def genus = this }
 
+  case class InappropriatePrison(want: Tag, has: Tag) extends Exception
+
   trait TreeF[T] {
     def tag: Tag
     def children: Seq[T]
@@ -83,10 +85,15 @@ trait Trees extends Names {
     def bindingGenus: Genus = prison.genus
 
     // bind a free name
-    def bind(x: String, trees: Tree*): Tree = {
-      val (annotations, b) = trees.splitAt(trees.length - 1)
-      ⊹(this, §(x) +: (annotations :+ b.head.imprison(prison, x, 0)): _*)
-    }
+    def bind(x: String, trees: Tree*): Tree =
+      try {
+        val (annotations, b) = trees.splitAt(trees.length - 1)
+        ⊹(this, §(x) +: (annotations :+ b.head.imprison(prison, x, 0)): _*)
+      }
+      catch {
+        case e: InappropriatePrison =>
+          sys error s"$this can't bind $x in ${trees.last}"
+      }
 
     // free a bound number
     def unbind(t: Tree): Option[(∙[String], Seq[Tree])] =
@@ -388,7 +395,8 @@ trait Trees extends Names {
             }
                 : _*)
         case ∙(tag: FreeName, get) if get == x =>
-          require(tag.genus == prison.genus) // shan't bind typevar by λ
+          if (tag.genus != prison.genus)
+            throw InappropriatePrison(prison, tag)
           ∙(prison, i)
         case otherwise =>
           otherwise
