@@ -84,14 +84,10 @@ trait Nondeterminism {
   }
 
   object DepthFirstSearch {
-    private[this]
-    def backtrack(log: List[Boolean]): DepthFirstSearch =
-      DepthFirstSearch(log.length, log)
-
-    private[this]
-    def freshStart(log: List[Boolean]): DepthFirstSearch =
-      DepthFirstSearch(0, log)
+    def tape: DepthFirstSearch = DepthFirstSearch(0, Nil)
   }
+
+  case object CarryBitSet extends Exception("carry bit set")
 
   case class DepthFirstSearch(
     var backtrack: Int,
@@ -113,7 +109,7 @@ trait Nondeterminism {
       this
     }
 
-    def rewind() { backtrack = 0 }
+    def rewind() { backtrack = log.length }
 
     def read: Boolean =
       if (backtrack > 0) {
@@ -137,7 +133,7 @@ trait Nondeterminism {
         else
           ZERO :: increment(bits)
       case Nil =>
-        sys error "set carry bit"
+        throw CarryBitSet
     }
   }
 }

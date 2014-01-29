@@ -1,8 +1,9 @@
 object Experiments extends Flags {
   val onTrial: Experiment =
-    AbsLocationExperiment
+    DepthFirstSearchExperiment
 
   val experiments = List[Experiment](
+    DepthFirstSearchExperiment,
     AbsLocationExperiment,
     TypeApplicationExperiment,
     OrderlessExperiment,
@@ -1059,5 +1060,52 @@ object Experiments extends Flags {
     def s = "λm : ℤ. m"
 
     def run = decompose(s)
+  }
+
+  object DepthFirstSearchExperiment extends Experiment with Nondeterminism {
+    // transform a list of reads/skips into a list of results
+    def transform(spec: String): String = {
+      val tape = DepthFirstSearch.tape
+      var reads: List[Boolean] = Nil
+      spec.foreach { _ match {
+        case '0' =>
+          reads = tape.read :: reads
+        case '1' =>
+          tape.next
+        case _ =>
+          ()
+      }}
+      reads.reverse.map(bit =>
+        if (bit == tape.ZERO) '0' else '1').mkString
+    }
+
+    def test(s: String): Unit = try {
+      puts(transform(s))
+    } catch {
+      case CarryBitSet => puts("carry")
+    }
+
+    def run = {
+      test("0000 0000")
+      test("1")
+      test("010")
+      test("0001 0001 0001 0001 0001 0001 0001 000")
+      test("0001 001 00001 00000")
+      test("0001 001 001 001")
+      test("0001 001 001 001 001")
+      test("0001 001 001 001 0001 000")
+      dump
+    }
+
+    override def expected =
+      """|00000000
+         |carry
+         |01
+         |000001010011100101110111
+         |00000010001010
+         |000000110
+         |carry
+         |000000110110111
+         |""".stripMargin
   }
 }
