@@ -6,8 +6,8 @@ trait Nondeterminism {
     def readable: Boolean
     def read: Boolean
 
-    def ZERO = true
-    def ONE  = false
+    def ZERO = false
+    def ONE  = true
 
     // read an integer between 0 and n - 1
     // (wastes at most half the bits)
@@ -39,7 +39,6 @@ trait Nondeterminism {
   }
 
   object Deterministic {
-    // anachronism... zero & one's meanings have been swapped.
     def allZeros = Tape(Stream.continually(false))
     def allOnes  = Tape(Stream.continually(true ))
 
@@ -111,23 +110,41 @@ trait Nondeterminism {
     }
   }
 
-  object DepthFirstSearch {
-    def tape: DepthFirstSearch = DepthFirstSearch(0, Nil)
-  }
+  /** Multivalent depth-first search */
 
   case object CarryBitSet extends Exception("carry bit set")
 
+  object DepthFirstSearch {
+    def tape: DepthFirstSearch = DepthFirstSearch(0, Nil)
+
+    case class Numeral(digit: Int, radix: Int) extends Iterator[Numeral] {
+      require(digit < radix)
+
+      def hasNext: Boolean = digit + 1 < radix
+      def next: Numeral = Numeral(digit + 1, radix)
+
+      def reset: Numeral = Numeral(0, radix)
+    }
+
+    object Numeral {
+      def apply(radix: Int): Numeral = Numeral(0, radix)
+    }
+  }
+
   case class DepthFirstSearch(
     var backtrack: Int,
-    var log: List[Boolean]
+    var log: List[DepthFirstSearch.Numeral]
   ) extends Tape {
+    import DepthFirstSearch.Numeral
+
     // can always read a DFS tape, it just takes forever sometimes
     def readable: Boolean = true
 
     // starting point of next iteration
-    def prefix: List[Boolean] = log.drop(backtrack)
+    def prefix: List[Numeral] = log.drop(backtrack)
 
-    def hasNext: Boolean = prefix.contains(ZERO)
+    def hasNext: Boolean = prefix.find(_.hasNext) != None
+
     def next(): Tape = {
       increment()
       rewind()
@@ -136,27 +153,31 @@ trait Nondeterminism {
 
     def rewind() { backtrack = log.length }
 
-    def read: Boolean =
+    def read: Boolean = if (readInt(2) == 0) ZERO else ONE
+
+    override def readInt(radix: Int): Int =
       if (backtrack > 0) {
         backtrack -= 1
         val result = log(backtrack)
-        result
+        require(result.radix == radix)
+        result.digit
       }
       else {
-        log = ZERO :: log
-        ZERO
+        val zero = Numeral(radix)
+        log = zero :: log
+        zero.digit
       }
 
     def increment() {
       log = increment(prefix)
     }
 
-    def increment(input: List[Boolean]): List[Boolean] = input match {
-      case bit :: bits =>
-        if (bit == ZERO)
-          ONE :: bits
+    def increment(input: List[Numeral]): List[Numeral] = input match {
+      case digit :: digits =>
+        if (digit.hasNext)
+          digit.next :: digits
         else
-          ZERO :: increment(bits)
+          digit.reset :: increment(digits)
       case Nil =>
         throw CarryBitSet
     }
