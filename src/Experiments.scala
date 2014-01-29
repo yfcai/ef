@@ -1066,17 +1066,19 @@ object Experiments extends Flags {
     // transform a list of reads/skips into a list of results
     def transform(spec: String): String = {
       val tape = DepthFirstSearch.tape
-      var reads: List[Boolean] = Nil
-      spec.foreach { _ match {
-        case '0' =>
-          reads = tape.read :: reads
-        case '1' =>
-          tape.next
-        case _ =>
-          ()
-      }}
-      reads.reverse.map(bit =>
-        if (bit == tape.ZERO) '0' else '1').mkString
+      val reads = spec.foldLeft[List[Char]](Nil) {
+        case (reads, c) => c match {
+          case '0' =>
+            (if (tape.read == tape.ONE) '1' else '0') :: reads
+          case '1' =>
+            tape.next ; reads
+          case c if '2' <= c && c <= '9' =>
+            tape.readInt(c - '0').toString.head :: reads
+          case _ =>
+            reads
+        }
+      }
+      reads.reverse.mkString
     }
 
     def test(s: String): Unit = try {
@@ -1094,6 +1096,8 @@ object Experiments extends Flags {
       test("0001 001 001 001")
       test("0001 001 001 001 001")
       test("0001 001 001 001 0001 000")
+      test("51 51 51 51 5")
+      test("21 21")
       dump
     }
 
@@ -1106,6 +1110,8 @@ object Experiments extends Flags {
          |000000110
          |carry
          |000000110110111
+         |01234
+         |carry
          |""".stripMargin
   }
 }

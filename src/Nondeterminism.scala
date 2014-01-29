@@ -5,6 +5,33 @@ trait Nondeterminism {
   trait Tape extends Iterator[Tape] {
     def readable: Boolean
     def read: Boolean
+
+    def ZERO = true
+    def ONE  = false
+
+    // read an integer between 0 and n - 1
+    // (wastes at most half the bits)
+    def readInt(n: Int): Int = {
+      val nextPowerOf2 = ceilLog2(n)
+      val bits = (1 to nextPowerOf2).map(_ => read)
+      val int = fromBinary(bits)
+      if (int < n)
+        int
+      else
+        n - 1
+    }
+
+    def ceilLog2(n: Int): Int =
+      32 - java.lang.Integer.numberOfLeadingZeros(n - 1)
+
+    def floorLog2(n: Int): Int =
+      31 - java.lang.Integer.numberOfLeadingZeros(n)
+
+    def fromBinary(bits: Iterable[Boolean]): Int =
+      bits.foldLeft(0) {
+        case (acc, bit) =>
+          (acc << 1) + (if (bit == ONE) 1 else 0)
+      }
   }
 
   object Nondeterministic {
@@ -12,6 +39,7 @@ trait Nondeterminism {
   }
 
   object Deterministic {
+    // anachronism... zero & one's meanings have been swapped.
     def allZeros = Tape(Stream.continually(false))
     def allOnes  = Tape(Stream.continually(true ))
 
@@ -98,9 +126,6 @@ trait Nondeterminism {
 
     // starting point of next iteration
     def prefix: List[Boolean] = log.drop(backtrack)
-
-    def ZERO = true
-    def ONE  = false
 
     def hasNext: Boolean = prefix.contains(ZERO)
     def next(): Tape = {
