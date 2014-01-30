@@ -54,11 +54,11 @@ trait Names extends Flags {
   }
 
   /** purely generative name generator */
-  class GlobalNameGenerator {
+  class GlobalNameGenerator(prefix: String) {
     var i: Int = 0
     def reset() { i = 0 }
     def next: String = {
-      val result = "x%X".format(i)
+      val result = s"$prefix%X".format(i)
       i += 1
       result
     }

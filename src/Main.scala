@@ -6,19 +6,21 @@ object Main extends ARGV0 with Calculi {
       val rest = args.drop(flags.length)
       if (rest.isEmpty)
         System.err.print(
-          s"""|Usage: $argv0 [-FLAG₁ -FLAG₂ ...] COMMAND [STUFF...]
+          s"""|Usage: $argv0 [-FLAG1 -FLAG2 ...] COMMAND [STUFF...]
               |  where
               |    COMMAND = test | run | type | reduce
               |      where
-              |        test   : run (optionally named) experiments to
+              |        test     run (optionally named) experiments to
               |                 verify sanity
               |
-              |        run    : type check files, then execute them
+              |        run      type check files, then execute them
               |
-              |        type   : type check files
+              |        type     type check files
               |
-              |        reduce : reduce naked expressions without
+              |        reduce   reduce naked expressions without
               |                 regard for types and print the result
+              |
+              |        generate launch program generator
               |
               |Flags
               |
@@ -54,6 +56,9 @@ object Main extends ARGV0 with Calculi {
 
             case "reduce" =>
               Reductionist.execute(tail, flag)
+
+            case "generate" =>
+              Generator.execute(tail)
 
             case cmd =>
               System.err.println(s"unknown command: $cmd")
