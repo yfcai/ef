@@ -55,4 +55,21 @@ trait IntsAndBools extends Aliasing {
     }
     result
   }
+
+  // context with infinite & finite part
+  case class Gamma(
+    finite: Map[String, Tree],
+    infinite: PartialFunction[String, Tree]) {
+
+    def contains(x: String): Boolean =
+      finite.contains(x) || infinite.isDefinedAt(x)
+
+    def updated(x: String, τ: Tree): Gamma =
+      Gamma(finite.updated(x, τ), infinite)
+
+    def apply(x: String): Tree =
+      finite.withDefault(infinite)(x)
+  }
+
+  val Γ0 = Gamma(Map.empty, primitiveType)
 }

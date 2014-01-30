@@ -89,7 +89,7 @@ trait ProgramGenerator extends Modules {
         case (oldName, newName) => (oldName, æ(newName))
       })(collection.breakOut): Map[String, Tree]
 
-      newNames.foldRight(body subst lexicon) {
+      newNames.foldRight(canonize(body, gen, gen2) subst lexicon) {
         case (α, body) => binder match {
           case Universal => ∀(α, Annotation.none(), body)
           case TypeAbstraction => Λ(α, body)

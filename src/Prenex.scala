@@ -1,5 +1,5 @@
 /** Prenex forms for Existential F */
-trait Prenex extends Syntax with Status {
+trait Prenex extends Syntax with Status with Topology { topology =>
   case class Prenex(prefix: Seq[BinderSpec], body: Tree) {
     def toType: Tree = Prenex.bind(prefix, body)
 
@@ -115,27 +115,9 @@ trait Prenex extends Syntax with Status {
 
     def topologicalOrder(prefix: Seq[BinderSpec]):
         Map[String, Int] =
-      topologicalOrder(prefix.map({
+      topology.getTopologicalOrder[String](prefix.map({
         case BinderSpec(_, α, note) => (α, note.freeNames)
       })(collection.breakOut): Map[String, Set[String]])
-
-    def topologicalOrder(graph: Map[String, Set[String]]):
-        Map[String, Int] = {
-      var distance = -1
-      var toVisit  = graph.keySet
-      var result   = Map.empty[String, Int]
-      while (! toVisit.isEmpty) {
-        val frontier = toVisit.filter {
-          α => graph(α).find(toVisit contains _) == None
-        }
-        if (frontier.isEmpty)
-          sys error s"cycle detected"
-        distance = distance +  1
-        toVisit  = toVisit  -- frontier
-        result   = result   ++ frontier.map(α => (α, distance))
-      }
-      result
-    }
 
     // ATTRIBUTES OF A TYPE VARIABLE
 
