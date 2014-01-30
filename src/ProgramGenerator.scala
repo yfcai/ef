@@ -8,10 +8,27 @@ object Generator extends ProgramGenerator {
       case "Local"  => Local
     }).run(n)
   }
+
+  def canonize(args: Array[String]): Unit = {
+    io.Source.stdin.getLines.foreach { line =>
+      if (! line.isEmpty) ParagraphExpr(line) match {
+        case Signature(_, _) =>
+          ()
+
+        case Definition(x, t) =>
+          if (! args.isEmpty && args.head == "erase")
+            println(canonize(t).unparse)
+          else
+            println(s"$x = ${canonize(t).unparse}")
+
+        case NakedExpression(e) =>
+          println(canonize(e).unparse)
+      }
+    }
+  }
 }
 
-trait ProgramGenerator extends Syntax {
-
+trait ProgramGenerator extends Modules {
   object F extends WellTypedF
 
   object Church extends LocalGenerator {
@@ -39,6 +56,51 @@ trait ProgramGenerator extends Syntax {
 
     def operatorPredicate: Tree => Boolean = _.tag == FunctionArrow
   }
+
+  // convert term to canonical form
+  //
+  // 1. instantiations are discarded
+  //
+  // 2. on chained type abstractions, the specs are sorted by index
+  //    and rebound
+  def canonize(t: Tree,
+    gen: GlobalNameGenerator,
+    gen2: GlobalNameGenerator): Tree = t match {
+    case t @ ∙(_, _) =>
+      t
+    case λ(x, note, body) =>
+      val y = gen2.next
+      λ(y,
+        canonize(note, gen, gen2),
+        canonize(body, gen, gen2).subst(χ(x), χ(y)))
+    case f ₋ x =>
+      ₋(canonize(f, gen, gen2), canonize(x, gen, gen2))
+    case t □ τ =>
+      canonize(t, gen, gen2)
+    case σ → τ =>
+      →(canonize(σ, gen, gen2), canonize(τ, gen, gen2))
+    case t if t.tag == TypeAbstraction || t.tag == Universal =>
+      val binder = t.tag.asInstanceOf[Binder]
+      val (specs, body) = t.unbindAll(binder)
+      val oldNames = specs.map(spec =>
+        (spec.x, body.preorder.indexOf(æ(spec.x)))).sortBy(_._2).map(_._1)
+      val newNames = oldNames.map(_ => gen.next)
+      val lexicon  = oldNames.zip(newNames).map({
+        case (oldName, newName) => (oldName, æ(newName))
+      })(collection.breakOut): Map[String, Tree]
+
+      newNames.foldRight(body subst lexicon) {
+        case (α, body) => binder match {
+          case Universal => ∀(α, Annotation.none(), body)
+          case TypeAbstraction => Λ(α, body)
+        }
+      }
+  }
+
+  def canonize(t: Tree): Tree =
+    canonize(t,
+      new GlobalNameGenerator("T"),
+      new GlobalNameGenerator("x"))
 
   trait Generator {
     def generate(depth: Int): Unit

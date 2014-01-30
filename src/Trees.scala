@@ -369,11 +369,12 @@ trait Trees extends Names {
       case otherwise => Tree(otherwise)
     }
 
-    // parallel substitituion of all free variables of identical genus
+    // parallel substitituion of all free variables of matching genus
     def subst(parallel: Map[String, Tree]): Tree = fold[Tree] {
-      case ∙:(tag: FreeName, x: String)
-          if tag.genus == this.tag.genus && parallel.contains(x) =>
-        parallel(x)
+      case ∙:(tag: FreeName, x: String) if parallel.contains(x) =>
+        val xdef = parallel(x)
+        require(tag.genus == xdef.tag.genus)
+        xdef
       case otherwise => Tree(otherwise)
     }
 

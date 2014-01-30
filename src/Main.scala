@@ -22,6 +22,8 @@ object Main extends ARGV0 with Calculi {
               |
               |        generate launch program generator
               |
+              |        canonize unify names, erase to Church-style
+              |
               |Flags
               |
               | -ascii    do not print unicode
@@ -59,6 +61,9 @@ object Main extends ARGV0 with Calculi {
 
             case "generate" =>
               Generator.execute(tail)
+
+            case "canonize" =>
+              Generator.canonize(tail)
 
             case cmd =>
               System.err.println(s"unknown command: $cmd")
