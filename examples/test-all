@@ -1,7 +1,7 @@
 #!/bin/bash
 ./a.out
 ./a.out test
-./a.out run ill.soot
-./a.out run capture.soot
-./a.out run nat.soot
-./a.out run list.soot
+./a.out run ill.cuit
+./a.out run capture.cuit
+./a.out run nat.cuit
+./a.out run list.cuit

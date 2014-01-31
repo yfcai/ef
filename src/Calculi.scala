@@ -47,7 +47,7 @@ trait Calculi {
     file.substring(file.lastIndexOf(".") + 1) match {
       case "f" => F
       case "ef" => ExistentialFCalculus
-      case "soot" => Cuit
+      case "cuit" => Cuit
       case _ => throw new UnknownExtensionException(file)
     }
 
