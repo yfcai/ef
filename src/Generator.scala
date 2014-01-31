@@ -29,6 +29,9 @@ object Generator extends ProgramGenerator {
 
       case "depth" =>
         filterDepth(args.tail.head.toInt)
+
+      case "app" =>
+        filterApplication()
     }
   }
 
@@ -87,6 +90,13 @@ object Generator extends ProgramGenerator {
   def filterDepth(threshold: Int) {
     io.Source.stdin.getLines.foreach { line =>
       if (F.depth(F.Term(line)) <= threshold)
+        println(line)
+    }
+  }
+
+  def filterApplication() {
+    io.Source.stdin.getLines.foreach { line =>
+      if (F.Term(line).tag == F.Application)
         println(line)
     }
   }
