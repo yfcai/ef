@@ -1,9 +1,42 @@
 object Generator extends ProgramGenerator {
-  def execute(args: Array[String]) {
+  def commands =
+    """|        generate launch program generator
+       |
+       |        canonize unify names, erase to Church-style
+       |
+       |        filter   filter lines of terms by a hard-coded
+       |                 predicate
+       |""".stripMargin
+
+
+  def dispatch: PartialFunction[(String, Array[String]), Unit] = {
+    case ("generate", args) =>
+      generate(args)
+
+    case ("canonize", args) =>
+      canonize(args)
+
+    case ("ignoreTabs", _) =>
+      ignoreTabsInStdin()
+
+    case ("filter", args) => args.head match {
+      // filter out those untypeable in Cuit
+      case "untypeable" =>
+        filterUntypeable()
+
+      case "typeable" =>
+        filterTypeable()
+
+      case "depth" =>
+        filterDepth(args.tail.head.toInt)
+    }
+  }
+
+  def generate(args: Array[String]) {
     val choice = args.head
     val n = args.tail.head.toInt
     (choice match {
-      case "F"      => F
+      case "F"      => WellTypedF
       case "Church" => Church
       case "Local"  => Local
     }).run(n)
@@ -26,10 +59,67 @@ object Generator extends ProgramGenerator {
       }
     }
   }
+
+  def filterUntypeable() {
+    val typing = new Cuit.OrderlessTyping(Cuit.Module.empty)
+    import typing._
+    io.Source.stdin.getLines.foreach { line =>
+      val t = Cuit.Term(line)
+      typeError(Cuit.ignoreTabs(t)) match {
+        case None => ()
+        case Some(_) => println(line)
+      }
+    }
+  }
+
+  def filterTypeable() {
+    val typing = new Cuit.OrderlessTyping(Cuit.Module.empty)
+    import typing._
+    io.Source.stdin.getLines.foreach { line =>
+      val t = Cuit.Term(line)
+      typeError(Cuit.ignoreTabs(t)) match {
+        case None => println(line)
+        case Some(_) => ()
+      }
+    }
+  }
+
+  def filterDepth(threshold: Int) {
+    io.Source.stdin.getLines.foreach { line =>
+      if (F.depth(F.Term(line)) <= threshold)
+        println(line)
+    }
+  }
+
+  def ignoreTabsInStdin(): Unit =
+    io.Source.stdin.getLines.foreach { line =>
+      println(F.ignoreTabs(F.Term(line)).unparse)
+    }
+
+  // todo: rename.
+  type UnorderedImpredicativeTypes = SecondOrderOrderlessTypes
+
+  object F extends SystemF with IgnoreTypeAbstractions
+  object Cuit extends UnorderedImpredicativeTypes with IgnoreTypeAbstractions
+}
+
+trait IgnoreTypeAbstractions extends Syntax {
+  def ignoreTabs(t: Tree): Tree = t match {
+    case ∙(_, _) => t
+    case Λ(_, body) => ignoreTabs(body)
+    case τ if τ.tag.genus == Type => τ
+    case ⊹(tag, children @ _*) => ⊹(tag, children.map(ignoreTabs): _*)
+  }
+
+  def depth(t: Tree): Int = t match {
+    case ∙(_, _) => 0
+    case ⊹(Universal, _, _, body) => 1 + depth(body)
+    case ⊹(_, children @ _*) => 1 + children.map(depth).max
+  }
 }
 
 trait ProgramGenerator extends Modules {
-  object F extends WellTypedF
+  object WellTypedF extends WellTypedF
 
   object Church extends LocalGenerator {
     def termRecursion(

@@ -633,10 +633,13 @@ trait SecondOrderOrderlessTypes
       else
         Type("∃ӭ. ӭ")
 
+    def typeError(t: Tree): Option[Contradiction] =
+      ascriptionError(gatherConstraints(t), YHWH)
+
     // lacking means to reconstruct types, we test merely that
     // the term t has no internal consistencies.
     def typeErrorInTerm(t: Tree, tok: Token): Option[Problem] = {
-      ascriptionError(gatherConstraints(t), YHWH) match {
+      typeError(t) match {
         case None => None // no contradiction, no problem
         case Some(c) => Some(Problem(tok, c.getMessage))
       }
@@ -707,12 +710,5 @@ trait SecondOrderOrderlessTypes
       }
       else
         τ
-
-    // REFLEXION.
-    // hm... just MQ types appearing in source code
-    // doesn't seem to be enough.
-    //
-    //override def resolve(τ: Tree): Tree =
-    //  quantifyMinimally(super.resolve(τ), Set.empty)
   }
 }
