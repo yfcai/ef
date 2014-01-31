@@ -3,20 +3,20 @@ trait IntsAndBools extends Aliasing {
   val Bool = "Bool"
   val ℤ_ascii = "Int"
 
-  val realIntType =
+  def realIntType =
     æ(if (I_hate_unicode)
       ℤ_ascii
     else
       ℤ)
 
   // don't worry about opchars. they're dispensible.
-  val realBoolType =
+  def realBoolType =
     if (I_hate_unicode)
       Type("∀beta. beta → beta → beta")
     else
       Type("∀β. β → β → β")
 
-  val globalTypes: Map[String, Tree] = Map(
+  def globalTypes: Map[String, Tree] = Map(
     ℤ -> realIntType,
     ℤ_ascii -> realIntType,
     Bool -> realBoolType)

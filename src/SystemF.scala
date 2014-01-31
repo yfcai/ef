@@ -70,7 +70,7 @@ trait SystemF extends TypedModules
         case Left(baddies) =>
           return Left(Problem(
             m0.dfntoks(baddies.head).head,
-            s"""|circular definitions:
+            s"""|circular definitions need type signatures:
                 |${baddies mkString ", "}""".stripMargin))
         case Right(topo) =>
           topo
@@ -154,6 +154,4 @@ trait SystemF extends TypedModules
         }
     }
   }
-
-  //def typeError: Option[
 }

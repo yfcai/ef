@@ -640,8 +640,10 @@ trait Operators extends Fixities {
               return Some((cons(x), getLeafTokens(items)))
             case Seq() =>
               return Some((cons(Nil), getLeafTokens(items)))
-            case _ =>
-              sys error s"leaf operator with nonunary fixity: $this"
+            case otherwise =>
+              return Some((
+                cons(otherwise.flatMap(identity)),
+                getLeafTokens(items)))
           }
         }
         else {

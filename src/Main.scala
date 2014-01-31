@@ -20,6 +20,8 @@ object Main extends ARGV0 with Calculi {
               |        reduce   reduce naked expressions without
               |                 regard for types and print the result
               |
+              |        repl     start a repl in System F for education
+              |
               |${Generator.commands}
               |Flags
               |
@@ -56,6 +58,10 @@ object Main extends ARGV0 with Calculi {
             case "reduce" =>
               Reductionist.execute(tail, flag)
 
+            case "repl" =>
+              ReplF.setFlags(flag)
+              ReplF.startRepl(tail)
+
             case cmd if Generator.dispatch.isDefinedAt((cmd, tail)) =>
               Generator.dispatch((cmd, tail))
 
@@ -64,6 +70,16 @@ object Main extends ARGV0 with Calculi {
           }
         }
         while (loop)
+    }
+  }
+
+  object ReplF extends SystemF with SmallStepRepl {
+    def startRepl(prelude: Array[String]): Unit = try {
+      prelude.foreach(load)
+      startRepl()
+    } catch {
+      case e: java.io.FileNotFoundException =>
+        println(e.getMessage)
     }
   }
 }

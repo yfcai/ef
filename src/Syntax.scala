@@ -318,6 +318,8 @@ trait Presyntax extends ExpressionGrammar {
   }
 
   trait Conditional extends Operator {
+    conditional =>
+
     def fixity: Fixity
 
     lazy val tryNext =
@@ -333,7 +335,17 @@ trait Presyntax extends ExpressionGrammar {
         val unit = æ("ℤ")
         val tt = χ("0")
         val x = Subscript.newName("_", thn.freeNames ++ els.freeNames)
-        ₋(₋(₋(cnd, λ(x, unit, thn)), λ(x, unit, els)), tt)
+        new ⊹(Application,
+              ₋(₋(cnd, λ(x, unit, thn)), λ(x, unit, els)), tt) {
+          override def unparse: String = {
+            val subOps = downFrom(conditional, termOps)
+            val List(c, t, e) = List(cnd, thn, els).map { t =>
+              if (subOps contains t.tag) t.unparse
+              else s"(${t.unparse})"
+            }
+            s"if $c then $t else $e"
+          }
+        }
     }
 
     override
@@ -354,6 +366,7 @@ trait Presyntax extends ExpressionGrammar {
     val fixity = Prefixr("if", "then", "else")
   }
 
+  // deprecated! don't ever use.
   case object CStyleConditional extends Conditional {
     val fixity = Infixr("?", ":")
   }
@@ -710,10 +723,11 @@ trait Presyntax extends ExpressionGrammar {
   val termOps: List[Operator] =
     List(
       TypeAbstraction,
-      AnnotatedAbstraction,
+      AnnotatedAbstraction) ++
+    (if (this.isInstanceOf[SystemF]) Nil else List(
       IfThenElse,
-      CStyleConditional,
-      Ascription,
+      Ascription)) ++
+    List(
       Instantiation,
       Application,
       ParenthesizedTerm,
