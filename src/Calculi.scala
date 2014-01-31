@@ -5,8 +5,10 @@ trait Calculi {
 
   object ExistentialFCalculus extends Calculus with ExistentialF
 
-  // first-order orderless F
-  object Soot extends Calculus with SecondOrderOrderlessTypes
+  // calculus of unordered impredicative types
+  object Cuit extends Calculus with SecondOrderOrderlessTypes
+
+  object F extends Calculus with SystemF
 
   trait Executable {
     def run(file: String, c: Calculus)(module: c.Module): Unit
@@ -43,8 +45,9 @@ trait Calculi {
 
   def calculusOfFile(file: String): Calculus =
     file.substring(file.lastIndexOf(".") + 1) match {
+      case "f" => F
       case "ef" => ExistentialFCalculus
-      case "soot" => Soot
+      case "soot" => Cuit
       case _ => throw new UnknownExtensionException(file)
     }
 
@@ -67,8 +70,8 @@ trait Calculi {
             println(s"$file is well typed.\n")
           case Right(naked) if ! naked.isEmpty =>
             naked.foreach {
-              case (t, τ, tok) =>
-                val name = tok.fileLine
+              case (maybeName, t, τ, tok) =>
+                val name = maybeName.getOrElse(tok.fileLine)
                 println(s"$name : ${τ.unparse}")
                 println(s"$name = ${t.unparse}")
                 println()
@@ -86,8 +89,8 @@ trait Calculi {
             println(s"$file is well typed.\n")
           case Right(naked) if ! naked.isEmpty =>
             naked.foreach {
-              case (t, τ, tok) =>
-                val name = tok.fileLine
+              case (defaultName, t, τ, tok) =>
+                val name = defaultName.getOrElse(tok.fileLine)
                 val xxxx = Array.fill(name.length)(' ').mkString
                 println(s"$name : ${τ.unparse}")
                 println(s"$name = ${t.unparse}")

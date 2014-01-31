@@ -69,6 +69,9 @@ trait IntsAndBools extends Aliasing {
 
     def apply(x: String): Tree =
       finite.withDefault(infinite)(x)
+
+    def ++(_finite: Map[String, Tree]): Gamma =
+      Gamma(finite ++ _finite, infinite)
   }
 
   val Γ0 = Gamma(Map.empty, primitiveType)

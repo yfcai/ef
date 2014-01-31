@@ -7,7 +7,7 @@ trait SecondOrderOrderlessTypes
     extends TypedModules with IntsAndBools with Prenex
 {
   def typeCheck(m: Module):
-      Either[Problem, Seq[(Tree, Tree, Token)]] = {
+      Either[Problem, Seq[(Option[String], Tree, Tree, Token)]] = {
     val ord = new OrderlessTyping(m)
     ord.typeError match {
       case Some(problem) =>
@@ -15,7 +15,7 @@ trait SecondOrderOrderlessTypes
       case None =>
         // can't assign type to naked expressions yet
         Right(ord.module.naked.map {
-          case (t, toks) => (t, ord.YHWH, toks.head)
+          case (t, toks) => (None, t, ord.YHWH, toks.head)
         })
       }
     }

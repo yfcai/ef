@@ -328,14 +328,16 @@ trait Aliasing extends Modules {
 }
 
 trait TypedModules extends Modules {
-  def typeCheck(m: Module): Either[Problem, Seq[(Tree, Tree, Token)]]
+  def typeCheck(m: Module):
+      Either[Problem, Seq[(Option[String], Tree, Tree, Token)]]
 }
 
 trait CompositionallyTypeableModules
     extends TypedModules with Aliasing
        with Prenex with Nondeterminism
 {
-  def typeCheck(m: Module): Either[Problem, Seq[(Tree, Tree, Token)]] =
+  def typeCheck(m: Module):
+      Either[Problem, Seq[(Option[String], Tree, Tree, Token)]] =
     new TypingModules(m).typeCheck
 
   // ensure correct tracking of tokens
@@ -500,20 +502,22 @@ trait CompositionallyTypeableModules
       }
 
     // assume definitions are fine, check naked expressions
-    def typeNakedExpressions: Either[Problem, Seq[(Tree, Tree, Token)]] =
+    def typeNakedExpressions:
+        Either[Problem, Seq[(Option[String], Tree, Tree, Token)]] =
       Right(naked.map { case (t, toks) =>
         findFirstType(t, toks) match {
           case Left(problem) =>
             return Left(problem)
           case Right(τ) =>
-            (t, τ, toks.head)
+            (None, t, τ, toks.head)
         }
       })
 
     /** @return either a problem or a sequence of naked
       *         top-level expressions with their types
       */
-    def typeCheck: Either[Problem, Seq[(Tree, Tree, Token)]] =
+    def typeCheck:
+        Either[Problem, Seq[(Option[String], Tree, Tree, Token)]] =
       typeErrorInDefinitions.fold(typeNakedExpressions)(Left.apply)
   }
 }
