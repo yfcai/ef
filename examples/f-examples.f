@@ -1,12 +1,8 @@
-postulate + : ℤ → ℤ → ℤ
-
 succ = λx : ℤ. + x 1
 
 six = succ 5
 
-id-α = λx : α. x
-
-id = Λα. id-α
+id = Λα. λx : α. x
 
 id-ℤ = id [ℤ]
 
@@ -24,23 +20,18 @@ self-app = λx : ∀α. α → α. x [∀β. β → β] x
 
 quadruple = Λα. double [α → α] (double [α])
 
+nil : ∀α. List α
 
-data List
+cons : ∀α. α → List α → List α
 
-postulate nil : ∀α. List α
+isnil : ∀α. List α → Bool
 
-postulate cons : ∀α. α → List α → List α
+head : ∀α. List α → α
 
-type Bool = ∀α. α → α → α
+tail : ∀α. List α → List α
 
-postulate isnil : ∀α. List α → Bool
-
-postulate head : ∀α. List α → α
-
-postulate tail : ∀α. List α → List α
-
-postulate fix : ∀α. (α → α) → α
-
+. todo: nice step -through semantics
+fix : ∀α. (α → α) → α
 
 map =
   Λα β. λf : α → β.
