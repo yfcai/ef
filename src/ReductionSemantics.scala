@@ -215,7 +215,6 @@ trait SmallStepSemantics extends SystemF with PrimitiveLists {
 trait SmallStepRepl extends SmallStepSemantics with Modules {
   import scala.tools.jline.console._
   import completer._
-  import collection.JavaConversions._
 
   var typeSystem: SystemFTyping = new SystemFTyping(Module.empty)
 
@@ -230,11 +229,7 @@ trait SmallStepRepl extends SmallStepSemantics with Modules {
   val console = new ConsoleReader
 
   assert(console.addCompleter(
-    EnvCompleter
-    // ArgumentCompleter doesn't work.
-    // Roll your own!
-    //new ArgumentCompleter(List(EnvCompleter, new FileNameCompleter))
-  ))
+    ArgCompleter(EnvCompleter, JavaCompleter(new FileNameCompleter))))
 
   def startRepl() {
     // TODO: ascii art
@@ -304,42 +299,65 @@ trait SmallStepRepl extends SmallStepSemantics with Modules {
     def tryNext = Nil
   }
 
+  val pleasantries = Array(
+    "UNRECOGNIZED DIRECTIVE",
+    "I understand it's not your fault, but what did you just say?",
+    "Can you help me with this? I don't comprehend.",
+    "I'm afrait we have a problem with communication.",
+    "I'm afraid there might be a misunderstanding.",
+    "Could you please paraphrase that, perhaps?")
+
   def complainPolitely() =
-    println(util.Random.nextInt(6) match {
-      case 0 =>
-        "I understand it's not your fault, but what did you just say?"
-      case 1 =>
-        "Can you help me with this? I don't comprehend."
-      case 2 =>
-        "I'm afrait we have a problem with communication."
-      case 3 =>
-        "UNRECOGNIZED DIRECTIVE"
-      case 4 =>
-        "I'm afraid there might be a misunderstanding."
-      case 5 =>
-        "Could you please paraphrase that, perhaps?"
-    })
+    println(pleasantries(util.Random.nextInt(pleasantries.length)))
 
+  trait FunCompleter extends Completer {
+    def complete(prefix: String): Seq[String]
+  }
 
-  object EnvCompleter extends Completer {
-    type JavaList = java.util.List[CharSequence]
+  // java interop trait
+  trait ScalaCompleter extends FunCompleter {
+    def complete(prefix: String): Seq[String]
+
+    import collection.JavaConversions._
+    private type JavaList = java.util.List[CharSequence]
+
     def complete(prefix: String, cursor: Int, candidates: JavaList):
         Int = {
-      val gamma = Γ0.finite.keySet ++ module.dfn.keySet
-      val matches = gamma.filter(_ startsWith prefix).toSeq.sorted
+      val matches = complete(prefix.substring(0, cursor))
       candidates addAll matches
-
-      //DEBUG
-      println(s"\nEnvCompleter called")
-      println(s"prefix  = $prefix")
-      println(s"matches = $matches")
-      println(s"candida = $candidates\n")
-      //DEBUG
-
-      if (candidates.isEmpty)
-        -1
-      else
-        0 // cargo code from StringCompleter
+      if (candidates.isEmpty) -1 else 0
     }
+  }
+
+  case class JavaCompleter(binks: Completer) extends FunCompleter {
+    import collection.JavaConversions._
+    private type JavaList = java.util.List[CharSequence]
+
+    def complete(prefix: String): Seq[String] = {
+      val list = new java.util.LinkedList[CharSequence]
+      complete(prefix, prefix.length, list)
+      list.map(_.toString)
+    }
+
+    def complete(prefix: String, cursor: Int, candidates: JavaList):
+        Int = binks.complete(prefix, cursor, candidates)
+  }
+
+  case class ArgCompleter(children: FunCompleter*) extends ScalaCompleter {
+    def complete(prefix: String): Seq[String] = {
+      val args = prefix.split(" ").filter(! _.isEmpty)
+      if (args.isEmpty)
+        Nil
+      else for {
+        child <- children
+        result <- child.complete(args.last)
+      } yield s"${args.init.mkString(" ")} $result "
+    }
+  }
+
+  object EnvCompleter extends ScalaCompleter {
+    def complete(prefix: String): Seq[String] =
+      (Γ0.finite.keySet ++ module.dfn.keySet).
+        toSeq.filter(_ startsWith prefix).sorted
   }
 }
