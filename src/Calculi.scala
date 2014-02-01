@@ -8,7 +8,7 @@ trait Calculi {
   // calculus of unordered impredicative types
   object Cuit extends Calculus with SecondOrderOrderlessTypes
 
-  object F extends Calculus with SystemF
+  object F extends Calculus with SystemF with PrimitiveLists
 
   trait Executable {
     def run(file: String, c: Calculus)(module: c.Module): Unit

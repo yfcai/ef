@@ -116,25 +116,28 @@ trait ReductionSemantics extends Syntax {
     reduce(t, env).fold(t)(eval(env))
 }
 
-// try 2: small-step
-trait SmallStepSemantics extends Syntax {
+// try 2: small-step for System F with primitive lists
+trait SmallStepSemantics extends SystemF with PrimitiveLists {
   type Reduction = PartialFunction[Tree, Tree]
 
   /** @return (thing inside context, evalutation context) */
-  def callByValue(t: Tree, reduction: Reduction):
+  def callByName(t: Tree, reduction: Reduction):
       (Tree, Tree => Tree) = t match {
+    // reduce first, ask questions later
     case s ₋ t =>
-      val (ins, cs) = callByValue(s, reduction)
+      val (ins, cs) = callByName(s, reduction)
       if (ins != s)
         (ins, x => ₋(cs(x), t))
       else {
-        val (int, ct) = callByValue(t, reduction)
+        val (int, ct) = callByName(t, reduction)
         (int, x => ₋(s, ct(x)))
       }
 
     case _ =>
       (t, identity)
   }
+
+  case class Stuck(s: String = "stuck") extends Exception(s)
 
   // untyped β-reduction
   val beta: Reduction = {
@@ -171,9 +174,9 @@ trait SmallStepSemantics extends Syntax {
         if op == "≥" || op == ">=" =>
       χ((lhs.toInt >= rhs.toInt).toString)
     // Church-encoded Booleans
-    case (χ("true")  ₋ thenBranch) ₋ elseBranch =>
+    case ((χ("true" ) □ _)  ₋ thenBranch) ₋ elseBranch =>
       thenBranch
-    case (χ("false") ₋ thenBranch) ₋ elseBranch =>
+    case ((χ("false") □ _) ₋ thenBranch) ₋ elseBranch =>
       elseBranch
     // loops, coz recursion's too hard
     case ((χ("iterate") ₋ χ(n)) ₋ z) ₋ f =>
@@ -184,14 +187,32 @@ trait SmallStepSemantics extends Syntax {
         ₋(₋(₋(χ("iterate"), χ((i - 1).toString)), ₋(f, z)), f)
       else
         χ("???")
-
     // absurdity
     case χ("???") ₋ _ =>
       sys error s"applying absurdity"
+
+    // lists
+    case χ("isnil") ₋ χ("nil") =>
+      χ("true")
+
+    case χ("isnil") ₋ ((χ("cons") ₋ _) ₋ _) =>
+      χ("false")
+
+    case χ("head") ₋ χ("nil") =>
+      throw Stuck("head of empty list")
+
+    case χ("head") ₋ ((χ("cons") ₋ head) ₋ _) =>
+      head
+
+    case χ("tail") ₋ χ("nil") =>
+      throw Stuck("tail of empty list")
+
+    case χ("head") ₋ ((χ("cons") ₋ _) ₋ tail) =>
+      tail
   }
 }
 
-trait SmallStepRepl extends SmallStepSemantics with Modules with SystemF {
+trait SmallStepRepl extends SmallStepSemantics with Modules {
   import scala.tools.jline.console._
   import completer._
   import collection.JavaConversions._
@@ -209,7 +230,11 @@ trait SmallStepRepl extends SmallStepSemantics with Modules with SystemF {
   val console = new ConsoleReader
 
   assert(console.addCompleter(
-    new ArgumentCompleter(List(EnvCompleter, new FileNameCompleter))))
+    EnvCompleter
+    // ArgumentCompleter doesn't work.
+    // Roll your own!
+    //new ArgumentCompleter(List(EnvCompleter, new FileNameCompleter))
+  ))
 
   def startRepl() {
     // TODO: ascii art
@@ -300,9 +325,17 @@ trait SmallStepRepl extends SmallStepSemantics with Modules with SystemF {
     type JavaList = java.util.List[CharSequence]
     def complete(prefix: String, cursor: Int, candidates: JavaList):
         Int = {
-      val matches =
-        module.dfn.keySet.filter(_ startsWith prefix).toSeq.sorted
+      val gamma = Γ0.finite.keySet ++ module.dfn.keySet
+      val matches = gamma.filter(_ startsWith prefix).toSeq.sorted
       candidates addAll matches
+
+      //DEBUG
+      println(s"\nEnvCompleter called")
+      println(s"prefix  = $prefix")
+      println(s"matches = $matches")
+      println(s"candida = $candidates\n")
+      //DEBUG
+
       if (candidates.isEmpty)
         -1
       else

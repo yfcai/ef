@@ -74,5 +74,20 @@ trait IntsAndBools extends Aliasing {
       Gamma(finite ++ _finite, infinite)
   }
 
-  val Γ0 = Gamma(Map.empty, primitiveType)
+  def Γ0 = Gamma(Map.empty, primitiveType)
+}
+
+trait PrimitiveLists extends IntsAndBools {
+  override def globalTypes: Map[String, Tree] =
+    super.globalTypes.updated("List", æ("List"))
+
+  override def Γ0 = {
+    val α = if (I_hate_unicode) "a" else "α"
+    super.Γ0 ++ Map(
+      "nil" -> Type(s"∀$α. List $α"),
+      "cons" -> Type(s"∀$α. $α → List $α → List $α"),
+      "isnil" -> Type(s"∀$α. List $α → Bool"),
+      "head" -> Type(s"∀$α. List $α → $α"),
+      "tail" -> Type(s"∀$α. List $α → List $α"))
+  }
 }

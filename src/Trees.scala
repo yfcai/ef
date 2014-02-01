@@ -477,6 +477,7 @@ trait Trees extends Names {
           Iterator[(Tree, Map[String, Tree])] = t match {
         case ∙(_, _) =>
           Iterator((t, gamma))
+        // this is λ before λ is declared.
         case ⊹(binder: Binder, _name, _note, _body)
             if binder.genus == this.tag.genus =>
           binder.unbind(t).get match {
@@ -486,6 +487,15 @@ trait Trees extends Names {
               loop(x, newGamma) ++
               loop(note, gamma) ++
               loop(body, newGamma)
+          }
+        // this is Λ before Λ is declared.
+        case ⊹(binder: Binder, _*)
+            if binder.genus == this.tag.genus =>
+          binder.unbind(t).get match {
+            case (x, bodies) =>
+              Iterator((t, gamma)) ++
+              loop(x, gamma) ++
+              bodies.flatMap(s => loop(s, gamma))
           }
         case ⊹(_, children @ _*) =>
           Iterator((t, gamma)) ++ children.flatMap(s => loop(s, gamma))

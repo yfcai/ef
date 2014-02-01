@@ -381,7 +381,7 @@ object Experiments extends Flags {
          |#LINE:1
          |Λγ. λx : ∀α β. F (∃ε = α. ∃η = {}. ∃ζ = η {ε, β}. ∃ξ = {ζ}. ξ). x
          | ^
-         |LiteralTag(java.lang.String)
+         |FreeTypeVar
          |
          |#LINE:1
          |Λγ. λx : ∀α β. F (∃ε = α. ∃η = {}. ∃ζ = η {ε, β}. ∃ξ = {ζ}. ξ). x
