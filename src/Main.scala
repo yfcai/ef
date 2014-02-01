@@ -60,6 +60,7 @@ object Main extends ARGV0 with Calculi {
 
             case "repl" =>
               ReplF.setFlags(flag)
+              ReplF.recurseFlag = true // important! don't forget!
               ReplF.startRepl(tail)
 
             case cmd if Generator.dispatch.isDefinedAt((cmd, tail)) =>

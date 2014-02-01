@@ -125,7 +125,6 @@ trait SmallStepSemantics extends SystemF with PrimitiveLists {
       (Tree, Tree => Tree) =
     getRedex(t, reduction).getOrElse((t, identity))
 
-
   def getRedex(t: Tree, reduction: Reduction):
       Option[(Tree, Tree => Tree)] =
     t match {
@@ -239,7 +238,7 @@ trait SmallStepSemantics extends SystemF with PrimitiveLists {
     case (χ("tail") □ _) ₋ (χ("nil") □ _) =>
       throw Stuck("tail of empty list")
 
-    case (χ("head") □ _) ₋ (((χ("cons") □ _) ₋ _) ₋ tail) =>
+    case (χ("tail") □ _) ₋ (((χ("cons") □ _) ₋ _) ₋ tail) =>
       tail
   }
 }
@@ -247,6 +246,9 @@ trait SmallStepSemantics extends SystemF with PrimitiveLists {
 trait SmallStepRepl extends SmallStepSemantics with Modules {
   import scala.tools.jline.console._
   import completer._
+
+  // we want recursion here.
+  recurseFlag = true
 
   var typeSystem: SystemFTyping = new SystemFTyping(Module.empty)
 
@@ -295,6 +297,59 @@ trait SmallStepRepl extends SmallStepSemantics with Modules {
                 step(t)
               })
 
+            case Load(§(file)) =>
+              load(file)
+
+            case Reload(_) =>
+              module.maybeFile match {
+                case Some(file) =>
+                  load(file)
+                case None =>
+                  println("no file loaded yet; do you mean :l or :load ?")
+              }
+
+            // got definition, type & add it
+            case definition @ Definition(x, t) =>
+              if (t.freeNames contains x)
+                println("Recursive definition is impossible in the REPL.")
+              else if (Γ0.finite contains x)
+                println(s"It is forbidden to override the primitive `$x`.")
+              else typeAndThen(t) { τ =>
+                // rename shadowed "x"
+                val oldModule =
+                  if (module.dfn contains x) {
+                    val xOld = Postscript.newName(x, module.dfn.keySet)
+                    val dfn = module.dfn map {
+                      case (y, ydef) =>
+                        (if (x == y) xOld else y, ydef.subst(χ(x), χ(xOld)))
+                    }
+                    val sig = module.sig map {
+                      case (y, ytype) =>
+                        (if (x == y) xOld else y, ytype)
+                    }
+                    val dfntoks = module.dfntoks.
+                      updated(xOld, module.dfntoks(x))
+                    val sigtoks = module.sigtoks.
+                      updated(xOld, module.sigtoks(x))
+                    Module(
+                      module.syn, module.syntoks,
+                      sig, sigtoks,
+                      dfn, dfntoks,
+                      module.naked).updateState(module)
+                  }
+                  else
+                    module
+                val toks = ParagraphExpr.parse(ProtoAST(line)).get._2
+                val newModule = oldModule.add(definition, toks)
+                new SystemFTyping(newModule).instrumentality match {
+                  case Left(problem) => sys error s"fatal error: FFFFCAFE"
+                  case Right(newTypeSystem) =>
+                    typeSystem = newTypeSystem
+                    println(s"$x : ${τ.unparse}")
+                    println(s"$x = ${t.unparse}")
+                }
+              }
+
             // got naked expression, type & evaluate it
             case NakedExpression(t) =>
               typeAndThen(t) { τ =>
@@ -305,15 +360,45 @@ trait SmallStepRepl extends SmallStepSemantics with Modules {
           }
         }
       } catch {
-        case e: Problem => println(e.getMessage)
-        case e: Stuck   => println(e.getMessage)
+        case e: Exception => e match {
+          case _: Problem
+             | _: Stuck
+             | _: java.io.FileNotFoundException =>
+            put(e.getMessage)
+          case _ =>
+            throw e
+        }
       }
     }
   }
 
   def load(file: String) {
-    // todo: really load preludes
-    io.Source.fromFile(file)
+    val newModule = Module.fromFile(file)
+    println(s"type checking $file")
+    val newTyping = new SystemFTyping(newModule)
+    newTyping.instrumentality match {
+      case Left(problem) => throw problem
+      case Right(perfection) => perfection.typeCheck match {
+        case Left(problem) => throw problem
+        case Right(stuff) =>
+          module.maybeFile.map { file =>
+            println(s"old module $file discarded")
+          }
+          typeSystem = perfection // hereby is old module discarded
+          val naked = stuff.filter(_._1 == None)
+          naked.foreach {
+            case (defaultName, t, τ, tok) =>
+              defaultName.fold({
+                println()
+                val name = s":${tok.line}"
+                val xxxx = Array.fill(name.length)(' ').mkString
+                println(s"$name : ${τ.unparse}")
+                println(s"$name = ${t.unparse}")
+                println(s"$xxxx = ${eval(t, reduction).unparse}")
+                })(_ => ())
+              }
+          }
+    }
   }
 
   def reduction: Reduction = ({
@@ -375,7 +460,7 @@ trait SmallStepRepl extends SmallStepSemantics with Modules {
   }
 
   object Directive extends TopLevelGenus {
-    lazy val ops = List(Help, Step, Typing, ParagraphExpr)
+    lazy val ops = List(Help, Step, Load, Reload, Typing, ParagraphExpr)
   }
 
   object Help extends ObliviousCommand(":h", ":help") {
@@ -387,6 +472,26 @@ trait SmallStepRepl extends SmallStepSemantics with Modules {
   object Step extends Command(":s", ":step") {
     def tryNext = Seq(Term.ops)
   }
+
+  object Load extends ObliviousCommand(":l", ":load") {
+    override
+    def cons(children: Seq[Tree]): Tree =
+      if (children.isEmpty)
+        throw Stuck("usage:   :l <file-to-load>")
+      else {
+        val token = getFirstToken(children)
+        val line  = token.paragraph.body
+        val colon = line.indexWhere(! _.isSpace)
+        val space = line.indexWhere(  _.isSpace, colon)
+        val path  = line.indexWhere(! _.isSpace, space)
+        val last  = line.lastIndexWhere(_.isSpace)
+        val file  = line.substring(path,
+          if (last > path) last else line.length)
+        ⊹(this, §(file))
+      }
+  }
+
+  object Reload extends ObliviousCommand(":r", ":reload")
 
   object Typing extends Command(":t", ":type") {
     def tryNext = Seq(Term.ops)
@@ -451,8 +556,11 @@ trait SmallStepRepl extends SmallStepSemantics with Modules {
 
     def complete(prefix: String): Seq[String] = {
       val list = new java.util.LinkedList[CharSequence]
-      complete(prefix, prefix.length, list)
-      list.map(_.toString)
+      val i = complete(prefix, prefix.length, list)
+      if (i > 0)
+        list.map(prefix.substring(0, i) + _.toString)
+      else
+        list.map(_.toString)
     }
 
     def complete(prefix: String, cursor: Int, candidates: JavaList):
@@ -462,18 +570,20 @@ trait SmallStepRepl extends SmallStepSemantics with Modules {
   case class ArgCompleter(children: FunCompleter*) extends ScalaCompleter {
     def complete(prefix: String): Seq[String] = {
       val args = prefix.split(" ").filter(! _.isEmpty)
+      val precedence = args.init.mkString(" ")
+      val filler = if (args.length <= 1) "" else " "
       if (args.isEmpty)
         Nil
       else for {
         child <- children
         result <- child.complete(args.last)
-      } yield s"${args.init.mkString(" ")} $result "
+      } yield s"$precedence$filler$result"
     }
   }
 
   object EnvCompleter extends ScalaCompleter {
     def complete(prefix: String): Seq[String] =
       (Γ0.finite.keySet ++ module.dfn.keySet).
-        toSeq.filter(_ startsWith prefix).sorted
+        toSeq.filter(_ startsWith prefix).sorted.map(_ + " ")
   }
 }

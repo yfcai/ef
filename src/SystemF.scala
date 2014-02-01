@@ -71,7 +71,7 @@ trait SystemF extends TypedModules
           return Left(Problem(
             m0.dfntoks(baddies.head).head,
             s"""|circular definitions need type signatures:
-                |${baddies mkString ", "}""".stripMargin))
+                |  ${baddies mkString ", "}""".stripMargin))
         case Right(topo) =>
           topo
       }
@@ -93,15 +93,17 @@ trait SystemF extends TypedModules
       Right(new SystemFTyping(lcl))
     }
 
-    def getType(t: Tree, toks: Seq[Token]): Either[Problem, Tree] =
-      getType(Γ0 ++ m0.sig, t) match {
+    def Γ = Γ0 ++ m0.sig addTypes m0.syn.keySet
+
+    def getType(t: Tree, toks: Seq[Token]): Either[Problem, Tree] = {
+      getType(Γ, t) match {
         case Success(τ) =>
           Right(τ)
 
         case Failure(_) =>
           Left(t.blindPreorder.toSeq.zip(toks).reverse.findFirst({
             case ((t, gamma), tok) if t.tag.genus == Term =>
-              getType(Γ0 ++ gamma, t) match {
+              getType(Γ ++ gamma, t) match {
                 case Success(_) =>
                   None
                 case Failure(report) =>
@@ -111,6 +113,7 @@ trait SystemF extends TypedModules
               None
           }).get)
       }
+    }
 
     def getType(Γ: Gamma, t: Tree): Status[Tree] = t match {
       case χ(x) =>
@@ -120,8 +123,14 @@ trait SystemF extends TypedModules
           Failure(s"undeclared identifier $x")
 
       case λ(x, σ, body) =>
-        getType(Γ.updated(x, σ), body).flatMap(
-          τ => Success(→(resolve(σ), τ)))
+        val badTypes = Γ.badTypes(σ.freeNames)
+        if (! badTypes.isEmpty)
+          Failure(s"""|undeclared type variables in argument type annotation:
+                      |  ${badTypes.mkString(", ")}""".
+            stripMargin)
+        else
+          getType(Γ.updated(x, σ), body).flatMap(
+            τ => Success(→(resolve(σ), τ)))
 
       case f ₋ x =>
         for {
@@ -143,15 +152,24 @@ trait SystemF extends TypedModules
             s"nonfunction in operator position: ${nonfunction.unparse}")
         }
 
-      case Λ(α, t) =>
-        for { τ <- getType(Γ, t) } yield ∀(α, Annotation.none(), τ)
+      case Λ(α, t) => {
+        val Γα = Γ.addType(α)
+        for { τ <- getType(Γα, t) } yield ∀(α, Annotation.none(), τ)
+      }
 
-      case t □ σ =>
-        for { τ <- getType(Γ, t) ; _ <- NoReturn } yield τ.tag match {
-          case Universal => Success(τ(resolve(σ)))
-          case otherwise => Failure(
-            s"cannot instantiate nonuniversal type ${τ.unparse}")
-        }
+      case t □ σ => {
+        val badTypes = Γ.badTypes(σ.freeNames)
+        if (! badTypes.isEmpty)
+          Failure(s"""|undeclared type variables when instantiating it:
+                      |  ${badTypes.mkString(", ")}""".
+            stripMargin)
+        else
+          for { τ <- getType(Γ, t) ; _ <- NoReturn } yield τ.tag match {
+            case Universal => Success(τ(resolve(σ)))
+            case otherwise => Failure(
+              s"cannot instantiate nonuniversal type ${τ.unparse}")
+          }
+      }
     }
   }
 }

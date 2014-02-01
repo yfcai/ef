@@ -59,22 +59,34 @@ trait IntsAndBools extends Aliasing {
   // context with infinite & finite part
   case class Gamma(
     finite: Map[String, Tree],
-    infinite: PartialFunction[String, Tree]) {
+    infinite: PartialFunction[String, Tree],
+    types: Set[String]) {
 
     def contains(x: String): Boolean =
       finite.contains(x) || infinite.isDefinedAt(x)
 
     def updated(x: String, τ: Tree): Gamma =
-      Gamma(finite.updated(x, τ), infinite)
+      Gamma(finite.updated(x, τ), infinite, types)
 
     def apply(x: String): Tree =
       finite.withDefault(infinite)(x)
 
     def ++(_finite: Map[String, Tree]): Gamma =
-      Gamma(finite ++ _finite, infinite)
+      Gamma(finite ++ _finite, infinite, types)
+
+    def addType(α: String): Gamma =
+      Gamma(finite, infinite, types + α)
+
+    def addTypes(moreTypes: Iterable[String]): Gamma =
+      Gamma(finite, infinite, types ++ moreTypes)
+
+    def hasType(α: String): Boolean = types(α)
+
+    def badTypes(someTypes: Set[String]): Set[String] =
+      someTypes -- types
   }
 
-  def Γ0 = Gamma(Map.empty, primitiveType)
+  def Γ0 = Gamma(Map.empty, primitiveType, globalTypes.keySet)
 }
 
 trait PrimitiveLists extends IntsAndBools {

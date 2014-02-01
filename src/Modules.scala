@@ -119,6 +119,15 @@ trait Modules extends Syntax with Flags {
     dfntoks: Map[String, List[Token]] ,
     naked  : Seq[(Tree, List[Token])] ) {
 
+    private[Modules] var _maybeFile: Option[String] = None
+    def maybeFile = _maybeFile
+
+    // update mutable state here
+    def updateState(parent: Module): Module = {
+      _maybeFile = parent._maybeFile
+      this
+    }
+
     def unparse: String = {
       type Domain = List[(Int, Definitional, String, Tree)]
       def acc(toks: Map[String, List[Token]], op: Definitional)
@@ -155,34 +164,37 @@ trait Modules extends Syntax with Flags {
         throw Problem(tok, "repeated top level name")
 
     // tentative type. write use case first.
-    def add(t: Tree, toks: List[Token]): Module = t match {
-      case TypeSynonym(α, τ) =>
-        ensureUnique(syn, α, toks.head)
-        Module(
-          syn.updated(α, τ), syntoks.updated(α, toks),
-          sig, sigtoks,
-          dfn, dfntoks,
-          naked)
-      case Signature(x, τ) =>
-        ensureUnique(sig, x, toks.head)
-        Module(
-          syn, syntoks,
-          sig.updated(x, τ), sigtoks.updated(x, toks),
-          dfn, dfntoks,
-          naked)
-      case Definition(x, t) =>
-        ensureUnique(dfn, x, toks.head)
-        Module(
-          syn, syntoks,
-          sig, sigtoks,
-          dfn.updated(x, t), dfntoks.updated(x, toks),
-          naked)
-      case NakedExpression(e) =>
-        Module(
-          syn, syntoks, sig, sigtoks, dfn, dfntoks,
-          naked.:+((e, toks)))
-      case _ =>
-        sys error s"undetected parse error on ${t.tag}:\n${t.unparse}"
+    def add(t: Tree, toks: List[Token]): Module = {
+      val module = t match {
+        case TypeSynonym(α, τ) =>
+          ensureUnique(syn, α, toks.head)
+          Module(
+            syn.updated(α, τ), syntoks.updated(α, toks),
+            sig, sigtoks,
+            dfn, dfntoks,
+            naked)
+        case Signature(x, τ) =>
+          ensureUnique(sig, x, toks.head)
+          Module(
+            syn, syntoks,
+            sig.updated(x, τ), sigtoks.updated(x, toks),
+            dfn, dfntoks,
+            naked)
+        case Definition(x, t) =>
+          ensureUnique(dfn, x, toks.head)
+          Module(
+            syn, syntoks,
+            sig, sigtoks,
+            dfn.updated(x, t), dfntoks.updated(x, toks),
+            naked)
+        case NakedExpression(e) =>
+          Module(
+            syn, syntoks, sig, sigtoks, dfn, dfntoks,
+            naked.:+((e, toks)))
+        case _ =>
+          sys error s"undetected parse error on ${t.tag}:\n${t.unparse}"
+      }
+      module.updateState(this)
     }
 
     // strip the "LHS" and the "=" away from token stream
@@ -217,8 +229,11 @@ trait Modules extends Syntax with Flags {
     def apply(source: String): Module =
       fromParagraphs(Paragraphs(source))
 
-    def fromFile(file: String): Module =
-      fromParagraphs(Paragraphs.fromFile(file))
+    def fromFile(file: String): Module = {
+      val m = fromParagraphs(Paragraphs.fromFile(file))
+      m._maybeFile = Some(file)
+      m
+    }
 
     def fromParagraphs(paragraphs: Iterator[Paragraph]): Module =
       paragraphs.foldLeft(empty) {

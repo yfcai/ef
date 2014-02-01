@@ -21,7 +21,9 @@ trait Flags {
   def debugFlag_=(set: Boolean) = setFlag(debug, set)
 
   // recurse: permit recursion (causes inf loop in type checker now)
-  def recurseFlag: Boolean = flag("recurse")
+  private[this] def recurse = "recurse"
+  def recurseFlag: Boolean = flag(recurse)
+  def recurseFlag_=(set: Boolean) = setFlag(recurse, set)
 
   // dont-recurse: forbid recursion
   def dontRecurseFlag: Boolean = ! recurseFlag

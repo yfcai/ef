@@ -31,7 +31,13 @@ trait Names extends Flags {
   }
 
   /** subscript utilities */
-  object Subscript extends NameGenerator {
+  object Subscript extends Subscript
+
+  object Postscript extends Subscript {
+    override def s = "0123456789"
+  }
+
+  trait Subscript extends NameGenerator {
     // Subscript.s
     def s =
       if (I_hate_unicode) "0123456789"
