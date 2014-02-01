@@ -288,6 +288,13 @@ trait SmallStepRepl extends SmallStepSemantics with Modules {
             case Typing(t) =>
               typeAndThen(t)(τ => println(τ.unparse))
 
+            case Step(t) =>
+              typeAndThen(t)(τ => {
+                printCurrentType(τ)
+                printCurrentTerm(t)
+                step(t)
+              })
+
             // got naked expression, type & evaluate it
             case NakedExpression(t) =>
               typeAndThen(t) { τ =>
@@ -313,14 +320,72 @@ trait SmallStepRepl extends SmallStepSemantics with Modules {
     case χ(x) if module.dfn contains x => module.dfn(x)
   }: Reduction) orElse beta orElse instantiation orElse delta
 
+  def printCurrentType(τ: Tree) = println(s"current : ${τ.unparse}")
+  def printCurrentTerm(t: Tree) = println(s"current = ${t.unparse}")
+
+  def doneStepping(): Unit = println("done.")
+
+  def screenWidth = 80
+
+  def step(t0: Tree): Unit = getRedex(t0, reduction) match {
+    case None => doneStepping()
+    case Some((prev, context)) =>
+      val next = reduction(prev)
+      val innard = §({
+        val line = s"    ${prev.unparse}  ==>  ${next.unparse}"
+        if (line.length <= screenWidth)
+          s"""|
+              |  [
+              |$line
+              |  ]
+              | """.stripMargin
+        else
+          s"""|
+              |  [
+              |    ${prev.unparse}  ==>
+              |      ${next.unparse}
+              |  ]
+              | """.stripMargin
+      })
+      val spectacle = context(innard).unparse
+      val t = context(next)
+      println()
+      println(spectacle)
+      println()
+      getType(t) match {
+        case Left(problem) => throw Stuck("preservation failed")
+        case Right(τ) =>
+          printCurrentType(τ)
+          printCurrentTerm(t)
+          println()
+          if (getRedex(t, reduction) != None) {
+            var s = console.readLine("next? ")
+            if (s == null)
+              println()
+            else s.find(! _.isSpace) match {
+              case Some('n') | Some('N') =>
+                ()
+              case _ =>
+                step(t)
+            }
+          }
+          else
+            doneStepping()
+      }
+  }
+
   object Directive extends TopLevelGenus {
-    lazy val ops = List(Help, Typing, ParagraphExpr)
+    lazy val ops = List(Help, Step, Typing, ParagraphExpr)
   }
 
   object Help extends ObliviousCommand(":h", ":help") {
     def message = // TODO: replace this uplifting message.
       """|God helps those who helps themselves.
          |""".stripMargin
+  }
+
+  object Step extends Command(":s", ":step") {
+    def tryNext = Seq(Term.ops)
   }
 
   object Typing extends Command(":t", ":type") {
