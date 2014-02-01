@@ -122,27 +122,56 @@ trait SmallStepSemantics extends SystemF with PrimitiveLists {
 
   /** @return (thing inside context, evalutation context) */
   def callByName(t: Tree, reduction: Reduction):
-      (Tree, Tree => Tree) = t match {
-    // reduce first, ask questions later
-    case s ₋ t =>
-      val (ins, cs) = callByName(s, reduction)
-      if (ins != s)
-        (ins, x => ₋(cs(x), t))
-      else {
-        val (int, ct) = callByName(t, reduction)
-        (int, x => ₋(s, ct(x)))
-      }
+      (Tree, Tree => Tree) =
+    getRedex(t, reduction).getOrElse((t, identity))
 
-    case _ =>
-      (t, identity)
+
+  def getRedex(t: Tree, reduction: Reduction):
+      Option[(Tree, Tree => Tree)] =
+    t match {
+      // reduce first, ask questions later
+      case _ if reduction isDefinedAt t =>
+        Some((t, identity))
+
+      case s ₋ t =>
+        getRedex(s, reduction) match {
+          case Some((redex, context)) =>
+            Some((redex, x => ₋(context(x), t)))
+          case None => getRedex(t, reduction).map {
+            case (redex, context) => (redex, x => ₋(s, context(x)))
+          }
+        }
+
+      case t □ τ =>
+        getRedex(t, reduction).map {
+          case (redex, context) => (redex, x => □(context(x), τ))
+        }
+
+      case _ =>
+        None
+    }
+
+  def step(t: Tree, reduction: Reduction): Option[Tree] = {
+    val (redex, context) = callByName(t, reduction)
+    if (reduction isDefinedAt redex)
+      Some(context(reduction(redex)))
+    else
+      None
   }
+
+  def eval(t: Tree, reduction: Reduction): Tree =
+    step(t, reduction).fold(t)(s => eval(s, reduction))
 
   case class Stuck(s: String = "stuck") extends Exception(s)
 
   // untyped β-reduction
   val beta: Reduction = {
     // not using λ here due to inherent unbinding involved
-    case ₋(f, x) if f.tag == AnnotatedAbstraction => f(x)
+    case f ₋ x if f.tag == AnnotatedAbstraction => f(x)
+  }
+
+  val instantiation: Reduction = {
+    case t □ τ if t.tag == TypeAbstraction => t(τ)
   }
 
   val delta: Reduction = {
@@ -179,35 +208,38 @@ trait SmallStepSemantics extends SystemF with PrimitiveLists {
     case ((χ("false") □ _) ₋ thenBranch) ₋ elseBranch =>
       elseBranch
     // loops, coz recursion's too hard
-    case ((χ("iterate") ₋ χ(n)) ₋ z) ₋ f =>
+    case (((χ("iterate") □ τ) ₋ χ(n)) ₋ z) ₋ f =>
       val i = n.toInt
       if (i == 0)
         z
       else if (i > 0)
-        ₋(₋(₋(χ("iterate"), χ((i - 1).toString)), ₋(f, z)), f)
+        ₋(₋(₋(□(χ("iterate"), τ), χ((i - 1).toString)),
+          ₋(₋(f, χ(n)), z)), f)
       else
         χ("???")
     // absurdity
     case χ("???") ₋ _ =>
-      sys error s"applying absurdity"
+      throw Stuck("applying absurdity")
+    case χ("???") □ _ =>
+      throw Stuck("instantiating absurdity")
 
     // lists
-    case χ("isnil") ₋ χ("nil") =>
+    case (χ("isnil") □ _) ₋ (χ("nil") □ _) =>
       χ("true")
 
-    case χ("isnil") ₋ ((χ("cons") ₋ _) ₋ _) =>
+    case (χ("isnil") □ _) ₋ (((χ("cons") □ _) ₋ _) ₋ _) =>
       χ("false")
 
-    case χ("head") ₋ χ("nil") =>
+    case (χ("head") □ _) ₋ (χ("nil") □ _) =>
       throw Stuck("head of empty list")
 
-    case χ("head") ₋ ((χ("cons") ₋ head) ₋ _) =>
+    case (χ("head") □ _) ₋ (((χ("cons") □ _) ₋ head) ₋ _) =>
       head
 
-    case χ("tail") ₋ χ("nil") =>
+    case (χ("tail") □ _) ₋ (χ("nil") □ _) =>
       throw Stuck("tail of empty list")
 
-    case χ("head") ₋ ((χ("cons") ₋ _) ₋ tail) =>
+    case (χ("head") □ _) ₋ (((χ("cons") □ _) ₋ _) ₋ tail) =>
       tail
   }
 }
@@ -220,10 +252,15 @@ trait SmallStepRepl extends SmallStepSemantics with Modules {
 
   def module: Module = typeSystem.module
 
-  def getType(ttoks: (Tree, Seq[Token])): String =
-    typeSystem.getType(ttoks._1, ttoks._2) match {
-      case Left(problem) => problem.getMessage
-      case Right(typ) => s"${typ.unparse}\n"
+  def getType(t0: Tree): Either[Problem, Tree] = {
+    val (t, toks) = Term.parse(ProtoAST(t0.unparse)).get
+    typeSystem.getType(t, toks)
+  }
+
+  def typeAndThen(t: Tree)(later: Tree => Unit): Unit =
+    getType(t) match {
+      case Left(problem) => println(problem.getMessage)
+      case Right(τ) => later(τ)
     }
 
   val console = new ConsoleReader
@@ -245,17 +282,24 @@ trait SmallStepRepl extends SmallStepSemantics with Modules {
           complainPolitely()
         else {
           directive.get match {
-
             case Help(_) =>
               put(Help.message)
 
             case Typing(t) =>
-              put(getType(Term.parse(ProtoAST(t.unparse)).get))
+              typeAndThen(t)(τ => println(τ.unparse))
+
+            // got naked expression, type & evaluate it
+            case NakedExpression(t) =>
+              typeAndThen(t) { τ =>
+                println(s" input : ${τ.unparse}")
+                val v = eval(t, reduction)
+                println(s"result = ${v.unparse}")
+              }
           }
         }
       } catch {
-        case p: Problem =>
-          println(p.getMessage)
+        case e: Problem => println(e.getMessage)
+        case e: Stuck   => println(e.getMessage)
       }
     }
   }
@@ -265,9 +309,12 @@ trait SmallStepRepl extends SmallStepSemantics with Modules {
     io.Source.fromFile(file)
   }
 
+  def reduction: Reduction = ({
+    case χ(x) if module.dfn contains x => module.dfn(x)
+  }: Reduction) orElse beta orElse instantiation orElse delta
+
   object Directive extends TopLevelGenus {
-    lazy val ops = List(Help, Typing)
-    // TODO: add Term & ParagraphExpr here
+    lazy val ops = List(Help, Typing, ParagraphExpr)
   }
 
   object Help extends ObliviousCommand(":h", ":help") {
@@ -300,12 +347,16 @@ trait SmallStepRepl extends SmallStepSemantics with Modules {
   }
 
   val pleasantries = Array(
+    "...DIRECTIVE?",
     "UNRECOGNIZED DIRECTIVE",
     "I understand it's not your fault, but what did you just say?",
     "Can you help me with this? I don't comprehend.",
     "I'm afrait we have a problem with communication.",
     "I'm afraid there might be a misunderstanding.",
-    "Could you please paraphrase that, perhaps?")
+    "Could you please paraphrase that, perhaps?",
+    "I'm sorry to say this, but maybe :help would help?",
+    "In a perfect world, I'd see you proof-read the previous line.",
+    "Excuse me, but there's a slight problem with the syntax of your command.")
 
   def complainPolitely() =
     println(pleasantries(util.Random.nextInt(pleasantries.length)))

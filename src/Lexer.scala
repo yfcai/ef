@@ -16,10 +16,11 @@ trait Lexer extends Flags {
 
   case class Token(body: String, location: Int, paragraph: Paragraph) {
     override def toString = s"$location:$body"
+    def maybeFile: Option[String] = paragraph.maybeFile
     def file: String = paragraph.file
     def line: Int = paragraph.line +
       (paragraph.body.substring(0, location) count (_ == '\n'))
-    def fileLine: String = Token.fileLine(file, line)
+    def fileLine: String = Token.fileLine(maybeFile, line)
 
     def isLeftParen  = body == "("
     def isRightParen = body == ")"
@@ -60,6 +61,12 @@ trait Lexer extends Flags {
   object Token {
     def fileLine(file: String, line: Int): String =
       s"${file substring (1 + (file lastIndexOf '/'))}:$line"
+
+    def fileLine(maybeFile: Option[String], line: Int): String =
+      maybeFile match {
+        case None => ""
+        case Some(file) => fileLine(file, line)
+      }
   }
 
   def tokenize(p: Paragraph): Seq[Token] = new TokenIterator(p).toSeq
@@ -187,22 +194,28 @@ trait Lexer extends Flags {
     * of lines such that the first line starts with a nonspace and
     * the other lines start with a space.
     */
-  case class Paragraph(file: String, line: Int, body: String)
+  case class Paragraph(maybeFile: Option[String], line: Int, body: String) {
+    def file: String = maybeFile match {
+      case None => Paragraph.defaultFile
+      case Some(file) => file
+    }
+  }
 
   object Paragraph {
     val defaultFile = "#LINE"
     val firstLine = 1
-    def apply(s: String): Paragraph = Paragraph(defaultFile, firstLine, s)
+    def apply(s: String): Paragraph = Paragraph(None, firstLine, s)
   }
 
   object Paragraphs {
     def apply(s: String): Paragraphs =
-      Paragraphs(Paragraph.defaultFile, s.lines)
+      Paragraphs(None, s.lines)
+
     def fromFile(file: String): Paragraphs =
-      Paragraphs(file, scala.io.Source.fromFile(file).getLines)
+      Paragraphs(Some(file), io.Source.fromFile(file).getLines)
   }
 
-  case class Paragraphs(file: String, _lines: Iterator[String])
+  case class Paragraphs(maybeFile: Option[String], _lines: Iterator[String])
   extends Iterator[Paragraph] {
     def hasNext: Boolean = {
       lines = removeEmptyLines(lines)._2
@@ -216,7 +229,7 @@ trait Lexer extends Flags {
       lines = theRest
       nextLineNumber += startOfNextParagraph
       Paragraph(
-        file,
+        maybeFile,
         thisLineNumber,
         (thisParagraph filterNot (_.isLineComment)) mkString "\n"
       )

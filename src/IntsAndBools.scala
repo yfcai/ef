@@ -31,9 +31,9 @@ trait IntsAndBools extends Aliasing {
     val intComp    = Type(s"$ℤ → $ℤ → (${bool.unparse})")
     val iterate    =
       if (I_hate_unicode)
-        Type(s"ℤ → ∀a. a → (ℤ → a → a) → a")
+        Type(s"∀a. ℤ → a → (ℤ → a → a) → a")
       else
-        Type(s"ℤ → ∀α. α → (ℤ → α → α) → α")
+        Type(s"∀α. ℤ → α → (ℤ → α → α) → α")
     val absurdity  =
       if (I_hate_unicode)
         Type("∀absurd. absurd")
