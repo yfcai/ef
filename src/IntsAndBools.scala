@@ -82,6 +82,8 @@ trait IntsAndBools extends Aliasing {
 
     def hasType(α: String): Boolean = types(α)
 
+    def badType(α: String): Boolean = ! hasType(α)
+
     def badTypes(someTypes: Set[String]): Set[String] =
       someTypes -- types
   }

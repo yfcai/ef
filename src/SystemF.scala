@@ -95,15 +95,22 @@ trait SystemF extends TypedModules
 
     def Γ = Γ0 ++ m0.sig addTypes m0.syn.keySet
 
-    def getType(t: Tree, toks: Seq[Token]): Either[Problem, Tree] = {
+    def getType(t: Tree, toks: Seq[Token]): Either[Problem, Tree] =
       getType(Γ, t) match {
         case Success(τ) =>
           Right(τ)
 
         case Failure(_) =>
-          Left(t.blindPreorder.toSeq.zip(toks).reverse.findFirst({
-            case ((t, gamma), tok) if t.tag.genus == Term =>
-              getType(Γ ++ gamma, t) match {
+          Left(t.blindPreorder2.toSeq.zip(toks).reverse.findFirst({
+            // special uglifications to improve error message
+            case ((⊹(AnnotatedAbstraction, _, σ, _), _, delta), tok)
+                if ! (Γ addTypes delta).badTypes(σ.freeNames).isEmpty =>
+              Some(locateBadType(Γ addTypes delta, σ, toks.drop(2)))
+            case ((⊹(Instantiation, _, σ), _, delta), tok)
+                if ! (Γ addTypes delta).badTypes(σ.freeNames).isEmpty =>
+              Some(locateBadType(Γ addTypes delta, σ, toks.drop(2)))
+            case ((t, gamma, delta), tok) if t.tag.genus == Term =>
+              getType(Γ ++ gamma addTypes delta, t) match {
                 case Success(_) =>
                   None
                 case Failure(report) =>
@@ -113,7 +120,6 @@ trait SystemF extends TypedModules
               None
           }).get)
       }
-    }
 
     def getType(Γ: Gamma, t: Tree): Status[Tree] = t match {
       case χ(x) =>
@@ -171,5 +177,12 @@ trait SystemF extends TypedModules
           }
       }
     }
+
+    def locateBadType(Γ: Gamma, σ: Tree, toks: Seq[Token]): Problem =
+      σ.preorder.toSeq.zip(toks).findFirst({
+        case (æ(α), tok) if Γ.badType(α) =>
+          Some(Problem(tok, "undeclared type variable"))
+        case _ => None
+      }).get
   }
 }

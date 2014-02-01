@@ -472,35 +472,40 @@ trait Trees extends Names {
         children.flatMap(_.preorder) // ++ is call-by-name for iterators
     }
 
-    def blindPreorder: Iterator[(Tree, Map[String, Tree])] = {
-      def loop(t: Tree, gamma: Map[String, Tree]):
-          Iterator[(Tree, Map[String, Tree])] = t match {
+    def blindPreorder: Iterator[(Tree, Map[String, Tree])] =
+      blindPreorder2.map(t => (t._1, t._2))
+
+    def blindPreorder2: Iterator[(Tree, Map[String, Tree], Set[String])] = {
+      def loop(t: Tree, gamma: Map[String, Tree], delta: Set[String]):
+          Iterator[(Tree, Map[String, Tree], Set[String])] = t match {
         case ∙(_, _) =>
-          Iterator((t, gamma))
+          Iterator((t, gamma, delta))
         // this is λ before λ is declared.
         case ⊹(binder: Binder, _name, _note, _body)
             if binder.genus == this.tag.genus =>
           binder.unbind(t).get match {
             case (x, Seq(note, body)) =>
               val newGamma = gamma.updated(x.get, note)
-              Iterator((t, gamma)) ++
-              loop(x, newGamma) ++
-              loop(note, gamma) ++
-              loop(body, newGamma)
+              Iterator((t, gamma, delta)) ++
+              loop(x, newGamma, delta) ++
+              loop(note, gamma, delta) ++
+              loop(body, newGamma, delta)
           }
         // this is Λ before Λ is declared.
         case ⊹(binder: Binder, _*)
             if binder.genus == this.tag.genus =>
           binder.unbind(t).get match {
             case (x, bodies) =>
-              Iterator((t, gamma)) ++
-              loop(x, gamma) ++
-              bodies.flatMap(s => loop(s, gamma))
+              val newDelta = delta + x.get
+              Iterator((t, gamma, delta)) ++
+              loop(x, gamma, newDelta) ++
+              bodies.flatMap(s => loop(s, gamma, delta))
           }
         case ⊹(_, children @ _*) =>
-          Iterator((t, gamma)) ++ children.flatMap(s => loop(s, gamma))
+          Iterator((t, gamma, delta)) ++
+          children.flatMap(s => loop(s, gamma, delta))
       }
-      loop(this, Map.empty)
+      loop(this, Map.empty, Set.empty)
     }
 
     // count number of occurrences of something
