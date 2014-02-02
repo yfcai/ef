@@ -492,14 +492,14 @@ trait Trees extends Names {
               loop(body, newGamma, delta)
           }
         // this is Λ before Λ is declared.
-        case ⊹(binder: Binder, _*)
+        case ⊹(binder: Binder, _, _)
             if binder.genus == this.tag.genus =>
           binder.unbind(t).get match {
             case (x, bodies) =>
               val newDelta = delta + x.get
               Iterator((t, gamma, delta)) ++
               loop(x, gamma, newDelta) ++
-              bodies.flatMap(s => loop(s, gamma, delta))
+              bodies.flatMap(s => loop(s, gamma, newDelta))
           }
         case ⊹(_, children @ _*) =>
           Iterator((t, gamma, delta)) ++
