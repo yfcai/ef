@@ -26,14 +26,15 @@ trait IntsAndBools extends Aliasing {
   def primitiveType: PartialFunction[String, Tree] = {
     val int        = globalTypes(ℤ)
     val bool       = globalTypes(Bool)
+    val z          = realIntType.unparse
     val intLiteral = """(-)?\d+"""
-    val intBinOp   = Type(s"$ℤ → $ℤ → $ℤ")
-    val intComp    = Type(s"$ℤ → $ℤ → (${bool.unparse})")
+    val intBinOp   = Type(s"$z → $z → $z")
+    val intComp    = Type(s"$z → $z → (${bool.unparse})")
     val iterate    =
       if (I_hate_unicode)
-        Type(s"∀a. ℤ → a → (ℤ → a → a) → a")
+        Type(s"∀a. $z → a → ($z → a → a) → a")
       else
-        Type(s"∀α. ℤ → α → (ℤ → α → α) → α")
+        Type(s"∀α. $z → α → ($z → α → α) → α")
     val absurdity  =
       if (I_hate_unicode)
         Type("∀absurd. absurd")
