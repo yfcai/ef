@@ -158,8 +158,19 @@ trait SmallStepSemantics extends SystemF with PrimitiveLists {
       None
   }
 
-  def eval(t: Tree, reduction: Reduction): Tree =
-    step(t, reduction).fold(t)(s => eval(s, reduction))
+  def eval(t: Tree, reduction: Reduction): Tree = {
+    // this elegant thing causes stack overflow when sorting
+    // a list of 4 elements.
+    //   step(t, reduction).fold(t)(s => eval(s, reduction))
+    var current: Tree = null
+    var next: Option[Tree] = Some(t)
+    do {
+      current = next.get
+      next = step(current, reduction)
+    }
+    while (next != None)
+    current
+  }
 
   case class Stuck(s: String = "stuck") extends Exception(s)
 
@@ -274,7 +285,7 @@ trait SmallStepRepl extends SmallStepSemantics with Modules {
     def put(s: String) = { print(s) ; System.out.flush() }
     println(asciiArt)
     put(welcomeMessage)
-    while (true) {
+    while (true) try {
       val line = console.readLine("> ")
       if (line == null) return ()
       else if (line.find(! _.isSpace) == None)
@@ -285,11 +296,14 @@ trait SmallStepRepl extends SmallStepSemantics with Modules {
           complainPolitely()
         else {
           directive.get match {
+            case Quitter(_) =>
+              return ()
+
             case Grammar(_) =>
               println(Grammar.message)
 
-            case Rules(_) =>
-              put(Rules.message)
+            case TypingRules(_) =>
+              put(TypingRules.message)
 
             case Help(_) =>
               Help.show
@@ -390,6 +404,10 @@ trait SmallStepRepl extends SmallStepSemantics with Modules {
             throw e
         }
       }
+    }
+    catch {
+      case e: java.lang.StackOverflowError =>
+        println("stack overflow")
     }
   }
 
@@ -511,10 +529,11 @@ trait SmallStepRepl extends SmallStepSemantics with Modules {
       Load,
       Ls,
       Primitives,
+      Quitter,
       Reload,
-      Rules,
       Step,
-      Typing)
+      Typing,
+      TypingRules)
     lazy val ops = commands :+ ParagraphExpr
   }
 
@@ -560,8 +579,8 @@ trait SmallStepRepl extends SmallStepSemantics with Modules {
     val T = if (noUnicode) "\\Tabs " else "Λ"
   }
 
-  object Rules
-      extends ObliviousCommand(":rs", ":rules")
+  object TypingRules
+      extends ObliviousCommand(":tr", ":typing")
       with UnicodeRehabilitation {
     def bio = "display typing rules"
 
@@ -646,6 +665,10 @@ trait SmallStepRepl extends SmallStepSemantics with Modules {
           |type abstraction
           |type application
           |""".stripMargin.lines.toSeq
+  }
+
+  object Quitter extends ObliviousCommand(":q", ":quit") {
+    def bio = "terminate this process"
   }
 
   object Help extends ObliviousCommand(":h", ":help") {
