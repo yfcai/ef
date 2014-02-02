@@ -2,6 +2,7 @@
 trait Flags {
   private var flag: Set[String] = Set.empty
   def setFlags(_flag: Set[String]) { flag = _flag }
+  def getFlags: Set[String] = flag
 
   def copyFlags(x: Flags): Unit = flag = x.flag
 

@@ -59,9 +59,9 @@ object Main extends ARGV0 with Calculi {
               Reductionist.execute(tail, flag)
 
             case "repl" =>
-              ReplF.setFlags(flag)
-              ReplF.recurseFlag = true // important! don't forget!
-              ReplF.startRepl(tail)
+              SmallStepRepl.setFlags(flag)
+              SmallStepRepl.recurseFlag = true
+              SmallStepRepl.startRepl(tail)
 
             case cmd if Generator.dispatch.isDefinedAt((cmd, tail)) =>
               Generator.dispatch((cmd, tail))
@@ -71,16 +71,6 @@ object Main extends ARGV0 with Calculi {
           }
         }
         while (loop)
-    }
-  }
-
-  object ReplF extends SystemF with SmallStepRepl {
-    def startRepl(prelude: Array[String]): Unit = try {
-      prelude.foreach(load)
-      startRepl()
-    } catch {
-      case e: java.io.FileNotFoundException =>
-        println(e.getMessage)
     }
   }
 }

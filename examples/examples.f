@@ -8,7 +8,7 @@ id = Λα. λx : α. x
 
 id-int = id [ℤ]
 
-zero = id [ℤ] 0
+id [ℤ] 0
 
 double = Λα. λf : α → α. λx : α. f (f x)
 

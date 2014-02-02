@@ -271,8 +271,9 @@ trait SmallStepRepl extends SmallStepSemantics with Modules {
     ArgCompleter(EnvCompleter, JavaCompleter(new FileNameCompleter))))
 
   def startRepl() {
-    // TODO: ascii art
     def put(s: String) = { print(s) ; System.out.flush() }
+    println(asciiArt)
+    put(welcomeMessage)
     while (true) {
       val line = console.readLine("> ")
       if (line == null) return ()
@@ -285,7 +286,16 @@ trait SmallStepRepl extends SmallStepSemantics with Modules {
         else {
           directive.get match {
             case Help(_) =>
-              put(Help.message)
+              Help.show
+
+            case About(_) =>
+              put(About.message)
+
+            case Ls(_) =>
+              listTypes(typeSystem.Γ.finite)
+
+            case Primitives(_) =>
+              listTypes(Γ0.finite)
 
             case Typing(t) =>
               typeAndThen(t)(τ => println(τ.unparse))
@@ -298,7 +308,10 @@ trait SmallStepRepl extends SmallStepSemantics with Modules {
               })
 
             case Load(§(file)) =>
-              load(file)
+              if (file.find(! _.isSpace) != None)
+                load(file)
+              else
+                println("can only :load <one-file>")
 
             case Reload(_) =>
               module.maybeFile match {
@@ -364,7 +377,9 @@ trait SmallStepRepl extends SmallStepSemantics with Modules {
           case _: Problem
              | _: Stuck
              | _: java.io.FileNotFoundException =>
-            put(e.getMessage)
+            val msg0 = e.getMessage
+            val msg1 = if (msg0 endsWith "\n") msg0 else s"$msg0\n"
+            put(msg1)
           case _ =>
             throw e
         }
@@ -372,25 +387,22 @@ trait SmallStepRepl extends SmallStepSemantics with Modules {
     }
   }
 
-  def load(file: String) {
+  def load(file: String, silent: Boolean = false) {
     val newModule = Module.fromFile(file)
-    println(s"type checking $file")
     val newTyping = new SystemFTyping(newModule)
+    if (! silent) println(s"loading $file")
     newTyping.instrumentality match {
       case Left(problem) => throw problem
       case Right(perfection) => perfection.typeCheck match {
         case Left(problem) => throw problem
         case Right(stuff) =>
-          module.maybeFile.map { file =>
-            println(s"old module $file discarded")
-          }
           typeSystem = perfection // hereby is old module discarded
           val naked = stuff.filter(_._1 == None)
           naked.foreach {
             case (defaultName, t, τ, tok) =>
               defaultName.fold({
                 println()
-                val name = s":${tok.line}"
+                val name = if (silent) tok.fileLine else s":${tok.line}"
                 val xxxx = Array.fill(name.length)(' ').mkString
                 println(s"$name : ${τ.unparse}")
                 println(s"$name = ${t.unparse}")
@@ -400,6 +412,18 @@ trait SmallStepRepl extends SmallStepSemantics with Modules {
           }
     }
   }
+
+  def listTypes(gamma: Map[String, Tree]): Unit =
+    if (! gamma.isEmpty) {
+      val ls = (gamma.map(identity)(collection.breakOut):
+          List[(String, Tree)]).sortBy(_._1)
+      val len = ls.map(_._1.length).max
+      ls.foreach {
+        case (x, τ) =>
+          val pad = Array.fill(len - x.length)(' ').mkString
+          println(s"$pad$x : ${τ.unparse}")
+      }
+    }
 
   def reduction: Reduction = ({
     case χ(x) if module.dfn contains x => module.dfn(x)
@@ -460,20 +484,86 @@ trait SmallStepRepl extends SmallStepSemantics with Modules {
   }
 
   object Directive extends TopLevelGenus {
-    lazy val ops = List(Help, Step, Load, Reload, Typing, ParagraphExpr)
+    def commands = List(
+      About,
+      Help,
+      Load,
+      Ls,
+      Primitives,
+      Reload,
+      Step,
+      Typing)
+    lazy val ops = commands :+ ParagraphExpr
+  }
+
+  def asciiArt =
+    """|     _______
+       |    / _____/
+       |   / /__
+       |  / ___/
+       | / /
+       |/_/
+       |
+       |System F
+       |with recursion and call-by-name small-step reduction semantics
+       |""".stripMargin
+
+  def welcomeMessage =
+    """|Input terms to normalize them.
+       |Type :help for information dump.
+       |""".stripMargin
+
+  object About extends ObliviousCommand(":about") {
+    def bio = "about this thing"
+
+    def message =
+      s"""|$asciiArt
+          |by Yufei Cai
+          |
+          |for students of the lecture
+          |"Programming languages and types"
+          |in winter semester 2013/14
+          |at the University of Marburg
+          |
+          |jar file assembled on 02.02.2014
+          |""".stripMargin
   }
 
   object Help extends ObliviousCommand(":h", ":help") {
-    def message = // TODO: replace this uplifting message.
-      """|God helps those who helps themselves.
-         |""".stripMargin
+    def bio = "show help"
+
+    def show() {
+      println(
+        "\nInput terms to normalize them; " +
+        "use :s to step through reductions.")
+      val items = Directive.commands.map(cmd =>
+        (cmd.cmds.mkString(" "), cmd.bio))
+      val len = items.map(_._1.length).max
+      items.foreach {
+        case (name, bio) =>
+          val pad = Array.fill(len - name.length)(' ').mkString
+          println(s"\n$pad$name   $bio")
+      }
+    }
   }
 
   object Step extends Command(":s", ":step") {
+    def bio = "given a term, step through its reduction sequence"
+
     def tryNext = Seq(Term.ops)
   }
 
+  object Ls extends ObliviousCommand(":ls", ":list") {
+    def bio = "list the type of all names currentlly in scope"
+  }
+
+  object Primitives extends ObliviousCommand(":p", ":primitives") {
+    def bio = "list primitives"
+  }
+
   object Load extends ObliviousCommand(":l", ":load") {
+    def bio = "load definitions from a file"
+
     override
     def cons(children: Seq[Tree]): Tree =
       if (children.isEmpty)
@@ -485,19 +575,29 @@ trait SmallStepRepl extends SmallStepSemantics with Modules {
         val space = line.indexWhere(  _.isSpace, colon)
         val path  = line.indexWhere(! _.isSpace, space)
         val last  = line.lastIndexWhere(_.isSpace)
-        val file  = line.substring(path,
-          if (last > path) last else line.length)
+        val file  =
+          if (colon < 0 | space < 0 | path < 0 | last < 0)
+            ""
+          else
+            line.substring(path,
+              if (last > path) last else line.length)
         ⊹(this, §(file))
       }
   }
 
-  object Reload extends ObliviousCommand(":r", ":reload")
+  object Reload extends ObliviousCommand(":r", ":reload") {
+    def bio = "reload previous file"
+  }
 
   object Typing extends Command(":t", ":type") {
+    def bio = "given a term, produce its type"
+
     def tryNext = Seq(Term.ops)
   }
 
-  abstract class Command(cmds: String*) extends Operator {
+  abstract class Command(val cmds: String*) extends Operator {
+    def bio: String
+
     val fixity: Fixity = Prefixr(cmds)
     def cons(children: Seq[Tree]): Tree = ⊹(this, children: _*)
     def genus = Directive
@@ -508,7 +608,7 @@ trait SmallStepRepl extends SmallStepSemantics with Modules {
     }
   }
 
-  class ObliviousCommand(cmds: String*)
+  abstract class ObliviousCommand(cmds: String*)
       extends Command(cmds: _*) {
     override val fixity = cmds.foldRight[Fixity](LoneToken(_ => false))({
       case (cmd, fix) => LoneToken(_ == cmd) orElse fix
@@ -519,11 +619,12 @@ trait SmallStepRepl extends SmallStepSemantics with Modules {
   val pleasantries = Array(
     "...DIRECTIVE?",
     "UNRECOGNIZED DIRECTIVE",
-    "I understand it's not your fault, but what did you just say?",
+    "Need any :help to get started?",
+    "I understand it's not your fault, but what's that supposed to mean?",
     "Can you help me with this? I don't comprehend.",
     "I'm afrait we have a problem with communication.",
     "I'm afraid there might be a misunderstanding.",
-    "Could you please paraphrase that, perhaps?",
+    "Could you paraphrase that, please?",
     "I'm sorry to say this, but maybe :help would help?",
     "In a perfect world, I'd see you proof-read the previous line.",
     "Excuse me, but there's a slight problem with the syntax of your command.")
@@ -586,4 +687,12 @@ trait SmallStepRepl extends SmallStepSemantics with Modules {
       (Γ0.finite.keySet ++ module.dfn.keySet).
         toSeq.filter(_ startsWith prefix).sorted.map(_ + " ")
   }
+}
+
+object SmallStepRepl extends SmallStepRepl {
+  def startRepl(files: Array[String]): Unit =
+    if (files.isEmpty)
+      startRepl()
+    else
+      files.foreach(file => load(file, silent = true))
 }
