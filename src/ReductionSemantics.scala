@@ -158,8 +158,19 @@ trait SmallStepSemantics extends SystemF with PrimitiveLists {
       None
   }
 
-  def eval(t: Tree, reduction: Reduction): Tree =
-    step(t, reduction).fold(t)(s => eval(s, reduction))
+  def eval(t: Tree, reduction: Reduction): Tree = {
+    // this elegant thing causes stack overflow when sorting
+    // a list of 4 elements.
+    //   step(t, reduction).fold(t)(s => eval(s, reduction))
+    var current: Tree = null
+    var next: Option[Tree] = Some(t)
+    do {
+      current = next.get
+      next = step(current, reduction)
+    }
+    while (next != None)
+    current
+  }
 
   case class Stuck(s: String = "stuck") extends Exception(s)
 
@@ -274,7 +285,7 @@ trait SmallStepRepl extends SmallStepSemantics with Modules {
     def put(s: String) = { print(s) ; System.out.flush() }
     println(asciiArt)
     put(welcomeMessage)
-    while (true) {
+    while (true) try {
       val line = console.readLine("> ")
       if (line == null) return ()
       else if (line.find(! _.isSpace) == None)
@@ -285,6 +296,15 @@ trait SmallStepRepl extends SmallStepSemantics with Modules {
           complainPolitely()
         else {
           directive.get match {
+            case Quitter(_) =>
+              return ()
+
+            case Grammar(_) =>
+              println(Grammar.message)
+
+            case TypingRules(_) =>
+              put(TypingRules.message)
+
             case Help(_) =>
               Help.show
 
@@ -292,10 +312,10 @@ trait SmallStepRepl extends SmallStepSemantics with Modules {
               put(About.message)
 
             case Ls(_) =>
-              listTypes(typeSystem.Γ.finite)
+              listTypes(module.sig)
 
             case Primitives(_) =>
-              listTypes(Γ0.finite)
+              listTypes(arithmeticOperators ++ Γ0.finite)
 
             case Typing(t) =>
               typeAndThen(t)(τ => println(τ.unparse))
@@ -363,6 +383,30 @@ trait SmallStepRepl extends SmallStepSemantics with Modules {
                 }
               }
 
+            // Got signature, warn.
+            case Signature(_, _) =>
+              println("type signature isn't supported in REPL")
+
+            // Got type synonym, add it if okay
+            case syn @ TypeSynonym(alpha, tau) =>
+              if (typeSystem.Γ.types contains alpha)
+                println(s"""$alpha is already bound to ${
+                  typeSystem.resolve(æ(alpha)).unparse}""")
+              else {
+                val baddies = typeSystem.Γ.badTypes(tau.freeNames)
+                if (! baddies.isEmpty)
+                  throw typeSystem.
+                    locateBadType(
+                      typeSystem.Γ,
+                      tau,
+                      Type.parse(ProtoAST(tau.unparse)).get._2)
+                else {
+                  val toks = TypeSynonym.parse(ProtoAST(syn.unparse)).get._2
+                  val newModule = module.add(syn, toks)
+                  unsafeLoadModule(newModule)
+                }
+              }
+
             // got naked expression, type & evaluate it
             case NakedExpression(t) =>
               typeAndThen(t) { τ =>
@@ -370,6 +414,9 @@ trait SmallStepRepl extends SmallStepSemantics with Modules {
                 val v = eval(t, reduction)
                 println(s"result = ${v.unparse}")
               }
+
+            case otherwise =>
+              println(s"unsurported in REPL: ${otherwise.tag}")
           }
         }
       } catch {
@@ -384,6 +431,17 @@ trait SmallStepRepl extends SmallStepSemantics with Modules {
             throw e
         }
       }
+    }
+    catch {
+      case e: java.lang.StackOverflowError =>
+        println("stack overflow")
+    }
+  }
+
+  def unsafeLoadModule(m1: Module) {
+    new SystemFTyping(m1).instrumentality match {
+      case Right(ok) => typeSystem = ok
+      case _ => sys error "fatal error: unsafeLoadModule"
     }
   }
 
@@ -411,6 +469,20 @@ trait SmallStepRepl extends SmallStepSemantics with Modules {
               }
           }
     }
+  }
+
+  val arithmeticOperators: Map[String, Tree] = {
+    val a   = if (I_hate_unicode) "a"   else "α"
+    val int = if (I_hate_unicode) "Int" else "ℤ"
+    val src = Map[String, String](
+      "+ - * /" -> s"$int → $int → $int",
+      "< == >" -> s"$int → $int → Bool",
+      "<=  =>" -> s"$int → $int → Bool",
+      "true" -> s"Bool",
+      "false" -> s"Bool",
+      "iterate" -> s"∀$a. $int → $a → ($int → $a → $a) → $a"
+    )
+    src.map(p => (p._1, Type(p._2)))
   }
 
   def listTypes(gamma: Map[String, Tree]): Unit =
@@ -486,13 +558,16 @@ trait SmallStepRepl extends SmallStepSemantics with Modules {
   object Directive extends TopLevelGenus {
     def commands = List(
       About,
+      Grammar,
       Help,
       Load,
       Ls,
       Primitives,
+      Quitter,
       Reload,
       Step,
-      Typing)
+      Typing,
+      TypingRules)
     lazy val ops = commands :+ ParagraphExpr
   }
 
@@ -529,13 +604,116 @@ trait SmallStepRepl extends SmallStepSemantics with Modules {
           |""".stripMargin
   }
 
+  trait UnicodeRehabilitation {
+    def noUnicode = I_hate_unicode
+    val a = if (noUnicode) "a"       else "α"
+    val r = if (noUnicode) "->"      else "→"
+    val u = if (noUnicode) "\\all "  else "∀"
+    val l = if (noUnicode) "\\abs "  else "λ"
+    val T = if (noUnicode) "\\Tabs " else "Λ"
+  }
+
+  object TypingRules
+      extends ObliviousCommand(":tr", ":typing")
+      with UnicodeRehabilitation {
+    def bio = "display typing rules"
+
+    def message: String = {
+      val max = rules.flatMap(_._2.lines).map(_.length).max
+      rules.flatMap({
+        case (tag, rule) =>
+          val lines = rule.lines.toSeq
+          val len = lines.map(_.length).max
+          val pad = max - len
+          val padL = Array.fill(pad / 2          )(' ').mkString
+          val padR = Array.fill(pad - padL.length)(' ').mkString
+          List(
+            padL + lines(0),
+            padL + lines(1) + padR + s" ($tag)",
+            padL + lines(2),
+            "\n")
+      }).mkString("\n")
+    }
+
+    val rules: List[(String, String)] = List(
+      "T-Var"  -> """|gamma contains (x : T)
+                     |----------------------
+                     |   gamma |- x : T
+                     |""".stripMargin,
+      "T-Abs"  -> """|     gamma, x : T1  |- t2 : T2
+                     |-------------------------------------
+                     |gamma |- (\abs x : T1. t2) : T1 -> T2
+                     |""".stripMargin,
+      "T-App"  -> """|gamma |- t1 : T11 -> T12     gamma |- t2 : T11
+                     |----------------------------------------------
+                     |             gamma |- t1 t2 : T12
+                     |""".stripMargin,
+      "T-Tabs" -> """|         gamma |- t2 : T2
+                     |-----------------------------------
+                     |gamma |- (\Tabs a. t2) : \all a. T2
+                     |""".stripMargin,
+      "T-Tapp" -> """|          gamma |- t1 : \all a. T12
+                     |---------------------------------------------
+                     |gamma |- t1 [T2] : substitute T2 for a in T12
+                     |""".stripMargin)
+  }
+
+  object Grammar
+      extends ObliviousCommand(":g", ":grammar")
+      with UnicodeRehabilitation {
+    def bio = "display grammar"
+
+    override def noUnicode = true // don't display unicode in grammar
+
+    def message: String = {
+      val max = grammar.map(_.length).max
+      (grammar, explanation).zipped.map({
+        case (line, comment) =>
+          val pad = Array.fill(max - line.length + sep)(' ').mkString
+          s"$line$pad$comment"
+      }).mkString("\n")
+    }
+
+    def sep = 4
+
+    def grammar =
+      s"""|type ::= $a
+          |       | type $r type
+          |       | ${u}$a. type
+          |
+          |term ::= x
+          |       | ${l}x. term
+          |       | term term
+          |       | ${T}$a. term
+          |       | term [type]
+          |""".stripMargin.lines.toSeq
+
+    def explanation =
+      s"""|type variable
+          |type of functions
+          |universal type
+          |
+          |variable
+          |abstraction
+          |application
+          |type abstraction
+          |type application
+          |""".stripMargin.lines.toSeq
+  }
+
+  object Quitter extends ObliviousCommand(":q", ":quit") {
+    def bio = "terminate this process"
+  }
+
   object Help extends ObliviousCommand(":h", ":help") {
     def bio = "show help"
 
     def show() {
       println(
         "\nInput terms to normalize them; " +
-        "use :s to step through reductions.")
+        "use :s to step through reductions.\n")
+      println("Files can be ran in batch by supplying them as\n" +
+        "command-line arguments.\n")
       val items = Directive.commands.map(cmd =>
         (cmd.cmds.mkString(" "), cmd.bio))
       val len = items.map(_._1.length).max
@@ -554,7 +732,7 @@ trait SmallStepRepl extends SmallStepSemantics with Modules {
   }
 
   object Ls extends ObliviousCommand(":ls", ":list") {
-    def bio = "list the type of all names currentlly in scope"
+    def bio = "list the type of all visible definitions"
   }
 
   object Primitives extends ObliviousCommand(":p", ":primitives") {
@@ -693,6 +871,10 @@ object SmallStepRepl extends SmallStepRepl {
   def startRepl(files: Array[String]): Unit =
     if (files.isEmpty)
       startRepl()
-    else
+    else try {
       files.foreach(file => load(file, silent = true))
+    } catch {
+      case e: Exception =>
+        System.err.println(e.getMessage)
+    }
 }

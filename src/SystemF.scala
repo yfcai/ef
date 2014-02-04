@@ -32,7 +32,10 @@ trait SystemF extends TypedModules
           toSeq.sortBy(_._3.head.line)
 
       Right(entities.map {
-        case (name, t, toks) => getType(t, toks) match {
+        case (name, t, toks0) =>
+          val toks = if (name == None) toks0
+                     else getDFNTokens(dfntoks, name.get)
+          getType(t, toks) match {
           case Left(problem) =>
             return Left(problem)
 
@@ -82,7 +85,8 @@ trait SystemF extends TypedModules
       // (includes redundant synonym resolution)
       val lcl = sortedOutcasts.foldLeft(m0) {
         case (module, (x, xdef)) =>
-          new SystemFTyping(module).getType(xdef, m0.dfntoks(x)) match {
+          val toks = m0.getDFNTokens(m0.dfntoks, x)
+          new SystemFTyping(module).getType(xdef, toks) match {
             case Left(problem) =>
               return Left(problem)
             case Right(τ) =>
@@ -101,25 +105,32 @@ trait SystemF extends TypedModules
           Right(τ)
 
         case Failure(_) =>
-          Left(t.blindPreorder2.toSeq.zip(toks).reverse.findFirst({
-            // special uglifications to improve error message
-            case ((⊹(AnnotatedAbstraction, _, σ, _), _, delta), tok)
-                if ! (Γ addTypes delta).badTypes(σ.freeNames).isEmpty =>
-              Some(locateBadType(Γ addTypes delta, σ, toks.drop(2)))
-            case ((⊹(Instantiation, _, σ), _, delta), tok)
-                if ! (Γ addTypes delta).badTypes(σ.freeNames).isEmpty =>
-              Some(locateBadType(Γ addTypes delta, σ, toks.drop(2)))
-            case ((t, gamma, delta), tok) if t.tag.genus == Term =>
-              getType(Γ ++ gamma addTypes delta, t) match {
-                case Success(_) =>
-                  None
-                case Failure(report) =>
-                  Some(Problem(tok, report))
-              }
-            case _ =>
-              None
-          }).get)
+          Left(t.blindPreorder2.toSeq.zip(prefixes(toks)).
+            reverse.findFirst({
+              // special uglifications to improve error message
+              case ((⊹(AnnotatedAbstraction, _, σ, _), _, delta), toks)
+                  if ! (Γ addTypes delta).badTypes(σ.freeNames).isEmpty =>
+                Some(locateBadType(Γ addTypes delta, σ, toks.drop(2)))
+              case ((t @ ⊹(Instantiation, _, σ), _, delta), toks)
+                  if ! (Γ addTypes delta).badTypes(σ.freeNames).isEmpty =>
+                println(s"got inst = ${t.unparse}")//DEBUG
+                Some(locateBadType(Γ addTypes delta, σ, toks.drop(2)))
+              case ((t, gamma, delta), toks) if t.tag.genus == Term =>
+                getType(Γ ++ gamma addTypes delta, t) match {
+                  case Success(_) =>
+                    None
+                  case Failure(report) =>
+                    Some(Problem(toks.head, report))
+                }
+              case _ =>
+                None
+            }).get)
       }
+
+    def prefixes[T](seq: Seq[T]): Seq[Seq[T]] = {
+      var acc = seq
+      seq +: seq.tail.map(_ => { acc = acc.tail ; acc })
+    }
 
     def getType(Γ: Gamma, t: Tree): Status[Tree] = t match {
       case χ(x) =>
@@ -181,7 +192,7 @@ trait SystemF extends TypedModules
     def locateBadType(Γ: Gamma, σ: Tree, toks: Seq[Token]): Problem =
       σ.preorder.toSeq.zip(toks).findFirst({
         case (æ(α), tok) if Γ.badType(α) =>
-          Some(Problem(tok, "undeclared type variable"))
+          Some(Problem(tok, s"undeclared type variable $α"))
         case _ => None
       }).get
   }
