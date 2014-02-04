@@ -32,6 +32,9 @@ object Generator extends ProgramGenerator {
 
       case "app" =>
         filterApplication()
+
+      case "unsound" =>
+        filterUnsound()
     }
   }
 
@@ -101,6 +104,33 @@ object Generator extends ProgramGenerator {
     }
   }
 
+  def filterUnsound() {
+    import Cuit._
+    val m = new OrderlessTyping(Cuit.Module.empty)
+    import m._
+    io.Source.stdin.getLines.foreach { line =>
+      val t = ignoreTabs(Cuit.Term(line))
+      var prev: Cuit.Tree = null
+      var next: Option[Cuit.Tree] = Some(t)
+      while (next != None) {
+        prev = next.get
+        next = reduce(prev, Map.empty)
+        // test weak preservation
+        if (next != None) {
+          val s = next.get
+          typeError(s) match {
+            case None => ()
+            case Some(c) =>
+              println(s"start = $line")
+              println(s"  end = ${s.unparse}")
+              println(c.getMessage)
+              println()
+          }
+        }
+      }
+    }
+  }
+
   def ignoreTabsInStdin(): Unit =
     io.Source.stdin.getLines.foreach { line =>
       println(F.ignoreTabs(F.Term(line)).unparse)
@@ -110,7 +140,11 @@ object Generator extends ProgramGenerator {
   type UnorderedImpredicativeTypes = SecondOrderOrderlessTypes
 
   object F extends SystemF with IgnoreTypeAbstractions
-  object Cuit extends UnorderedImpredicativeTypes with IgnoreTypeAbstractions
+
+  object Cuit
+      extends UnorderedImpredicativeTypes
+      with IgnoreTypeAbstractions
+      with ReductionSemantics
 }
 
 trait IgnoreTypeAbstractions extends Syntax {

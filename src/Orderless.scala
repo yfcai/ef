@@ -1,7 +1,5 @@
 /** constraint-based type checking
   * without regard for the order of quantifiers.
-  * may be inconsistent, may be unsound;
-  * goal is to get familiar with solving constraints.
   */
 trait SecondOrderOrderlessTypes
     extends TypedModules with IntsAndBools with Prenex
