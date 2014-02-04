@@ -383,6 +383,30 @@ trait SmallStepRepl extends SmallStepSemantics with Modules {
                 }
               }
 
+            // Got signature, warn.
+            case Signature(_, _) =>
+              println("type signature isn't supported in REPL")
+
+            // Got type synonym, add it if okay
+            case syn @ TypeSynonym(alpha, tau) =>
+              if (typeSystem.Γ.types contains alpha)
+                println(s"""$alpha is already bound to ${
+                  typeSystem.resolve(æ(alpha)).unparse}""")
+              else {
+                val baddies = typeSystem.Γ.badTypes(tau.freeNames)
+                if (! baddies.isEmpty)
+                  throw typeSystem.
+                    locateBadType(
+                      typeSystem.Γ,
+                      tau,
+                      Type.parse(ProtoAST(tau.unparse)).get._2)
+                else {
+                  val toks = TypeSynonym.parse(ProtoAST(syn.unparse)).get._2
+                  val newModule = module.add(syn, toks)
+                  unsafeLoadModule(newModule)
+                }
+              }
+
             // got naked expression, type & evaluate it
             case NakedExpression(t) =>
               typeAndThen(t) { τ =>
@@ -390,6 +414,9 @@ trait SmallStepRepl extends SmallStepSemantics with Modules {
                 val v = eval(t, reduction)
                 println(s"result = ${v.unparse}")
               }
+
+            case otherwise =>
+              println(s"unsurported in REPL: ${otherwise.tag}")
           }
         }
       } catch {
@@ -408,6 +435,13 @@ trait SmallStepRepl extends SmallStepSemantics with Modules {
     catch {
       case e: java.lang.StackOverflowError =>
         println("stack overflow")
+    }
+  }
+
+  def unsafeLoadModule(m1: Module) {
+    new SystemFTyping(m1).instrumentality match {
+      case Right(ok) => typeSystem = ok
+      case _ => sys error "fatal error: unsafeLoadModule"
     }
   }
 
