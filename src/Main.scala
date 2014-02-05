@@ -20,8 +20,6 @@ object Main extends ARGV0 with Calculi {
               |        reduce   reduce naked expressions without
               |                 regard for types and print the result
               |
-              |        repl     start a repl in System F for education
-              |
               |${Generator.commands}
               |Flags
               |
@@ -57,11 +55,6 @@ object Main extends ARGV0 with Calculi {
 
             case "reduce" =>
               Reductionist.execute(tail, flag)
-
-            case "repl" =>
-              SmallStepRepl.setFlags(flag)
-              SmallStepRepl.recurseFlag = true
-              SmallStepRepl.startRepl(tail)
 
             case cmd if Generator.dispatch.isDefinedAt((cmd, tail)) =>
               Generator.dispatch((cmd, tail))
