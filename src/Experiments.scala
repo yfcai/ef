@@ -215,12 +215,12 @@ object Experiments extends Flags {
          |      ProtoAST
          |      ProtoAST
          |
-         |#LINE:1
+         |
          |((((())))((
          |          ^
          |expect right parenthesis after this
          |
-         |#LINE:1
+         |
          |(hi hi (hi hi (hi) hi) hi))(hi)
          |                          ^
          |unmatched right parenthesis
@@ -373,217 +373,217 @@ object Experiments extends Flags {
     def run = decompose(s)
 
     override def expected =
-      """|#LINE:1
+      """|
          |Λγ. λx : ∀α β. F (∃ε = α. ∃η = {}. ∃ζ = η {ε, β}. ∃ξ = {ζ}. ξ). x
          | ^
          |TypeAbstraction
          |
-         |#LINE:1
+         |
          |Λγ. λx : ∀α β. F (∃ε = α. ∃η = {}. ∃ζ = η {ε, β}. ∃ξ = {ζ}. ξ). x
          | ^
          |FreeTypeVar
          |
-         |#LINE:1
+         |
          |Λγ. λx : ∀α β. F (∃ε = α. ∃η = {}. ∃ζ = η {ε, β}. ∃ξ = {ζ}. ξ). x
          |    ^
          |AnnotatedAbstraction
          |
-         |#LINE:1
+         |
          |Λγ. λx : ∀α β. F (∃ε = α. ∃η = {}. ∃ζ = η {ε, β}. ∃ξ = {ζ}. ξ). x
          |     ^
          |FreeVar
          |
-         |#LINE:1
+         |
          |Λγ. λx : ∀α β. F (∃ε = α. ∃η = {}. ∃ζ = η {ε, β}. ∃ξ = {ζ}. ξ). x
          |          ^
          |Universal
          |
-         |#LINE:1
+         |
          |Λγ. λx : ∀α β. F (∃ε = α. ∃η = {}. ∃ζ = η {ε, β}. ∃ξ = {ζ}. ξ). x
          |          ^
          |LiteralTag(java.lang.String)
          |
-         |#LINE:1
+         |
          |Λγ. λx : ∀α β. F (∃ε = α. ∃η = {}. ∃ζ = η {ε, β}. ∃ξ = {ζ}. ξ). x
          |          ^
          |Annotation
          |
-         |#LINE:1
+         |
          |Λγ. λx : ∀α β. F (∃ε = α. ∃η = {}. ∃ζ = η {ε, β}. ∃ξ = {ζ}. ξ). x
          |          ^
          |Nope
          |
-         |#LINE:1
+         |
          |Λγ. λx : ∀α β. F (∃ε = α. ∃η = {}. ∃ζ = η {ε, β}. ∃ξ = {ζ}. ξ). x
          |          ^
          |Nope
          |
-         |#LINE:1
+         |
          |Λγ. λx : ∀α β. F (∃ε = α. ∃η = {}. ∃ζ = η {ε, β}. ∃ξ = {ζ}. ξ). x
          |            ^
          |Universal
          |
-         |#LINE:1
+         |
          |Λγ. λx : ∀α β. F (∃ε = α. ∃η = {}. ∃ζ = η {ε, β}. ∃ξ = {ζ}. ξ). x
          |            ^
          |LiteralTag(java.lang.String)
          |
-         |#LINE:1
+         |
          |Λγ. λx : ∀α β. F (∃ε = α. ∃η = {}. ∃ζ = η {ε, β}. ∃ξ = {ζ}. ξ). x
          |            ^
          |Annotation
          |
-         |#LINE:1
+         |
          |Λγ. λx : ∀α β. F (∃ε = α. ∃η = {}. ∃ζ = η {ε, β}. ∃ξ = {ζ}. ξ). x
          |            ^
          |Nope
          |
-         |#LINE:1
+         |
          |Λγ. λx : ∀α β. F (∃ε = α. ∃η = {}. ∃ζ = η {ε, β}. ∃ξ = {ζ}. ξ). x
          |            ^
          |Nope
          |
-         |#LINE:1
+         |
          |Λγ. λx : ∀α β. F (∃ε = α. ∃η = {}. ∃ζ = η {ε, β}. ∃ξ = {ζ}. ξ). x
          |               ^
          |TypeApplication
          |
-         |#LINE:1
+         |
          |Λγ. λx : ∀α β. F (∃ε = α. ∃η = {}. ∃ζ = η {ε, β}. ∃ξ = {ζ}. ξ). x
          |               ^
          |FreeTypeVar
          |
-         |#LINE:1
+         |
          |Λγ. λx : ∀α β. F (∃ε = α. ∃η = {}. ∃ζ = η {ε, β}. ∃ξ = {ζ}. ξ). x
          |                  ^
          |Existential
          |
-         |#LINE:1
+         |
          |Λγ. λx : ∀α β. F (∃ε = α. ∃η = {}. ∃ζ = η {ε, β}. ∃ξ = {ζ}. ξ). x
          |                   ^
          |LiteralTag(java.lang.String)
          |
-         |#LINE:1
+         |
          |Λγ. λx : ∀α β. F (∃ε = α. ∃η = {}. ∃ζ = η {ε, β}. ∃ξ = {ζ}. ξ). x
          |                       ^
          |Annotation
          |
-         |#LINE:1
+         |
          |Λγ. λx : ∀α β. F (∃ε = α. ∃η = {}. ∃ζ = η {ε, β}. ∃ξ = {ζ}. ξ). x
          |                       ^
          |Yeah
          |
-         |#LINE:1
+         |
          |Λγ. λx : ∀α β. F (∃ε = α. ∃η = {}. ∃ζ = η {ε, β}. ∃ξ = {ζ}. ξ). x
          |                       ^
          |TypeVar
          |
-         |#LINE:1
+         |
          |Λγ. λx : ∀α β. F (∃ε = α. ∃η = {}. ∃ζ = η {ε, β}. ∃ξ = {ζ}. ξ). x
          |                       ^
          |Nope
          |
-         |#LINE:1
+         |
          |Λγ. λx : ∀α β. F (∃ε = α. ∃η = {}. ∃ζ = η {ε, β}. ∃ξ = {ζ}. ξ). x
          |                          ^
          |Existential
          |
-         |#LINE:1
+         |
          |Λγ. λx : ∀α β. F (∃ε = α. ∃η = {}. ∃ζ = η {ε, β}. ∃ξ = {ζ}. ξ). x
          |                           ^
          |LiteralTag(java.lang.String)
          |
-         |#LINE:1
+         |
          |Λγ. λx : ∀α β. F (∃ε = α. ∃η = {}. ∃ζ = η {ε, β}. ∃ξ = {ζ}. ξ). x
          |                               ^
          |Annotation
          |
-         |#LINE:1
+         |
          |Λγ. λx : ∀α β. F (∃ε = α. ∃η = {}. ∃ζ = η {ε, β}. ∃ξ = {ζ}. ξ). x
          |                               ^
          |Nope
          |
-         |#LINE:1
+         |
          |Λγ. λx : ∀α β. F (∃ε = α. ∃η = {}. ∃ζ = η {ε, β}. ∃ξ = {ζ}. ξ). x
          |                               ^
          |Yeah
          |
-         |#LINE:1
+         |
          |Λγ. λx : ∀α β. F (∃ε = α. ∃η = {}. ∃ζ = η {ε, β}. ∃ξ = {ζ}. ξ). x
          |                                   ^
          |Existential
          |
-         |#LINE:1
+         |
          |Λγ. λx : ∀α β. F (∃ε = α. ∃η = {}. ∃ζ = η {ε, β}. ∃ξ = {ζ}. ξ). x
          |                                    ^
          |LiteralTag(java.lang.String)
          |
-         |#LINE:1
+         |
          |Λγ. λx : ∀α β. F (∃ε = α. ∃η = {}. ∃ζ = η {ε, β}. ∃ξ = {ζ}. ξ). x
          |                                        ^
          |Annotation
          |
-         |#LINE:1
+         |
          |Λγ. λx : ∀α β. F (∃ε = α. ∃η = {}. ∃ζ = η {ε, β}. ∃ξ = {ζ}. ξ). x
          |                                        ^
          |Yeah
          |
-         |#LINE:1
+         |
          |Λγ. λx : ∀α β. F (∃ε = α. ∃η = {}. ∃ζ = η {ε, β}. ∃ξ = {ζ}. ξ). x
          |                                        ^
          |TypeVar
          |
-         |#LINE:1
+         |
          |Λγ. λx : ∀α β. F (∃ε = α. ∃η = {}. ∃ζ = η {ε, β}. ∃ξ = {ζ}. ξ). x
          |                                          ^
          |Yeah
          |
-         |#LINE:1
+         |
          |Λγ. λx : ∀α β. F (∃ε = α. ∃η = {}. ∃ζ = η {ε, β}. ∃ξ = {ζ}. ξ). x
          |                                           ^
          |TypeVar
          |
-         |#LINE:1
+         |
          |Λγ. λx : ∀α β. F (∃ε = α. ∃η = {}. ∃ζ = η {ε, β}. ∃ξ = {ζ}. ξ). x
          |                                              ^
          |TypeVar
          |
-         |#LINE:1
+         |
          |Λγ. λx : ∀α β. F (∃ε = α. ∃η = {}. ∃ζ = η {ε, β}. ∃ξ = {ζ}. ξ). x
          |                                                  ^
          |Existential
          |
-         |#LINE:1
+         |
          |Λγ. λx : ∀α β. F (∃ε = α. ∃η = {}. ∃ζ = η {ε, β}. ∃ξ = {ζ}. ξ). x
          |                                                   ^
          |LiteralTag(java.lang.String)
          |
-         |#LINE:1
+         |
          |Λγ. λx : ∀α β. F (∃ε = α. ∃η = {}. ∃ζ = η {ε, β}. ∃ξ = {ζ}. ξ). x
          |                                                       ^
          |Annotation
          |
-         |#LINE:1
+         |
          |Λγ. λx : ∀α β. F (∃ε = α. ∃η = {}. ∃ζ = η {ε, β}. ∃ξ = {ζ}. ξ). x
          |                                                       ^
          |Nope
          |
-         |#LINE:1
+         |
          |Λγ. λx : ∀α β. F (∃ε = α. ∃η = {}. ∃ζ = η {ε, β}. ∃ξ = {ζ}. ξ). x
          |                                                       ^
          |Yeah
          |
-         |#LINE:1
+         |
          |Λγ. λx : ∀α β. F (∃ε = α. ∃η = {}. ∃ζ = η {ε, β}. ∃ξ = {ζ}. ξ). x
          |                                                        ^
          |TypeVar
          |
-         |#LINE:1
+         |
          |Λγ. λx : ∀α β. F (∃ε = α. ∃η = {}. ∃ζ = η {ε, β}. ∃ξ = {ζ}. ξ). x
          |                                                            ^
          |TypeVar
          |
-         |#LINE:1
+         |
          |Λγ. λx : ∀α β. F (∃ε = α. ∃η = {}. ∃ζ = η {ε, β}. ∃ξ = {ζ}. ξ). x
          |                                                                ^
          |FreeVar
@@ -648,13 +648,13 @@ object Experiments extends Flags {
 
     override def expected =
       """|type Either = ∀α β γ. (α → γ) → (β → γ) → γ
-         |#LINE:1
+         |
          |type List α = either Unit (α → List α → List α)
          |     ^
          |recursive type synonym
          |
          |id = λx : α. x
-         |#LINE:1
+         |
          |fix = λf : α → α. f (fix f)
          |    ^
          |recursive definition
@@ -939,7 +939,7 @@ object Experiments extends Flags {
       """|module #0 is type correct.
          |
          |module #1 has type errors.
-         |#LINE:1
+         |
          |type X α = α → Y
          |               ^
          |unknown type Y
