@@ -224,8 +224,151 @@ trait ExpressionGrammar extends Operators {
 }
 
 // avoiding problem with case insensitivity
-trait Syntax extends Presyntax {
+trait Syntax extends Presyntax with SyntaxFactories {
   object Λ extends BinderFactory(TypeAbstraction)
+}
+
+trait SyntaxFactories extends Presyntax {
+  object ∀ extends QuantificationFactory(Universal)
+  object ∃ extends QuantificationFactory(Existential)
+
+  object □ extends BinaryFactory(Instantiation)
+  object Ascr extends BinaryFactory(Ascription)
+
+  case object Universal extends Quantification {
+    def symbol = Seq("∀", """\all""")
+  }
+
+  case object Existential extends Quantification {
+    def symbol = Seq("∃", """\ex""")
+  }
+
+  val typeOps: List[Operator] =
+    List(
+      Universal,
+      Universal.collapsed,
+      Existential,
+      Existential.collapsed,
+      FunctionArrow,
+      TypeApplication,
+      ParenthesizedType,
+      FreeTypeVar)
+
+  val termOps: List[Operator] =
+    List(
+      TypeAbstraction,
+      AnnotatedAbstraction) ++
+    (if (this.isInstanceOf[SystemF]) Nil else List(
+      IfThenElse,
+      Ascription)) ++
+    List(
+      Instantiation,
+      Application,
+      ParenthesizedTerm,
+      FreeVar)
+}
+
+trait SkolemSyntax extends Presyntax {
+  val typeOps: List[Operator] =
+    List(
+      CollapsedUniversal,
+      CollapsedExistential,
+      FunctionArrow,
+      TypeApplication,
+      ParenthesizedType,
+      SkolemPointer,
+      FreeTypeVar)
+
+  val termOps: List[Operator] =
+    List(
+      TypeAbstraction,
+      AnnotatedAbstraction,
+      SkolemInstantiation,
+      Application,
+      ParenthesizedTerm,
+      FreeVar)
+
+  case object Universal extends DelegateTypeBinder {
+    def delegate = CollapsedUniversal
+  }
+
+  case object CollapsedUniversal extends CollapsedBinder(Type) {
+    val fixity = Prefixr(Seq("∀", """\all"""), ".")
+    def binder = Universal
+  }
+
+  case object Existential extends DelegateTypeBinder {
+    def delegate = CollapsedExistential
+  }
+
+  case object CollapsedExistential extends CollapsedBinder(Type) {
+    val fixity = Prefixr(Seq("∃", """\ex"""), ".")
+    def binder = Existential
+  }
+
+  abstract class CollapsedBinderFactory(tag: CollapsedBinder) {
+    def apply(x: String, body: Tree): Tree =
+      tag.binder.bind(x, body)
+
+    def apply(xs: String*)(body: => Tree): Tree =
+      tag.expand(tag.bind(xs, body))
+
+    def unapplySeq(t: ⊹): Option[(∙[String], Seq[Tree])] =
+      tag.binder.unbind(t)
+  }
+
+  trait DelegateTypeBinder extends Binder with DelegateOperator {
+    def delegate: Operator
+
+    def genus = Type
+    def prison = TypeVar
+    def freeName = FreeTypeVar
+  }
+
+  case object SkolemPointer extends KnownLeafTag[Int] with LeafOperator {
+    private[this] type Domain = Int
+    def man = manifest[Domain]
+    def genus = Type
+
+    val fixity = Enclosing("{", "}")
+
+    def unparseLeaf(leaf: ∙[_]): String =
+      s"{${leaf.as[Domain]}}"
+
+    override def precondition(items: Seq[Tree]): Boolean = items match {
+      case Seq(_, ∙(TokenAST, token: Token), _) =>
+        try {
+          token.body.toInt
+          true
+        } catch {
+          case e: java.lang.NumberFormatException =>
+            false
+        }
+      case _ =>
+        false
+    }
+
+    def cons(children: Seq[Tree]): Tree = children match {
+      case Seq(∙(TokenAST, token: Token)) =>
+        ∙(this, token.body.toInt)
+    }
+  }
+
+  case object SkolemInstantiation extends BranchOperator {
+    def genus = Type
+
+    val fixity = Postfixl("[", "to", "]")
+
+    def tryNext =
+      Seq(
+        downFrom(this, termOps),
+        Seq(SkolemPointer),
+        typeOps)
+
+  }
+
+  object ∀ extends CollapsedBinderFactory(CollapsedUniversal)
+  object ∃ extends CollapsedBinderFactory(CollapsedExistential)
 }
 
 trait Presyntax extends ExpressionGrammar {
@@ -233,14 +376,10 @@ trait Presyntax extends ExpressionGrammar {
   object æ extends AtomicFactory(FreeTypeVar)
   object ₌ extends BinaryFactory(TypeApplication)
   object → extends BinaryFactory(FunctionArrow)
-  object ∀ extends QuantificationFactory(Universal)
-  object ∃ extends QuantificationFactory(Existential)
 
   case object Term extends TopLevelGenus { def ops = termOps }
   object χ extends AtomicFactory(FreeVar)
   object ₋ extends BinaryFactory(Application)
-  object □ extends BinaryFactory(Instantiation)
-  object Ascr extends BinaryFactory(Ascription)
   object λ extends AnnotatedBinderFactory(AnnotatedAbstraction)
 
   case object FreeTypeVar extends Atomic   { def genus = Type }
@@ -276,14 +415,6 @@ trait Presyntax extends ExpressionGrammar {
     def rhs: Seq[Operator] = typeOps
 
     val fixity = Infixr(Seq("→", "->"))
-  }
-
-  case object Universal extends Quantification {
-    def symbol = Seq("∀", """\all""")
-  }
-
-  case object Existential extends Quantification {
-    def symbol = Seq("∃", """\ex""")
   }
 
   case object Ascription extends BinaryOperator {
@@ -709,27 +840,6 @@ trait Presyntax extends ExpressionGrammar {
       case x :: tail => tail
     }
 
-  val typeOps: List[Operator] =
-    List(
-      Universal,
-      Universal.collapsed,
-      Existential,
-      Existential.collapsed,
-      FunctionArrow,
-      TypeApplication,
-      ParenthesizedType,
-      FreeTypeVar)
-
-  val termOps: List[Operator] =
-    List(
-      TypeAbstraction,
-      AnnotatedAbstraction) ++
-    (if (this.isInstanceOf[SystemF]) Nil else List(
-      IfThenElse,
-      Ascription)) ++
-    List(
-      Instantiation,
-      Application,
-      ParenthesizedTerm,
-      FreeVar)
+  def typeOps: List[Operator]
+  def termOps: List[Operator]
 }

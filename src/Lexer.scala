@@ -473,6 +473,16 @@ trait Fixities extends ProtoAST {
         Iterator.empty
   }
 
+  case class Enclosing(lp: Any, rp: Any) extends Fixity {
+    def splits(items: Items): Iterator[ItemGroups] =
+      if (items.length < 2)
+        Iterator.empty
+      else if (hasBody(items.head, lp) && hasBody(items.last, rp))
+        Iterator(Seq(items.init.tail))
+      else
+        Iterator.empty
+  }
+
   case class Prefixr(ops: Any*) extends Fixity {
     def splits(items: Items): Iterator[ItemGroups] =
       if (items.isEmpty)
@@ -792,6 +802,10 @@ trait Operators extends Fixities {
     def unparseLeaf(leaf: ∙[_]): String
 
     override def tryNext = Seq.empty[Seq[Operator]]
+  }
+
+  trait BranchOperator extends Operator {
+    def cons(children: Seq[Tree]): Tree = ⊹(this, children: _*)
   }
 
   trait FoldableWithTokens {
