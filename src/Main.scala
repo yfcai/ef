@@ -20,6 +20,9 @@ object Main extends ARGV0 with Calculi {
               |        reduce   reduce naked expressions without
               |                 regard for types and print the result
               |
+              |        show     produce detailed diagnostic info
+              |                 about constraint solving
+              |
               |${Generator.commands}
               |Flags
               |
@@ -55,6 +58,10 @@ object Main extends ARGV0 with Calculi {
 
             case "reduce" =>
               Reductionist.execute(tail, flag)
+
+            case "show" =>
+              FlatTypes.setFlags(flag)
+              FlatTypes.show(tail)
 
             case cmd if Generator.dispatch.isDefinedAt((cmd, tail)) =>
               Generator.dispatch((cmd, tail))

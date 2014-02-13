@@ -1,6 +1,8 @@
 trait Names extends Flags {
-  trait NameGenerator {
+  abstract class NameGenerator(avoid: Set[String] = Set.empty) {
     def mkName(prefix: String, index: Int): String
+
+    def next: String = newName("_", Set("_"))
 
     def prefix(name: String): String = name
 
@@ -10,11 +12,12 @@ trait Names extends Flags {
     def startingID(default: String) = -1
 
     def newName(default: String, toAvoid: Set[String]): String = {
+      val v = avoid ++ toAvoid
       val p = prefix(default)
       val s = startingID(default)
       var x = p
       var i = s
-      while (toAvoid contains x) {
+      while (v contains x) {
         i = i + 1
         if (i == s) sys error "ran outta names"
         x = mkName(p, i)
@@ -31,13 +34,14 @@ trait Names extends Flags {
   }
 
   /** subscript utilities */
-  object Subscript extends Subscript
+  object Subscript extends Subscript(Set.empty)
 
-  object Postscript extends Subscript {
+  object Postscript extends Subscript() {
     override def s = "0123456789"
   }
 
-  trait Subscript extends NameGenerator {
+  class Subscript(avoid: Set[String] = Set.empty)
+      extends NameGenerator(avoid) {
     // Subscript.s
     def s =
       if (I_hate_unicode) "0123456789"
@@ -70,8 +74,11 @@ trait Names extends Flags {
     }
   }
 
-  object ABCSong extends NameGenerator {
-    override def startingID(default: String) = 0
+  object ABCSong extends ABCSong(Set.empty)
+
+  class ABCSong(avoid: Set[String]) extends NameGenerator {
+    var _i = 0
+    override def startingID(default: String) = _i
 
     def umlauts =
       if (I_hate_unicode)
@@ -82,7 +89,8 @@ trait Names extends Flags {
 
     assert(lyrics.length == (1 << 5))
 
-    def mkName(prefix: String, index: Int): String =
+    def mkName(prefix: String, index: Int): String = {
+      _i = index
       List(
         (index & ( 3 << 30)) >>> 30,
         (index & (31 << 25)) >>> 25,
@@ -92,5 +100,6 @@ trait Names extends Flags {
         (index & (31 <<  5)) >>>  5,
         (index &  31 )).
         flatMap(i => if (i == 0) None else Some(lyrics(i - 1))).mkString
+    }
   }
 }
