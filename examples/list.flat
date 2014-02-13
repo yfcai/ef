@@ -108,4 +108,4 @@ ns : List ℤ
 
 match2 : ℤ → MatchList → MatchList
 
-ns const match2
+ns const match2 : MatchList

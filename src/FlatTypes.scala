@@ -11,7 +11,9 @@ trait FlatTypes
     typing =>
     import module._
 
-    def minimize(τ: Tree): Tree = quantifyMinimally(τ, Set.empty)
+    // resolve and quantify minimally
+    def minimize(τ: Tree): Tree =
+      quantifyMinimally(resolve(τ), Set.empty)
 
     def quantifyMinimally(τ: Tree, avoid: Set[String]): Tree = {
       val (prenex, newAvoid) = Prenex(τ, avoid)
@@ -70,7 +72,7 @@ trait FlatTypes
     // minimizing lookup function
     // make sure reps are always minimized
     def lookup(x: String, gamma: Gamma): Tree =
-        minimize(resolve(gamma(x)))
+        minimize(gamma(x))
 
     case class CType(
       representative: Tree,
@@ -103,7 +105,7 @@ trait FlatTypes
           CType(lookup(x, gamma), Nil, Map.empty)
 
         case λ(x, σ0, body) =>
-          val σ = minimize(resolve(σ0)) // for rep.
+          val σ = minimize(σ0) // for rep.
           val CType(τ, constraints, origin) =
             collect(body, gamma.updated(x, σ), abc)
           CType(→(σ, τ), constraints, origin)
@@ -117,6 +119,11 @@ trait FlatTypes
             fType ⊑ →(a, b) :: xType ⊑ a :: fCons ++ xCons,
             (fOrg ++ xOrg).updated(a.get, term).updated(b.get, term)
           )
+
+        case Ascr(t, τ0) =>
+          val τ = minimize(τ0)
+          val CType(rep, cs, org) = collect(t, gamma, abc)
+          CType(τ, rep ⊑ τ :: cs, org)
       }
 
     def getLoner(prefix: List[String], constraints: List[⊑]):
@@ -135,17 +142,31 @@ trait FlatTypes
 
     // precondition: prefix ⊆ avoid
     def breakUp(
+      prefix: List[String],
       constraints: List[⊑],
       avoid: Set[String]
     ): (List[String], List[String], List[⊑]) = constraints match {
       // deal with function types
       case (σ0 → σ1) ⊑ (τ0 → τ1) :: rest =>
-        breakUp(τ0 ⊑ σ0 :: σ1 ⊑ τ1 :: rest, avoid)
+        breakUp(prefix, τ0 ⊑ σ0 :: σ1 ⊑ τ1 :: rest, avoid)
+
+      // do not break up if 1 side is a universal
+      // (these are the key to typing matchList correctly! why?!)
+      case (fst @ æ(α) ⊑ _) :: rest if prefix contains α =>
+        val (all, ex, cs) = breakUp(prefix, rest, avoid)
+        (all, ex, fst :: cs)
+
+      case (fst @ _ ⊑ æ(α)) :: rest if prefix contains α =>
+        val (all, ex, cs) = breakUp(prefix, rest, avoid)
+        (all, ex, fst :: cs)
 
       // unbind quantifiers,
       case ((σ @ ⊹(binder: Binder, _*)) ⊑ τ) :: rest =>
         val (α, Seq(_, body)) = binder.unbind(σ, avoid).get
-        val (all, ex, cs) = breakUp(body ⊑ τ :: rest, avoid + α.get)
+        val (all, ex, cs) =
+          breakUp(
+            if (binder == Universal) α.get :: prefix else prefix,
+            body ⊑ τ :: rest, avoid + α.get)
         if (binder == Universal)
           (α.get :: all, ex, cs)
         else
@@ -153,15 +174,18 @@ trait FlatTypes
 
       case (σ ⊑ (τ @ ⊹(binder: Binder, _*))) :: rest =>
         val (ε, Seq(_, body)) = binder.unbind(τ, avoid).get
-        val (all, ex, cs) = breakUp(σ ⊑ body :: rest, avoid + ε.get)
+        val (all, ex, cs) =
+          breakUp(
+            if (binder == Existential) ε.get :: prefix else prefix,
+            σ ⊑ body :: rest, avoid + ε.get)
         if (binder == Existential)
           (ε.get :: all, ex, cs)
         else
           (all, ε.get :: ex, cs)
 
-      // pass over things that can't be broken up
+      // unbreakable, e. g., ℤ  ⊑  α → β
       case fst :: rest =>
-        val (all, ex, cs) = breakUp(rest, avoid)
+        val (all, ex, cs) = breakUp(prefix, rest, avoid)
         (all, ex, fst :: cs)
 
       case Nil =>
@@ -185,6 +209,16 @@ trait FlatTypes
       (lhs, rhs, rest)
     }
 
+    // remove α-equiv entries in list of types
+    def deduplicate(types: List[Tree]): List[Tree] =
+      types.foldRight[List[Tree]](Nil) {
+        case (τ, acc) =>
+          if (acc.find(_ α_equiv τ) == None)
+            τ :: acc
+          else
+            acc
+      }
+
     // solve constraints up to loners
     // @return (all, ex, all-solved-variables, unsolved-constraints)
     def solve(
@@ -194,7 +228,7 @@ trait FlatTypes
       avoid: Set[String] // should be free variables of that term
     ): (List[String], List[String], List[Coll], List[⊑]) = {
       // 1. break up constraints
-      val (all1, ex1, cs1) = breakUp(cs0, avoid ++ all0 ++ ex0)
+      val (all1, ex1, cs1) = breakUp(all0, cs0, avoid ++ all0 ++ ex0)
 
       // 2. find loner
       val all2 = all1 ++ all0
@@ -204,7 +238,11 @@ trait FlatTypes
         // 3-1. loner found.
         // procure LHS & RHS of loner.
         case Some(loner) =>
-          val (lhs, rhs, rest) = partition(loner, cs1)
+          val (lhs0, rhs0, rest) = partition(loner, cs1)
+
+          val lhs = deduplicate(lhs0)
+          val rhs = deduplicate(rhs0)
+
           val newCs = for { σ <- lhs ; τ <- rhs } yield σ ⊑ τ
           val (all, ex, solved, unsolved) =
             solve(all2, ex2, newCs ++ rest, avoid)
@@ -254,6 +292,7 @@ trait FlatTypes
       if (!  ex.isEmpty) println(s"∃${ ex.mkString(" ")}")
       if (! all.isEmpty || ! ex.isEmpty)
         println()
+      println(s"${rep.unparse}\n")
       coll.foreach {
         case Coll(α, lhs, rhs) =>
           val x   =
@@ -273,6 +312,11 @@ trait FlatTypes
           println()
       }
       println()
+
+      origin.foreach {
+        case (α, t) =>
+          println(s"$α  from  ${t.unparse}")
+      }
     }
   }
 }
