@@ -6,6 +6,122 @@
 \newtheorem{lemma}[subsection]{Lemma}
 \newtheorem{corollary}[subsection]{Corollary}
 
+\input{../paper/macros.tex}
 \begin{document}
 
-\end{document}
+\section{Syntax}
+
+\begin{syntax}
+\mbox{polytype}\\
+\rho, \sigma, \tau & ::= 
+& \pi \quad \text{such that}\quad\FTV(\pi)=\emptyset
+\\
+\\
+\mbox{prenex}\\
+\pi & ::= &
+\forall \alpha_0\alpha_1\ldots~
+\exists \beta_0\beta_1\ldots~\theta
+\\
+\\
+\mbox{open type}\\
+\theta
+&::=& \alpha \Or \beta \Or \gamma \Or \cdots &\mbox{type variable}\\
+& | & \mu &\mbox{monotype}\\
+& | & \theta \R \theta &\mbox{open function type}
+\\
+\\
+\mbox{monotype}\\
+\mu
+&::=& \iota_0 \Or \iota_1 \Or \cdots &\mbox{base type}\\
+& | & \mu \R \mu &\mbox{function type}
+\\
+\\
+\mbox{term}\\
+t & ::= & x & \mbox{variable} \\
+& | & \Abs{x:\pi}t  & \mbox{lambda abstraction} \\
+& | & t~t & \mbox{function application} \\
+& | & \mbox{primitives}
+\end{syntax}
+
+\section{Semantics}
+
+\subsection*{Domain}
+The domain of values $V$ is the solution to the following domain
+equations.
+% not using amalgamated sums coz wanna distinguish the function
+% that's nonterminating on all arguments and nontermination
+% itself.
+\begin{align*}
+V &= B_0 + B_1 + \cdots + F + W
+  &&\mbox{disjoint sum of domains}\\
+F &= V \R V &&\mbox{continuous functions from $V$ to $V$}\\
+W &\ni \Wrong &&\mbox{runtime type error}
+\end{align*}
+
+\subsection*{Denotation of types}
+Monotype and polytypes denote subsets of $V$.
+\begin{align*}
+V^{\iota_i} &= \{\bot_V\}\cup B_i &&\mbox{base values}
+\\
+V^{\mu_0 \R \mu_1} &=
+  \{\bot_V\}\cup
+  \{f\in F \Or f(V^{\mu_0}) \subseteq V^{\mu_1}\}
+  &&\mbox{function values}
+\end{align*}
+Note that a function type $(\mu_0\R\mu_1)$ does \emph{not} denote
+continuous functions from the input domain $V^{\mu_0}$ to the
+output domain $V^{\mu_1}$. Its denotation is constructed to also
+contains all polymorphic functions whose type instantiates to 
+$(\mu_0\R\mu_1)$.
+\begin{align*}
+V^{\forall\alpha_0\alpha_1\ldots~\theta} &=
+  \bigcap_{\mu_i}
+  \theta[\alpha_0\mapsto\mu_0,\alpha_1\mapsto\mu_1,\ldots]
+\\
+V^{\exists\beta_0\beta_1\ldots~\theta} &=
+  \bigcup_{\mu_j'}
+  \theta[\beta_0\mapsto\mu_0',\beta_1\mapsto\mu_1',\ldots]
+\\
+V^{\forall\alpha_0\alpha_1\ldots~\exists\beta_0\beta_1\ldots~\theta}
+&=\bigcap_{\mu_i}
+  \bigcup_{\mu_j'} \theta[
+  \alpha_0\mapsto\mu_0,\alpha_1\mapsto\mu_1,\ldots,
+  \beta_0\mapsto\mu_0',\beta_1\mapsto\mu_1',\ldots]
+\end{align*}
+The typed value domains $V^\tau$ are a straightforward extension
+of the notion of types as ideals in Milner~\cite{Milner78}. While
+the union of ideals need not be an ideal in general, such is the
+case here, and our typed value domains remain ideals of $V$.
+
+\begin{lemma}
+For each mono- or polytype $\tau$, the set of values $V^\tau$ is
+an ideal of $V$.
+\end{lemma}
+
+\begin{proof}[Proof sketch]
+Milner~\cite{Milner78} asserts that $V^\tau$ is an ideal when
+$\tau$ is a monotype. If $\tau$ has no existentially quantified
+type variable, then $V^\tau$ is the intersection of a nonempty
+family of ideals, and thus another ideal. If $\tau$ has an
+existentially quantified type variable, then we have to show
+$V^\tau$ to be \emph{downward closed} and \emph{directed
+complete}. The former holds because set union preserves downward
+closedness. The latter follows from a case analysis of whether
+members of the postulated directed subset of $V^\tau$ are base
+values or functions. I'm not sure whether this lemma will be used
+anywhere.
+\end{proof}
+
+\subsection*{Denotation of terms} Terms denote values as if they
+were untyped. Primitives may denote anything in $V$, as long as
+the value of each primitive operator satisfies strong type
+soundness.
+
+
+\section{Subtyping}
+
+We define a syntactic relation $\Sub$ on polytypes. We call it
+the \emph{subtype} relation because $\sigma \Sub \tau$ implies
+$V^\sigma \subseteq V^\tau$.
+
+\input{bib.tex}\end{document}

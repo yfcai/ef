@@ -1,0 +1,41 @@
+\usepackage{stmaryrd}
+\newcommand{\nc}{\newcommand}
+\newcommand{\DotExpr}[2]{#1 #2.\ }
+\nc\Abs    {\DotExpr\lambda}
+\nc\All    {\DotExpr\forall}
+\nc\Allin  {\forall\mathrm{in}}
+\nc\Allex  {\forall\mathrm{ex}}
+\nc\AbortCC{\mathrm{abort/cc}}
+\nc\ApplyCC{\mathrm{apply/cc}}
+\nc\Brouwer{\operatorname{Brouwer}}
+\nc\Case   {}
+\nc\Cps    {\operatorname{cps}}
+\nc\Dn[1]  {(#1 \R \bot) \R \bot}
+\nc\Dni    {\mathrm{\neg\neg I}}
+\nc\Erase  {\mathrm{erase}}
+\nc\Ex     {\DotExpr\exists}
+\nc\Exin   {\exists\mathrm{in}}
+\nc\Exex   {\exists\mathrm{ex}}
+\nc\Exmid  {\text{excluded-middle}}
+\nc\FTV    {\operatorname{FTV}}
+\nc\FV     {\operatorname{FV}}
+\nc\Halt   {\mathrm{halt}}
+\nc\Id     {\mathit{id}}
+\nc\Indent {\hspace{3em}}
+\nc\Mgsr   {\operatorname{mgsr}}
+\nc\Or     {\ | \ }
+\nc\Pack   {\mathrm{pack}}
+\nc\Prune  {\operatorname{prune}}
+\nc\Recall {\DotExpr\Xi} % looks like ∃
+\nc\Redo   {\operatorname{redo}}
+\nc\Sem[1] {\llbracket~#1~\rrbracket}
+\nc\Sub    {\sqsubseteq}
+\nc\Tabs   {\DotExpr\Lambda}
+\nc\Tech   {\text{technical}}
+\nc\R      {\rightarrow}
+\nc\Unpack {\mathrm{unpack}}
+\nc\Undo   {\operatorname{undo}}
+\nc\Unify  {\operatorname{unify}}
+\nc\Wrong  {\textsc{wrong}}
+
+\newenvironment{syntax}{\[\begin{array}{rrll}}{\end{array}\]}
