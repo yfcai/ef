@@ -13,6 +13,7 @@
 \input{../paper/macros.tex}
 \begin{document}
 
+\subsection{Syntax}
 \begin{syntax}
 \mbox{type}\\
 \sigma, \tau
@@ -47,13 +48,16 @@ $\{\Wrong\}$ as if they were actual subsets of $V$.
 
 \subsection{Wrongless downsets}
 \label{wrongless}
-Closed types denote wrongless downsets. A subset $S$ of the
-domain $V$ is \emph{downward closed} if for all $u\in S$, all
-elements smaller than $u$ in $V$ are contained in $S$. A subset
-of $V$ is a \emph{wrongless downset} if it is downward closed and
-does not contain $\Wrong$. Write $\Down$ for the family of all
-wrongless downsets. $\Down$~is never empty; $\{\bot\}$ is a
-wrongless downset, for example.
+(Note to self: If downward closedness turned out to be
+unnecessary, write a variant where types simply denote subsets of
+values excluding $\Wrong$.) Closed types denote wrongless
+downsets. A subset $S$ of the domain $V$ is \emph{downward
+closed} if for all $u\in S$, all elements smaller than $u$ in $V$
+are contained in $S$. A subset of $V$ is a \emph{wrongless
+downset} if it is downward closed and does not contain $\Wrong$.
+Write $\Down$ for the family of all wrongless downsets.
+$\Down$~is never empty; $\{\bot\}$ is a wrongless downset, for
+example.
 
 \subsection{Functionality of wrongless downsets}
 \label{functionality}
@@ -104,7 +108,11 @@ The reader may verify that the right hand side of this definition
 is always a wrongless downset. The family $\Down$ of all
 wrongless downsets is defined in \S\ref{wrongless}. The
 functionality construction $\RR$ is described in
-\S\ref{functionality}.
+\S\ref{functionality}. Examples:
+\begin{align*}
+\Sem{\All\alpha\alpha}~\Env&=\{\bot\}\\
+\Sem{\Ex\alpha\alpha}~\Env&=V-\{\Wrong\}
+\end{align*}
 
 \subsection{Equivalence of types}
 Set-theoretic equality of the denotation of types induce an
@@ -142,140 +150,109 @@ environment mapping term variables to values in $V$.
 \begin{align*}
 \Sem{x}~\env&=\env(x)\\
 \Sem{\Abs{x:\tau}t}~\env&=
-  f\in F\text{ such that }
+  f\in F\text{\quad such that\quad}
   f(v)=\Sem{t}~(\Update\env{x\mapsto v})
 \\
 \Sem{s~t}~\env&=
 \begin{cases}
-\Wrong&\text{if }(\Sem{s}~\env)\notin F\\
 f(\Sem{t}~\env)&\text{if }(\Sem{s}~\env)=f\in F
+\\
+\bot&\text{if }(\Sem{s}~\env)=\bot
+\\
+\Wrong&\text{if }(\Sem{s}~\env)\notin F\cup\{\bot\}
 \end{cases}
 \\
 \Sem{\mathrm{primitive}}~\env&=\cdots
 \end{align*}
 
 
-\subsection{Constraint-based subtyping}
+\subsection{Syntax of subtype judgements}
 
-We define a syntactic relation $\Sub$ on polytypes. We call it
-the \emph{subtype} relation because $\sigma \Sub \tau$ implies
-$V^\sigma \subseteq V^\tau$ (theorem~\ref{subsound}).
+We define a syntactic relation $\Sub$ on types. We call it the
+\emph{subtype} relation because for closed types $\sigma$,
+$\tau$, the relation $\sigma \Sub \tau$ implies that the
+wrongless downset denoted by $\sigma$ is a \emph{subset} of the
+wrongless downset denoted by $\tau$ (\S\ref{subsound}).
 
-\subsection{Syntax of constraints}~
+The symbol $\Sub$ stands for the partial order between values of
+a domain in literature about domain theory. At the same time,
+$\Sub$ stands for the ``more general'' partial order between
+types in literature about parametric polymorphism. Our use of
+$\Sub$ follows the latter.
 
 \begin{syntax}
-\mbox{degrees of freedom}\\
-\Delta
+\mbox{list of type variables}\\
+A,E
 &::=& \emptyset \\
-&|& \alpha,\Delta
+&|& \alpha,A
 \\
 \\
 \mbox{list of constraints}\\
 C
 &::=& \emptyset \\
-&|& \rho_0 \Sub \rho_1, C
+&|& \sigma \Sub \tau, C
+\\
+\\
+\mbox{subtype judgement}
+&::=&A;E\vdash C
 \end{syntax}
 
-\subsection{Derivation of constraint judgements}~
+In a judgement $A;E\vdash C$, the type variables in $A$ represent
+wrongless downsets that can be chosen later so that constraints
+in $C$ hold; they are \emph{accommodating}. The type variables in
+$E$ represent demands that the constraints in $C$ must be
+satisfiable whichever downsets are chosen for them; they are
+\emph{exigent}.
 
-\infrule[C-Refl]
+\subsection{Derivation of subtype judgements}~
+
+\infrule[S-Refl]
 {}
-{\Delta \vdash \rho_0\Sub\rho_0,\rho_1\Sub\rho_1,
-\ldots,\rho_n\Sub\rho_n}
+{A;E \vdash \tau_0\Sub\tau_0,\tau_1\Sub\tau_1,
+\ldots,\tau_n\Sub\tau_n}
 
-TODO: separate quantifier lifting from {\sc C-Arrow} into another rule.
+\infrule[S-Arrow]
+{A;E\vdash\tau_0\Sub\sigma_0,\sigma_1\Sub\tau_1,C}
+{\Delta\vdash\sigma_0\R\sigma_1\Sub\tau_0\R\tau_1,C}
 
-Need not argue that we implement all the rules here.
-We can implement any weaker subtyping relation, any weaker typing
-relation. Soundness holds through.
-
-\infrule[C-Arrow]
-{
-\arraycolsep=1pt
-\begin{array}[b]{rl}
-\bar\alpha &= \bar\alpha_0,\bar\alpha_1,\bar\alpha_{01}\\
-\bar\alpha_0 &\subseteq \FTV(\theta_0) - \FTV(\theta_1)\\
-\bar\alpha_1 &\subseteq \FTV(\theta_1) - \FTV(\theta_0)\\
-\bar\alpha_{01} &\subseteq \FTV(\theta_0) \cap \FTV(\theta_1)\\
-\bar\beta &= \bar\beta_0,\bar\beta_1,\bar\beta_{01}\\
-&\vdots\\
-\bar\delta_{23} &\subseteq \FTV(\theta_2) \cap \FTV(\theta_3)
-\end{array}
+\infrule[S-Loner]
+{\alpha\notin A\cup E\cup\FTV(C)
 \andalso
-\begin{array}[b]{rcl}
-\Delta,\bar\alpha_{01},\bar\delta_{23} &~\vdash~&
-(\All{\bar\delta_2}\Ex{\bar\gamma_2}\theta_2)
-\Sub
-(\All{\bar\beta_0}\Ex{\bar\alpha_0}\theta_0),
-\\ &&
-(\All{\bar\alpha_1}\Ex{\bar\beta_1}\theta_1)
-\Sub
-(\All{\bar\gamma_3}\Ex{\bar\delta_3}\theta_3),
-\\ &&
-C
-\end{array}
-}
-{\Delta\vdash
-(\All{\bar\alpha} \Ex{\bar\beta} \theta_0 \R \theta_1)
-\Sub
-(\All{\bar\gamma} \Ex{\bar\delta} \theta_2 \R \theta_3)
-,C}
-
-
-\infrule[C-Loner]
-{\alpha\notin\Delta\cup\FTV(C)
-\andalso
-\Delta\vdash
-\{ \rho_i\Sub\rho_j' \Or 0 \le i \le m, 0 \le j \le n \}
+A;E\vdash
+\{ \sigma_i\Sub\tau_j \Or 0 \le i \le m, 0 \le j \le n \}
 \cup C
-}
-{
-\Delta,\alpha \vdash
-\rho_0\Sub\alpha,\ldots,\rho_m\Sub\alpha,
-\alpha\Sub\rho_0',\ldots,\alpha\Sub\rho_n',C
+}{
+\alpha,A;E \vdash
+\sigma_0\Sub\alpha,\ldots,\sigma_m\Sub\alpha,
+\alpha\Sub\tau_0,\ldots,\alpha\Sub\tau_n,C
 }
 
-\begin{definition}
-[subtype relation]
-A polytype $\sigma$ is a subtype of another polytype $\tau$, writ
-$\sigma \Sub \tau$, if there exists a derivation of
-$\emptyset\vdash\sigma\Sub\tau$.
-\end{definition}
+\infrule[S-Al]
+{\alpha\notin A\cup E
+\andalso
+\alpha,A;E\vdash\sigma\Sub\tau,C}
+{A;E\vdash(\All\alpha\sigma)\Sub\tau,C}
 
-\begin{theorem}
-[soundness of subtyping]
+\infrule[S-Ar]
+{\alpha\notin A\cup E
+\andalso
+\alpha,A;E\vdash\sigma\Sub\tau,C}
+{A;E\vdash\sigma\Sub(\Ex\alpha\tau),C}
+
+\infrule[S-El]
+{\alpha\notin A\cup E
+\andalso
+A;\alpha,E\vdash\sigma\Sub\tau,C}
+{A;E\vdash(\Ex\alpha\sigma)\Sub\tau,C}
+
+\infrule[S-Er]
+{\alpha\notin A\cup E
+\andalso
+A;\alpha,E\vdash\sigma\Sub\tau,C}
+{A;E\vdash\sigma\Sub(\All\alpha\tau),C}
+
+\subsection{Soundness of subtyping}
 \label{subsound}
-$V^\sigma\subseteq V^\tau$ whenever $\sigma\Sub\tau$.
-\end{theorem}
-
-\begin{proof}[Proof idea]
-Induction on derivation of constraint judgements, with the
-following induction hypothesis:
-
-A monotype instantiation of $\Delta$ is a substitution where each
-type variable in $\Delta$ is mapped to a monotype. If there is a
-derivation of $\Delta\vdash C$, then for each monotype
-instantiation $f$ of $\Delta$ and each constraint
-$\rho_0\Sub\rho_1$ in $C$, we have $V^{f(\rho_0)}\subseteq
-V^{f(\rho_1)}$.
-\end{proof}
-
-\begin{definition}
-[loner; unsure whether will be useful]
-\label{loner}
-A type variable $\alpha$ is a loner in the constraint list $C$ if
-\begin{enumerate}
-\item $C$ contains constraints of the form
-$\alpha\Sub\rho$ or $\rho\Sub\alpha$ with
-$\alpha\notin\FTV(\rho)$, and
-\item $\alpha$ never occurs free in other constraints of $C$.
-\end{enumerate}
-If $\alpha$ is a loner in $C$, then
-\begin{align*}
-\LHS(\alpha)&=\{\rho \Or (\rho\Sub\alpha) \in C\}\\
-\RHS(\alpha)&=\{\rho \Or (\alpha\Sub\rho) \in C\}\\
-\end{align*}
-\end{definition}
 
 
 
