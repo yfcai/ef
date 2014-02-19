@@ -39,26 +39,5 @@ i3 = i2
 . prevent its detection
 . λz : ℤ. λm : ℤ. λn : ℤ. m n
 
-. this term is found to reduce to ill-typed term
-.
-.   λx3 : T2. (λx1 : ∀T1. T1. x1) x3
-.
-. if we disregard types during reduction. I think it means that
-. we have to instantiate types during reduction to have soundness.
-.
-(λx0 : ∀T0. (T0 → T0) → T0 → T0. x0 (λx1 : ∀T1. T1. x1))
-  (λx2 : T2 → T2. λx3 : T2. x2 x3)
-
-. rant
-
-  old =
-
-  (λx0 : ∀T0. (T0 → T0) → T0 → T0.
-      x0 (λx1 : ∀T1. T1. x1))
-    (ΛT2. λx2 : T2 → T2. λx3 : T2. x2 x3)
-
-  in F =
-
-  (λx : ∀α. (α → α) → α → α.
-      x [∀β. β] (λy : ∀β. β. y))
-    (Λγ. λz : γ → γ. λw : γ. z w)
+. If α becomes accommodating, then this will be typeable! What else?
+. (λx : α. x x)
