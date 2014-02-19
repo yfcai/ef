@@ -1,5 +1,5 @@
 \documentclass{amsart}
-\usepackage{bcprules,url}
+\usepackage{bcprules,url,enumerate}
 \allowdisplaybreaks
 \swapnumbers
 \newtheorem{theorem}[subsection]{Theorem}
@@ -8,117 +8,154 @@
 \theoremstyle{definition}
 \newtheorem{definition}[subsection]{Definition}
 
+\def\thesubsection{\arabic{subsection}}
+
 \input{../paper/macros.tex}
 \begin{document}
 
-\section{Syntax}
-
 \begin{syntax}
-\mbox{polytype}\\
-\sigma, \tau & ::=
-& \rho & \mbox{where }\FTV(\rho)=\emptyset
-\\
-\\
-\mbox{prenex}\\
-\rho & ::= &
-\forall \alpha_0\alpha_1\ldots~
-\exists \beta_0\beta_1\ldots~\theta
-&
-\mbox{where }\alpha_i,\beta_j\in\FTV(\theta)
-\\
-\\
-\mbox{open type}\\
-\theta
-&::=& \alpha \Or \beta \Or \gamma \Or \cdots &\mbox{type variable}\\
-& | & \mu &\mbox{monotype}\\
-& | & \theta \R \theta &\mbox{open function type}
-\\
-\\
-\mbox{monotype}\\
-\mu
+\mbox{type}\\
+\sigma, \tau
 &::=& \iota_0 \Or \iota_1 \Or \cdots &\mbox{base type}\\
-& | & \mu \R \mu &\mbox{function type}
+&|& \alpha \Or \beta \Or \cdots & \mbox{type variable} \\
+&|& \tau \rightarrow \tau & \mbox{function type} \\
+&|& \All\alpha\tau & \mbox{universal type} \\
+&|& \Ex\alpha\tau & \mbox{existential type}
 \\
 \\
 \mbox{term}\\
-t & ::= & x & \mbox{variable} \\
-& | & \Abs{x:\rho}t  & \mbox{lambda abstraction} \\
+s, t & ::= & x & \mbox{variable} \\
+& | & \Abs{x:\tau}t  & \mbox{lambda abstraction} \\
 & | & t~t & \mbox{function application} \\
 & | & \mbox{primitives}
 \end{syntax}
 
-\section{Semantics}
-
 \subsection{Domain}
 The domain of values $V$ is the solution to the following domain
 equations.
-% not using amalgamated sums coz wanna distinguish the function
-% that's nonterminating on all arguments and nontermination
-% itself.
 \begin{align*}
-V &= B_0 + B_1 + \cdots + F + \{Wrong\}
+V &= F + B_0 + B_1 + \cdots + \{\Wrong\}
   &&\mbox{disjoint sum of domains}\\
 F &= V \R V &&\mbox{continuous functions from $V$ to $V$}
 \end{align*}
+Here and elsewhere, we omit all domain-theoretic details, such as
+the fact that domain equations are solved only up to isomorphism,
+and that disjoint sum with a bottomless set (e.~g., $\{\Wrong\}$)
+must be encoded as smash sum with a flat domain. To lighten
+notational and conceptual burden, let us treat $B_i$, $F$ and
+$\{\Wrong\}$ as if they were actual subsets of $V$.
+
+\subsection{Wrongless downsets}
+\label{wrongless}
+Closed types denote wrongless downsets. A subset $S$ of the
+domain $V$ is \emph{downward closed} if for all $u\in S$, all
+elements smaller than $u$ in $V$ are contained in $S$. A subset
+of $V$ is a \emph{wrongless downset} if it is downward closed and
+does not contain $\Wrong$. Write $\Down$ for the family of all
+wrongless downsets. $\Down$~is never empty; $\{\bot\}$ is a
+wrongless downset, for example.
+
+\subsection{Functionality of wrongless downsets}
+\label{functionality}
+The functionality of wrongless down\-sets is the trivial
+generalization of Milner's adaptation of Scott's notion of
+functionality~\cite{Milner78}.
+
+Let $S_0$ and $S_1$ be wrongless downsets. The
+\emph{functionality} from $S_0$ to $S_1$, writ $S_0\RR S_1$, is
+the set of functions that always map values in $S_0$ to values in
+$S_1$, but can map values outside $S_0$ to anything in $V$.
+\[
+S_0 \RR S_1 =
+\{\bot\}\cup\{f\in F \Or f(S_0) \subseteq S_1\}.
+\]
+Function types denote functionalities. A functionality is defined
+to be inclusive enough to contain all polymorphic functions
+capable of ``instantiating'' to the desired function type.
+
+\subsection{Closure properties of wrongless downsets}
+The functionality between two wrongless downsets is a wrongless
+downset. The intersection of any nonempty family of wrongless
+downsets is a wrongless downset. The union of any nonempty family
+of wrongless downsets is a wrongless downset.
 
 \subsection{Denotation of types}
-Monotype and polytypes denote subsets of $V$.
+\label{denotation-types}
+Closed types denote wrongless downsets. Open types denote a
+function mapping each environment of wrongless downsets to a
+wrongless downset.
+
+Upper case $\Env$ refers to an environment mapping type variables
+to wrongless downsets; lower case $\env$ will refer to an environment
+mapping term variables to values in \S\ref{denotation-terms}.
 \begin{align*}
-V^{\iota_i} &= \{\bot_V\}\cup B_i &&\mbox{base values}
-\\
-V^{\mu_0 \R \mu_1} &=
-  \{\bot_V\}\cup
-  \{f\in F \Or f(V^{\mu_0}) \subseteq V^{\mu_1}\}
-  &&\mbox{function values}
+\Sem{\iota_i}~\Env &= \{\bot\}\cup B_i\\
+\Sem{\alpha}~\Env &= \Env(\alpha)\\
+\Sem{\sigma\R\tau}~\Env&=
+  (\Sem{\sigma}~\Env)\RR(\Sem{\tau}~\Env)\\
+\Sem{\All\alpha\tau}~\Env&=
+  {\textstyle\bigcap_{S\in\Down}}
+  \left(\Sem\tau~(\Update\Env{\alpha\mapsto S})\right)\\
+\Sem{\Ex\alpha\tau}~\Env&=
+  {\textstyle\bigcup_{S\in\Down}}
+  \left(\Sem\tau~(\Update\Env{\alpha\mapsto S})\right)
 \end{align*}
-Note that a function type $(\mu_0\R\mu_1)$ does \emph{not} denote
-continuous functions from the input domain $V^{\mu_0}$ to the
-output domain $V^{\mu_1}$. Its denotation is constructed to also
-contains all polymorphic functions whose type instantiates to 
-$(\mu_0\R\mu_1)$.
+The reader may verify that the right hand side of this definition
+is always a wrongless downset. The family $\Down$ of all
+wrongless downsets is defined in \S\ref{wrongless}. The
+functionality construction $\RR$ is described in
+\S\ref{functionality}.
+
+\subsection{Equivalence of types}
+Set-theoretic equality of the denotation of types induce an
+equivalence on types. Examples:
+\begin{enumerate}[(i)]
+\item
+$\Sem{\All\alpha\sigma\R\tau}=\Sem{\sigma\R(\All\alpha\tau)}$
+where $\alpha\notin\FTV(\sigma)$,
+\item
+$\Sem{\Ex\alpha\sigma\R\tau}=\Sem{\sigma\R(\Ex\alpha\tau)}$
+where $\alpha\notin\FTV(\sigma)$,
+\item
+$\Sem{\All\alpha\sigma\R\tau}=\Sem{(\Ex\alpha\sigma)\R\tau}$
+where $\alpha\notin\FTV(\tau)$,
+\item
+$\Sem{\Ex\alpha\sigma\R\tau}=\Sem{(\All\alpha\sigma)\R\tau}$
+where $\alpha\notin\FTV(\tau)$,
+\item
+$\Sem{\All\alpha\Ex\beta\tau}=\Sem{\Ex\beta\All\alpha\tau}$.
+\end{enumerate}
+Type equivalence expressed by (i) and (ii) holds for
+intuitionistic logic. The type equivalence of (i) to (iv) holds
+for classical logic. The equivalence of (v) is seen in neither.
+
+
+\subsection{Denotation of terms}
+\label{denotation-terms}
+Terms denote values as if they were untyped. Primitives may
+denote anything in $V$, as long as the value of each primitive
+operator satisfies strong type soundness.
+
+Upper case $\Env$ is type-level environment
+(\S\ref{denotation-types}). Lower case $\env$ refers to an
+environment mapping term variables to values in $V$.
 \begin{align*}
-V^{\forall\alpha_0\alpha_1\ldots~\theta} &=
-  \bigcap_{\mu_i}
-  \theta[\alpha_0\mapsto\mu_0,\alpha_1\mapsto\mu_1,\ldots]
+\Sem{x}~\env&=\env(x)\\
+\Sem{\Abs{x:\tau}t}~\env&=
+  f\in F\text{ such that }
+  f(v)=\Sem{t}~(\Update\env{x\mapsto v})
 \\
-V^{\exists\beta_0\beta_1\ldots~\theta} &=
-  \bigcup_{\mu_j'}
-  \theta[\beta_0\mapsto\mu_0',\beta_1\mapsto\mu_1',\ldots]
+\Sem{s~t}~\env&=
+\begin{cases}
+\Wrong&\text{if }(\Sem{s}~\env)\notin F\\
+f(\Sem{t}~\env)&\text{if }(\Sem{s}~\env)=f\in F
+\end{cases}
 \\
-V^{\forall\alpha_0\alpha_1\ldots~\exists\beta_0\beta_1\ldots~\theta}
-&=\bigcap_{\mu_i}
-  \bigcup_{\mu_j'} \theta[
-  \alpha_0\mapsto\mu_0,\alpha_1\mapsto\mu_1,\ldots,
-  \beta_0\mapsto\mu_0',\beta_1\mapsto\mu_1',\ldots]
+\Sem{\mathrm{primitive}}~\env&=\cdots
 \end{align*}
-The typed value domains $V^\tau$ are a straightforward extension
-of the notion of types as ideals in Milner~\cite{Milner78}.
-
-\begin{lemma}
-For each mono- or polytype $\tau$, the set of values $V^\tau$ is
-an ideal of $V$.
-\end{lemma}
-
-\begin{proof}[Proof sketch]
-Milner~\cite{Milner78} asserts that $V^\tau$ is an ideal when
-$\tau$ is a monotype. Set intersection preserves idealhood.
-Countable union poses a problem. The definition of ideal in MTD%
-%
-\footnote{Stoltenberg-Hansen, Lindstr\"om,
-Griffor. \emph{Mathematical Theory of Domains.}}
-%
-doesn't involve the supremum of an infinite number of values, and
-is preserved by countable union. I'm not sure what to do about
-the notion of ideals in Milner~\cite{Milner78}.
-\end{proof}
-
-\subsection{Denotation of terms} Terms denote values as if they
-were untyped. Primitives may denote anything in $V$, as long as
-the value of each primitive operator satisfies strong type
-soundness.
 
 
-\section{Constraint-based subtyping}
+\subsection{Constraint-based subtyping}
 
 We define a syntactic relation $\Sub$ on polytypes. We call it
 the \emph{subtype} relation because $\sigma \Sub \tau$ implies
@@ -199,14 +236,14 @@ C
 }
 
 \begin{definition}
-[Subtype relation]
+[subtype relation]
 A polytype $\sigma$ is a subtype of another polytype $\tau$, writ
 $\sigma \Sub \tau$, if there exists a derivation of
 $\emptyset\vdash\sigma\Sub\tau$.
 \end{definition}
 
 \begin{theorem}
-[Soundness of subtyping]
+[soundness of subtyping]
 \label{subsound}
 $V^\sigma\subseteq V^\tau$ whenever $\sigma\Sub\tau$.
 \end{theorem}
@@ -224,7 +261,7 @@ V^{f(\rho_1)}$.
 \end{proof}
 
 \begin{definition}
-[Loner; unsure whether will be useful]
+[loner; unsure whether will be useful]
 \label{loner}
 A type variable $\alpha$ is a loner in the constraint list $C$ if
 \begin{enumerate}
