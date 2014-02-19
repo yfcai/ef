@@ -1,5 +1,4 @@
-Morpheus
---------
+Joseph Pharaoh Megaslave
+------------------------
 
-Call the calculus Morpheus. Morpheus is the Greek god of dreams
-and sounds like (poly-)morphous.
+Decidable impredicative polymorphism
