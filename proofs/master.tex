@@ -10,8 +10,13 @@
 
 \def\thesubsection{\arabic{subsection}}
 
+\title{Nuclear Football Megaslave}
+
 \input{../paper/macros.tex}
 \begin{document}
+
+\maketitle
+\tableofcontents
 
 \subsection{Syntax}
 \begin{syntax}
@@ -26,9 +31,9 @@
 \\
 \mbox{term}\\
 s, t & ::= & x & \mbox{variable} \\
-& | & \Abs{x:\tau}t  & \mbox{lambda abstraction} \\
+& | & \Abs{x}t  & \mbox{lambda abstraction} \\
 & | & t~t & \mbox{function application} \\
-& | & \mbox{primitives}
+& | & \cdots & \mbox{primitives}
 \end{syntax}
 
 \subsection{Domain}
@@ -41,23 +46,55 @@ F &= V \R V &&\mbox{continuous functions from $V$ to $V$}
 \end{align*}
 Here and elsewhere, we omit all domain-theoretic details, such as
 the fact that domain equations are solved only up to isomorphism,
-and that disjoint sum with a bottomless set (e.~g., $\{\Wrong\}$)
+and that disjoint sum with a bottomless set (say, $\{\Wrong\}$)
 must be encoded as smash sum with a flat domain. To lighten
 notational and conceptual burden, let us treat $B_i$, $F$ and
 $\{\Wrong\}$ as if they were actual subsets of $V$.
 
+\subsection{Denotation of terms}
+\label{denotation-terms}
+Terms denote values as in untyped lambda calculus. Primitives may
+denote anything in $V$, as long as the value of each primitive
+operator satisfies strong type soundness.
+
+Upper case $\Env$ refers to a type-level environment.
+(\S\ref{denotation-types}). Lower case $\env$ refers to a
+term-level environment mapping term variables to values in $V$.
+\begin{align*}
+\Sem{x}~\env&=\env(x)\\
+\Sem{\Abs{x}t}~\env&=
+  f\in F\text{\quad such that\quad}
+  f(v)=\Sem{t}~(\Update\env{x\mapsto v})
+\\
+\Sem{s~t}~\env&=
+\begin{cases}
+\bot&\text{if }(\Sem{s}~\env)=\bot
+\\
+f(\Sem{t}~\env)&\text{if }(\Sem{s}~\env)=f\in F
+\\
+\Wrong&\text{if }(\Sem{s}~\env)\notin F\cup\{\bot\}
+\end{cases}
+\\
+\Sem{\mathrm{primitive}}~\env&=\cdots
+\end{align*}
+
 \subsection{Wrongless downsets}
 \label{wrongless}
-(Note to self: If downward closedness turned out to be
-unnecessary, write a variant where types simply denote subsets of
-values excluding $\Wrong$.) Closed types denote wrongless
-downsets. A subset $S$ of the domain $V$ is \emph{downward
-closed} if for all $u\in S$, all elements smaller than $u$ in $V$
-are contained in $S$. A subset of $V$ is a \emph{wrongless
-downset} if it is downward closed and does not contain $\Wrong$.
-Write $\Down$ for the family of all wrongless downsets.
-$\Down$~is never empty; $\{\bot\}$ is a wrongless downset, for
-example.
+Closed types denote wrongless downsets. A subset $S$ of the
+domain $V$ is \emph{downward closed} if for all $u\in S$, all
+elements smaller than $u$ in $V$ are contained in $S$. A subset
+of $V$ is a \emph{wrongless downset} if it is nonempty, downward
+closed and does not contain $\Wrong$. Write $\Down$ for the
+family of all wrongless downsets. $\Down$~is never empty;
+$\{\bot\}$ is a wrongless downset, for example.
+
+I'm not sure whether nonemptiness or downward closedness is
+necessary for the type soundness proof. If they were not, then we
+could set the denotation of types to arbitrary subsets of
+$V-\{\Wrong\}$. Look forward to the grotesque scenarios that are
+bound to ensue. One particular consequence is that nothing could
+be allowed to have the type $\All\alpha\alpha$, not even
+primitives.
 
 \subsection{Functionality of wrongless downsets}
 \label{functionality}
@@ -68,7 +105,8 @@ functionality~\cite{Milner78}.
 Let $S_0$ and $S_1$ be wrongless downsets. The
 \emph{functionality} from $S_0$ to $S_1$, writ $S_0\RR S_1$, is
 the set of functions that always map values in $S_0$ to values in
-$S_1$, but can map values outside $S_0$ to anything in $V$.
+$S_1$, but can map values outside $S_0$ to anything in $V$,
+including $\Wrong$.
 \[
 S_0 \RR S_1 =
 \{\bot\}\cup\{f\in F \Or f(S_0) \subseteq S_1\}.
@@ -86,8 +124,8 @@ of wrongless downsets is a wrongless downset.
 \subsection{Denotation of types}
 \label{denotation-types}
 Closed types denote wrongless downsets. Open types denote a
-function mapping each environment of wrongless downsets to a
-wrongless downset.
+partial function mapping an environment of wrongless downsets to
+a wrongless downset.
 
 Upper case $\Env$ refers to an environment mapping type variables
 to wrongless downsets; lower case $\env$ will refer to an environment
@@ -139,34 +177,6 @@ propositions of intuitionistic logic. Types on both sides of
 logic. The equivalence expressed by (v) is seen in neither.
 
 
-\subsection{Denotation of terms}
-\label{denotation-terms}
-Terms denote values as if they were untyped. Primitives may
-denote anything in $V$, as long as the value of each primitive
-operator satisfies strong type soundness.
-
-Upper case $\Env$ is type-level environment
-(\S\ref{denotation-types}). Lower case $\env$ refers to an
-environment mapping term variables to values in $V$.
-\begin{align*}
-\Sem{x}~\env&=\env(x)\\
-\Sem{\Abs{x:\tau}t}~\env&=
-  f\in F\text{\quad such that\quad}
-  f(v)=\Sem{t}~(\Update\env{x\mapsto v})
-\\
-\Sem{s~t}~\env&=
-\begin{cases}
-f(\Sem{t}~\env)&\text{if }(\Sem{s}~\env)=f\in F
-\\
-\bot&\text{if }(\Sem{s}~\env)=\bot
-\\
-\Wrong&\text{if }(\Sem{s}~\env)\notin F\cup\{\bot\}
-\end{cases}
-\\
-\Sem{\mathrm{primitive}}~\env&=\cdots
-\end{align*}
-
-
 \subsection{Syntax of subtype judgements}
 
 We define a syntactic relation $\Sub$ on types. We call it the
@@ -179,7 +189,7 @@ The symbol $\Sub$ stands for the partial order between values of
 a domain in literature about domain theory. At the same time,
 $\Sub$ stands for the ``more general'' partial order between
 types in literature about parametric polymorphism. Our use of
-$\Sub$ follows the latter.
+$\Sub$ agrees with the latter.
 
 \begin{syntax}
 \mbox{list of type variables}\\
@@ -214,7 +224,7 @@ satisfiable whichever downsets are chosen for them; they are
 
 \infrule[S-Arrow]
 {A;E\vdash\tau_0\Sub\sigma_0,\sigma_1\Sub\tau_1,C}
-{\Delta\vdash\sigma_0\R\sigma_1\Sub\tau_0\R\tau_1,C}
+{A;E\vdash\sigma_0\R\sigma_1\Sub\tau_0\R\tau_1,C}
 
 \infrule[S-Loner]
 {\alpha\notin A\cup E\cup\FTV(C)
@@ -229,31 +239,128 @@ A;E\vdash
 }
 
 \infrule[S-Al]
-{\alpha\notin A\cup E
+{\alpha\notin A\cup E\cup\FTV(\tau)\cup\FTV(C)
 \andalso
 \alpha,A;E\vdash\sigma\Sub\tau,C}
 {A;E\vdash(\All\alpha\sigma)\Sub\tau,C}
 
 \infrule[S-Ar]
-{\alpha\notin A\cup E
+{\alpha\notin A\cup E\cup\FTV(\tau)\cup\FTV(C)
 \andalso
 \alpha,A;E\vdash\sigma\Sub\tau,C}
 {A;E\vdash\sigma\Sub(\Ex\alpha\tau),C}
 
 \infrule[S-El]
-{\alpha\notin A\cup E
+{\alpha\notin A\cup E\cup\FTV(\tau)\cup\FTV(C)
 \andalso
 A;\alpha,E\vdash\sigma\Sub\tau,C}
 {A;E\vdash(\Ex\alpha\sigma)\Sub\tau,C}
 
 \infrule[S-Er]
-{\alpha\notin A\cup E
+{\alpha\notin A\cup E\cup\FTV(\tau)\cup\FTV(C)
 \andalso
 A;\alpha,E\vdash\sigma\Sub\tau,C}
 {A;E\vdash\sigma\Sub(\All\alpha\tau),C}
 
+% Reason of existence: T-App.
+\infrule[S-Forget]
+{C_0\subseteq C_1\andalso A;E\vdash C_1}
+{A;E\vdash C_0}
+
+\subsection{Accommodating extensions of exigent environments}
+This is a concept necessary to appreciate how an open type can be
+a subtype of another.
+
+With respect to a subtype judgement $A;E\vdash C$, an environment
+$\Env_0$ of wrongless downsets is an \emph{exigent environment}
+if it is defined for every type variable in $E$ and nowhere else.
+$\Env$ is an \emph{accommodating extension} of $\Env_0$ if $\Env$
+is defined for every type variable in $A$ and agrees with
+$\Env_0$ on $E$.
+
 \subsection{Soundness of subtyping}
 \label{subsound}
+If the subtype judgement $A;E\vdash C$ is derivable, then every
+exigent environment $\Env_0$ has an accommodating extension
+$\Env$ such that for every constraint $\sigma\Sub\tau$ in $C$ we
+have
+\[
+\Sem{\sigma}~\Env \quad \subseteq \quad \Sem{\tau}~\Env.
+\]
+
+\begin{proof}
+Straightforward induction on a derivation of the subtype judgement.
+\end{proof}
+
+\subsection{Constrained typing}
+\begin{syntax}
+\mbox{constrained type}
+&::=&\tau \Given C
+\\\\
+\mbox{constrained typing judgement}
+&::=&A;E;\Gamma \vdash t : \tau \Given C
+\end{syntax}
+
+\infrule[T-Var]
+{x:\tau\in\Gamma}
+{A;\Gamma\vdash x : \tau \Given \emptyset}
+
+\infrule[T-Abs]
+{\FTV(\sigma)\subseteq A
+\andalso
+A;\Gamma,x:\sigma \vdash t : \tau \Given C}
+{A;\Gamma\vdash (\Abs{x}t) : \sigma\R\tau \Given C}
+
+\infrule[T-App]
+{\alpha,\beta\text{ fresh}
+\andalso
+A;\Gamma\vdash s : \sigma \Given C_1
+\andalso
+A;\Gamma\vdash t : \tau \Given C_2}
+{\alpha,\beta,A;\Gamma\vdash s~t : \beta \Given
+\sigma\Sub\alpha\R\beta,\tau\Sub\alpha,C_1\cup C_2}
+
+\subsection{Denotation of typing contexts}
+The denotation of a typing context $\Gamma$ is a partial function
+mapping an type-level environment to the set of compatible
+term-level environments.
+\begin{align*}
+\Sem{\Gamma}~\Env&=
+\left\{\env \Or
+\env(x)\in(\Sem{\tau}~\Env)\text{ whenever }x:\tau\in\Gamma
+\right\}
+\end{align*}
+
+\subsection{Soundness of constrained typing}
+\label{consound}
+If
+\begin{align*}
+A;\Gamma&\vdash t : \sigma\Given C&
+&\text{and}&
+A;\emptyset&\vdash\sigma\Sub\tau,C
+\end{align*}
+are both derivable, then there exist a type-level $\Env$ such
+that for every term-level $\env\in(\Sem{\Gamma}~\Env)$ we have
+$(\Sem{t}~\env)\in(\Sem{\tau}~\Env)$.
+
+\begin{proof}
+A fun induction on typing derivations.
+\end{proof}
+
+\subsection{Well-typed programs don't go wrong}
+A term $t$ has type $\tau$ under typing context
+$\Gamma$, writ $\Gamma\vdash t:\tau$, if both
+\begin{align*}
+A;&\Gamma\vdash t : \sigma\Given C&
+&\text{and}&
+A;\emptyset\vdash\sigma\Sub\tau,C
+\end{align*}
+are derivable for some $A$.
+
+If $\emptyset\vdash t:\tau$ and $t$, $\tau$ are both closed, then
+$\Sem{t}~\emptyset~\in~\Sem{\tau}~\emptyset$. In particular,
+$\Sem{t}~\emptyset\neq\Wrong$. This is a corollary of
+\S\ref{consound}.
 
 
 
