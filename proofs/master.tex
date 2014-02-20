@@ -57,7 +57,7 @@ Terms denote values as in untyped lambda calculus. Primitives may
 denote anything in $V$, as long as the value of each primitive
 operator satisfies strong type soundness.
 
-Upper case $\Env$ refers to a type-level environment.
+Upper case $\Env$ will refer to type-level environments
 (\S\ref{denotation-types}). Lower case $\env$ refers to a
 term-level environment mapping term variables to values in $V$.
 \begin{align*}
@@ -88,32 +88,32 @@ closed and does not contain $\Wrong$. Write $\Down$ for the
 family of all wrongless downsets. $\Down$~is never empty;
 $\{\bot\}$ is a wrongless downset, for example.
 
-I'm not sure whether nonemptiness or downward closedness is
-necessary for the type soundness proof. If they were not, then we
-could set the denotation of types to arbitrary subsets of
-$V-\{\Wrong\}$. Look forward to the grotesque scenarios that are
-bound to ensue. One particular consequence is that nothing could
-be allowed to have the type $\All\alpha\alpha$, not even
-primitives.
+Nonemptiness and downward closedness are unused in the type
+soundness proof. It might be fun to set the denotation of types
+to arbitrary subsets of $V-\{\Wrong\}$ and look at the ensuing
+monstrosities, one of which being that nothing could then be
+allowed to have the type $\All\alpha\alpha$, not even primitives.
 
 \subsection{Functionality of wrongless downsets}
 \label{functionality}
-The functionality of wrongless down\-sets is the trivial
-generalization of Milner's adaptation of Scott's notion of
-functionality~\cite{Milner78}.
-
 Let $S_0$ and $S_1$ be wrongless downsets. The
 \emph{functionality} from $S_0$ to $S_1$, writ $S_0\RR S_1$, is
-the set of functions that always map values in $S_0$ to values in
-$S_1$, but can map values outside $S_0$ to anything in $V$,
-including $\Wrong$.
+the set that consists of $\bot$ and all functions who always map
+values in $S_0$ to values in $S_1$, but may map values outside
+$S_0$ to anything in $V$, including $\Wrong$.
 \[
 S_0 \RR S_1 =
 \{\bot\}\cup\{f\in F \Or f(S_0) \subseteq S_1\}.
 \]
-Function types denote functionalities. A functionality is defined
-to be inclusive enough to contain all polymorphic functions
-capable of ``instantiating'' to the desired function type.
+Function types denote functionalities. Functionalities are
+defined to be inclusive enough to contain all appropriate
+polymorphic function values. The functionality from integers to
+integers will also contain the identity function on all of $V$,
+for example.
+
+The functionality of wrongless down\-sets is the trivial
+generalization of Milner's adaptation of Scott's notion of
+functionality of ideals to wrongless downsets~\cite{Milner78}.
 
 \subsection{Closure properties of wrongless downsets}
 The functionality between two wrongless downsets is a wrongless
@@ -127,9 +127,10 @@ Closed types denote wrongless downsets. Open types denote a
 partial function mapping an environment of wrongless downsets to
 a wrongless downset.
 
-Upper case $\Env$ refers to an environment mapping type variables
-to wrongless downsets; lower case $\env$ will refer to an environment
-mapping term variables to values in \S\ref{denotation-terms}.
+Upper case $\Env$ refers to a type-level environment mapping type
+variables to wrongless downsets. Lower case $\env$ refers to a
+term-level environment mapping term variables to values
+(\S\ref{denotation-terms}).
 \begin{align*}
 \Sem{\iota_i}~\Env &= \{\bot\}\cup B_i\\
 \Sem{\alpha}~\Env &= \Env(\alpha)\\
@@ -158,22 +159,22 @@ equivalence relation on types. Examples:
 \begin{enumerate}[(i)]
 \item
 $\Sem{\All\alpha\sigma\R\tau}=\Sem{\sigma\R(\All\alpha\tau)}$
-where $\alpha\notin\FTV(\sigma)$,
+\quad if\quad $\alpha\notin\FTV(\sigma)$,
 \item
 $\Sem{\Ex\alpha\sigma\R\tau}=\Sem{\sigma\R(\Ex\alpha\tau)}$
-where $\alpha\notin\FTV(\sigma)$,
+\quad if\quad $\alpha\notin\FTV(\sigma)$,
 \item
 $\Sem{\All\alpha\sigma\R\tau}=\Sem{(\Ex\alpha\sigma)\R\tau}$
-where $\alpha\notin\FTV(\tau)$,
+\quad if\quad $\alpha\notin\FTV(\tau)$,
 \item
 $\Sem{\Ex\alpha\sigma\R\tau}=\Sem{(\All\alpha\sigma)\R\tau}$
-where $\alpha\notin\FTV(\tau)$,
+\quad if\quad $\alpha\notin\FTV(\tau)$,
 \item
 $\Sem{\All\alpha\Ex\beta\tau}=\Sem{\Ex\beta\All\alpha\tau}$.
 \end{enumerate}
-Types on both sides of (i) or (ii) are equisatisfiable as
-propositions of intuitionistic logic. Types on both sides of
-(iii) or (iv) are equisatisfiable as propositions of classical
+Types on either side of (i), (ii) are equisatisfiable as
+propositions of intuitionistic logic. Types on either side of
+(iii), (iv) are equisatisfiable as propositions of classical
 logic. The equivalence expressed by (v) is seen in neither.
 
 
@@ -344,7 +345,7 @@ that for every term-level $\env\in(\Sem{\Gamma}~\Env)$ we have
 $(\Sem{t}~\env)\in(\Sem{\tau}~\Env)$.
 
 \begin{proof}
-A fun induction on typing derivations.
+A fun and not-at-all complicated induction on typing derivations.
 \end{proof}
 
 \subsection{Well-typed programs don't go wrong}
