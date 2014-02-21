@@ -411,15 +411,14 @@ A;\emptyset\vdash\sigma\Sub\tau,C
 \andalso
 A;\Gamma\vdash t : \sigma\Given C
 }
-{\Gamma\vdash t:\tau}
+{t:\tau}
 
-A term $t$ has type $\tau$ under typing context
-$\Gamma$, writ $\Gamma\vdash t:\tau$, if both
+A term $t$ has type $\tau$, writ $t:\tau$, if both
 $A;\Gamma\vdash t : \sigma\Given C$ and
-$A;\emptyset\vdash\sigma\Sub\tau,C$
-are derivable for some $A$.
+$A;\emptyset\vdash\sigma\Sub\tau,C$ are derivable for some $A$,
+$\Gamma$.
 
-If $\emptyset\vdash t:\tau$ and $\tau$ is closed, then
+If $t:\tau$ with $t$, $\tau$ both closed, then
 $\Sem{t}~\emptyset~\in~\Sem{\tau}~\emptyset$. In particular,
 $\Sem{t}~\emptyset\neq\Wrong$. This is a corollary of
 \S\ref{consound}.
