@@ -89,13 +89,13 @@ family of all wrongless downsets. $\Down$~is never empty;
 $\{\bot\}$ is a wrongless downset, for example.
 
 Nonemptiness and downward closedness are not used in the type
-soundness proof. They are relevant only to make $\bot$ a member
-of every type. For type soundness, it is sufficient for the
-family of type denotations to be closed under arbitrary nonempty
-unions and intersections. Hamkins's construction~\cite{Hamkins10}
-shows that every such family is a collection of downward-closed
-sets with respect to some partial order. The inherent partial
-order of the domain $V$ assigns somewhat familiar values to
+soundness proof. They are relevant in making $\bot$ a member of
+every type. For type soundness, it is sufficient for the family
+of type denotations to be closed under arbitrary nonempty unions
+and intersections. Hamkins's construction~\cite{Hamkins10} shows
+that every such family is a collection of downward-closed sets
+with respect to some partial order. The inherent partial order of
+the domain $V$ assigns somewhat familiar values to
 types~(\S\ref{free-theorems}), and so we employ it here.
 
 We say ``$u$ precedes $v$'' to mean that $u$, $v$ are related by
@@ -105,6 +105,23 @@ the information in $u$ never conflicts with the information in
 $v$. The function undefined everywhere precedes the function that
 acts as the identity between integers and is undefined elsewhere,
 which in turn precedes the identity function over all of $V$.
+
+An alternative to wrongless downsets is arbitrary sets of base
+values and total functions. The advantages are twofold.
+\begin{enumerate}
+\item Arbitrary subsets are easier to visualize than wrongless
+downsets.
+\item Type soundness would imply that no well-typed lambda term
+denotes $\bot$.
+\end{enumerate}
+Unfortunately, I haven't managed to find a good definition for
+total functions in $V$. The obvious equation has both covariant
+and contravariant recursion positions; we can't define $T$ as the
+smallest or biggest of such sets. ($B$ is set of all base type
+values.)
+\[
+T=\{f\in F \Or f(B\cup T)\subseteq B\cup T\}
+\]
 
 \subsection{Functionality of wrongless downsets}
 \label{functionality}
@@ -190,24 +207,18 @@ partial order of a domain invoked in the phrase ``$f(v)$ precedes
 $v$''.
 
 For (c), we show that its left hand side and right hand side are
-subsets of each other. The $\supseteq$ direction holds due to
-the definition of functionality, and because $\bot$ is a member
-of every wrongless downset. The $\subseteq$ direction requires
-case analysis. Choose
-$f\in\Sem{\All\alpha\alpha\R\alpha}~\emptyset$. If $f=\bot$, then
-$f$ is a member of the right hand side. If $f\neq\bot$, then
-$f\in F$, as it is a member of some functionality.
-\begin{enumerate}
-\item $f(\bot)=\bot$, because $\{\bot\}$ is a wrongless downset
-and $f\in(\{\bot\}\RR\{\bot\})$.
-\item If $v\notin\{\bot,\Wrong\}$, then $f(v)$ precedes $v$,
-because the set $S$ of everything that preces or equals $v$ is a
-wrongless downset, and $f$ is a member of $S\RR S$.
-\end{enumerate}
-It follows that $f(v)$ precedes $v$ for all $v\ne\Wrong$.
+subsets of each other. The $\supseteq$ direction holds due to the
+definition of functionality, and because $\bot$ is a member of
+every wrongless downset. The $\subseteq$ direction requires case
+analysis. Choose $f\in\Sem{\All\alpha\alpha\R\alpha}~\emptyset$.
+If $f=\bot$, then $f$ is a member of the right hand side. If
+$f\neq\bot$, then $f\in F$, as it is a member of some
+functionality. Choose~$v\neq\Wrong$. The set $S$ of everything
+preceding $v$ is a wrongless downset. Since $v\in S$ and
+$f(S)\subseteq S$, we have $f(v)\in S$ and thus precedes $v$.
 
 \subsection{Equivalence of types}
-Set-theoretic equality of the denotation of types induce an
+Set-theoretic equality of wrongless downsets induces an
 equivalence relation on types. Examples:
 \begin{enumerate}[(i)]
 \item
@@ -230,6 +241,11 @@ propositions of intuitionistic logic. Types on either side of
 (iii), (iv) are equisatisfiable as propositions of classical
 logic. The equivalence expressed by (v) is seen in neither.
 
+Most of the equations can be shown just using set theory, except
+(iv), who requires the intersection of a certain family of
+wrongless downsets to be a member of that family. The additional
+requirement isn't difficult prove using the denotation of types
+(\S\ref{denotation-types}).
 
 \subsection{Syntax of subtype judgements}
 
