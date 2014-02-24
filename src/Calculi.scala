@@ -10,6 +10,8 @@ trait Calculi {
 
   object F extends Calculus with SystemF with PrimitiveLists
 
+  object Megaslave extends Calculus with FlatTypes
+
   trait Executable {
     def run(file: String, c: Calculus)(module: c.Module): Unit
 
@@ -48,6 +50,7 @@ trait Calculi {
       case "f" => F
       case "ef" => ExistentialFCalculus
       case "cuit" => Cuit
+      case "flat" => Megaslave
       case _ => throw new UnknownExtensionException(file)
     }
 

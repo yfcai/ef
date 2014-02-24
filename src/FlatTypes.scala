@@ -3,9 +3,28 @@
 trait FlatTypes
     extends TypedModules with IntsAndBools with Prenex with Topology
 {
+  // if ill-typed, throw tantrum.
   def typeCheck(m: Module):
-      Either[Problem, Seq[(Option[String], Tree, Tree, Token)]] =
-    ???
+      Either[Problem, Seq[(Option[String], Tree, Tree, Token)]] = {
+    val typing = new FlatTyping(m)
+    import m._
+    import typing._
+    dfn.foreach {
+      case (x, xdef) =>
+        if (illTyped(Ascr(xdef, sig(x))))
+          sys error s"ill typed definition: $x"
+    }
+    Right(naked.map {
+      case (t, tok :: _) =>
+        if (illTyped(t))
+          sys error s"${tok.fileLine} ill typed naked expression"
+        (None, t, YHWH, tok)
+      case _ =>
+        sys error "an unanticipated catastrophe"
+    })
+  }
+
+  val YHWH = Type("∃i. i")
 
   case class Circular(ancestry: Ancestry)
       extends Exception(ancestry.map({
@@ -33,47 +52,6 @@ trait FlatTypes
         case Left(_) => true
         case Right(_) => false
       }
-
-    // resolve and quantify minimally
-    def minimize(τ: Tree): Tree =
-      resolve(τ)
-      //quantifyMinimally(resolve(τ), Set.empty)
-
-    def quantifyMinimally(τ: Tree, avoid: Set[String]): Tree = {
-      val (prenex, newAvoid) = Prenex(τ, avoid)
-      prenex.prefix.foldLeft(prenex.body) {
-        case (body, BinderSpec(quantifier, x, Annotation.none())) =>
-          quantifyMinimally(x, quantifier, body, newAvoid)
-      }
-    }
-
-    def quantifyMinimally(
-      x: String,
-      quantifier: Binder,
-      τ: Tree,
-      avoid: Set[String]
-    ): Tree =
-      if (τ.freeNames contains x) {
-        τ match {
-          case σ0 → σ1 if ! σ1.freeNames.contains(x) =>
-            →(quantifyMinimally(x, flipTag(quantifier), σ0, avoid), σ1)
-
-          case σ0 → σ1 if ! σ0.freeNames.contains(x) =>
-            →(σ0, quantifyMinimally(x, quantifier, σ1, avoid))
-
-          case ⊹(binder: Binder,  _*) =>
-            binder.unbind(τ, avoid).get match {
-              case (y, Seq(Annotation.none(), body)) =>
-                binder.bind(y.get, Annotation.none(),
-                  quantifyMinimally(x, quantifier, body, avoid))
-            }
-
-          case τ =>
-            quantifier.bind(x, Annotation.none(), τ)
-        }
-      }
-      else
-        τ
 
     def flipTag(tag: Binder): Binder = tag match {
       case Universal   => Existential
@@ -107,9 +85,9 @@ trait FlatTypes
     }
 
     // minimizing lookup function
-    // make sure reps are always minimized
+    // make sure reps are always resolved
     def lookup(x: String, gamma: Gamma): Tree =
-        minimize(gamma(x))
+        resolve(gamma(x))
 
     case class CType(
       representative: Tree,
@@ -142,7 +120,7 @@ trait FlatTypes
           CType(lookup(x, gamma), Nil, Map.empty)
 
         case λ(x, σ0, body) =>
-          val σ = minimize(σ0) // for rep.
+          val σ = resolve(σ0) // for rep.
           val CType(τ, constraints, origin) =
             collect(body, gamma.updated(x, σ), abc)
           CType(→(σ, τ), constraints, origin)
@@ -158,7 +136,7 @@ trait FlatTypes
           )
 
         case Ascr(t, τ0) =>
-          val τ = minimize(τ0)
+          val τ = resolve(τ0)
           val CType(rep, cs, org) = collect(t, gamma, abc)
           CType(τ, ⊑(rep, τ) :: cs, org)
       }
@@ -175,6 +153,55 @@ trait FlatTypes
           case constraint => ! constraint.contains(α)
         }).min
       })
+    }
+
+    def breakBinders(
+      prefix: List[String],
+      css: List[⊑],
+      avoid0: Set[String],
+      ancestry: Ancestry
+    ): (List[String], List[String], List[⊑]) = {
+      val fst :: rest = css
+      val σ = fst.lhs
+      val τ = fst.rhs
+      val (p, σ0) = σ.unbindAll(avoid0, Universal, Existential)
+      val avoid1 = avoid0 ++ p.map(_.x)
+      val (q, τ0) = σ.unbindAll(avoid1, Universal, Existential)
+      val avoid2 = avoid1 ++ q.map(_.x)
+
+      // ancestry by progeny
+      def addBindingChain(p: List[BinderSpec]) {
+        if (! p.isEmpty) (p, p.tail).zipped.foreach {
+          case (outer, inner) =>
+            ancestry.addBinding(inner.x, outer.x)
+        }
+      }
+      addBindingChain(p) ; addBindingChain(q)
+
+      // ancestry by dependence
+      val reps =
+        (if (p.isEmpty) Nil else List(p.head.x)) ++
+          (if (q.isEmpty) Nil else List(q.head.x))
+      for {
+        rep <- reps
+        name <- σ.freeNames ++ τ.freeNames
+      } { ancestry.addBinding(rep, name) }
+
+      // add things to prefix and stuff
+      val accomodating =
+        p.withFilter(_.tag == Universal).map(_.x) ++
+        q.withFilter(_.tag == Existential).map(_.x)
+      val exigent =
+        p.withFilter(_.tag == Existential).map(_.x) ++
+        q.withFilter(_.tag == Universal).map(_.x)
+
+      val (all, ex, cs) = breakUp(
+        prefix ++ accomodating,
+        ⊑(σ0, τ0) :: rest,
+        avoid2,
+        ancestry)
+
+      (accomodating ++ all, exigent ++ ex, cs)
     }
 
     // precondition: prefix ⊆ avoid
@@ -203,46 +230,10 @@ trait FlatTypes
         val (all, ex, cs) = breakUp(prefix, rest, avoid, ancestry)
         (all, ex, fst :: cs)
 
-      // unbind quantifiers,
-      case (c @ (σ @ ⊹(binder: Binder, _*)) ⊑ τ) :: rest =>
-        val (α, Seq(_, body)) = binder.unbind(σ, avoid).get
-        val newC = ⊑(body, τ, α.get)
-        val (all, ex, cs) =
-          breakUp(
-            if (binder == Universal) α.get :: prefix else prefix,
-            newC :: rest, avoid + α.get,
-            ancestry)
-
-        // ancestry issue: (∀α. α → α) ⊑ (∀β. β → β)
-
-        // ancestry by dependency
-        val dep = σ.freeNames /* ++ τ.freeNames */
-        dep.foreach { name =>
-          ancestry.addBinding(α.get, name)
-        }
-
-        if (binder == Universal)
-          (α.get :: all, ex, cs)
-        else
-          (all, α.get :: ex, cs)
-
-      case (c @ σ ⊑ (τ @ ⊹(binder: Binder, _*))) :: rest =>
-        val (ε, Seq(_, body)) = binder.unbind(τ, avoid).get
-        val newC = ⊑(σ, body, ε.get)
-        val (all, ex, cs) =
-          breakUp(
-            if (binder == Existential) ε.get :: prefix else prefix,
-            newC :: rest, avoid + ε.get,
-            ancestry)
-
-        // ancestry by dependency
-        val dep = /* σ.freeNames ++ */ τ.freeNames
-        dep.foreach { name => ancestry.addBinding(ε.get, name) }
-
-        if (binder == Existential)
-          (ε.get :: all, ex, cs)
-        else
-          (all, ε.get :: ex, cs)
+      // unbind quantifiers, in some order.
+      case cs @ σ ⊑ τ :: rest
+          if σ.tag.isInstanceOf[Binder] || τ.tag.isInstanceOf[Binder] =>
+        breakBinders(prefix, cs, avoid, ancestry)
 
       // remove refl (interferes with loner search)
       case σ ⊑ τ :: rest if σ α_equiv τ =>
@@ -310,7 +301,7 @@ trait FlatTypes
           val lhs = deduplicate(lhs0)
           val rhs = deduplicate(rhs0)
 
-          // ancestry by dependency (loner)
+          // ancestry by dependence (loner)
           // can choose to depend on either lhs or rhs
           // not sure which one's best
           val dep = lhs
@@ -410,12 +401,12 @@ trait FlatTypes
       println("\nAncestry:")
       println(Circular(ancestry).getMessage)
       if (isCircular(ancestry))
-        println("ERROR: Cycle detected!")
+        sys error "ERROR: Cycle detected!"
       else
-        println("(not circular)")
+        println("(not circular)\n\n")
     }
 
-    def typeCheck(t: Tree): Boolean =
+    def wellTyped(t: Tree): Boolean =
       try {
         val s = solve(t)
         ! isCircular(s.ancestry)
@@ -424,6 +415,8 @@ trait FlatTypes
         case Insoluble(_) | Circular(_) =>
           false
       }
+
+    def illTyped(t: Tree) = ! wellTyped(t)
   }
 }
 

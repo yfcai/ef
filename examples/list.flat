@@ -94,26 +94,13 @@ ana-ℤ = λn : ℤ. iterate n nil cons
 sum : List ℤ → ℤ
 sum = λns : List ℤ. ns 0 +
 
-.sum (cons 1 (cons 2 (cons 3 (cons 4 (cons 5 nil)))))
+sum (cons 1 (cons 2 (cons 3 (cons 4 (cons 5 nil)))))
 
 list1-5 : List ℤ
 list1-5 = ana-ℤ 5
 
-.head nil
+head nil
 
-.tail nil
+tail nil
 
-.map (* 2)
-
-ns : List ℤ
-
-match2 : ℤ → MatchList → MatchList
-
-(ns const match2 : MatchList)
-
-(λf : α → β. λxs : List α. xs nil (compose cons f)) :
-  ∀α β. (α → β) → List α → List β
-
-
-(λf : α → List β. λxs : List α. xs nil (λx : α. concat (f x))) :
-  ∀α β. (α → List β) → List α → List β
+sum (map (* 2) list1-5)
