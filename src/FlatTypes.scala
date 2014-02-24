@@ -209,10 +209,15 @@ trait FlatTypes
             if (binder == Universal) α.get :: prefix else prefix,
             newC :: rest, avoid + α.get,
             ancestry)
-        c.forebear match {
-          case None => ()
-          case Some(β) => ancestry.addBinding(α.get, β)
+
+        // ancestry issue: (∀α. α → α) ⊑ (∀β. β → β)
+
+        // ancestry by dependency
+        val dep = σ.freeNames /* ++ τ.freeNames */
+        dep.foreach { name =>
+          ancestry.addBinding(α.get, name)
         }
+
         if (binder == Universal)
           (α.get :: all, ex, cs)
         else
@@ -227,12 +232,9 @@ trait FlatTypes
             newC :: rest, avoid + ε.get,
             ancestry)
 
-
-        c.forebear match {
-          case None => ()
-          case Some(β) => ancestry.addBinding(ε.get, β)
-        }
-
+        // ancestry by dependency
+        val dep = /* σ.freeNames ++ */ τ.freeNames
+        dep.foreach { name => ancestry.addBinding(ε.get, name) }
 
         if (binder == Existential)
           (ε.get :: all, ex, cs)
@@ -301,12 +303,11 @@ trait FlatTypes
           val lhs = deduplicate(lhs0)
           val rhs = deduplicate(rhs0)
 
-          // add all loner prereqs into ancestry
-          lhs.foldRight[Set[String]](
-            rhs.foldRight[Set[String]](Set.empty) {
-              case (τ, set) => set ++ τ.freeNames
-            }
-          ) {
+          // ancestry by dependency (loner)
+          // can choose to depend on either lhs or rhs
+          // not sure which one's best
+          val dep = lhs
+          dep.foldRight[Set[String]](Set.empty) {
             case (σ, set) => set ++ σ.freeNames
           } foreach { forebear =>
             ancestry.addBinding(loner, forebear)

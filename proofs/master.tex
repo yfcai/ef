@@ -217,35 +217,43 @@ functionality. Choose~$v\neq\Wrong$. The set $S$ of everything
 preceding $v$ is a wrongless downset. Since $v\in S$ and
 $f(S)\subseteq S$, we have $f(v)\in S$ and thus precedes $v$.
 
-\subsection{Equivalence of types}
-Set-theoretic equality of wrongless downsets induces an
-equivalence relation on types. Examples:
+\subsection{Semantic partial order of types}
+The subset relation induces a partial order on types. Examples:
 \begin{enumerate}[(i)]
 \item
-$\Sem{\All\alpha\sigma\R\tau}=\Sem{\sigma\R(\All\alpha\tau)}$
+$\Sem{\All\alpha\sigma\R\tau}~\Env
+=
+\Sem{\sigma\R(\All\alpha\tau)}~\Env$
 \quad if\quad $\alpha\notin\FTV(\sigma)$,
 \item
-$\Sem{\Ex\alpha\sigma\R\tau}=\Sem{\sigma\R(\Ex\alpha\tau)}$
+$\Sem{\Ex\alpha\sigma\R\tau}~\Env
+=
+\Sem{\sigma\R(\Ex\alpha\tau)}~\Env$
 \quad if\quad $\alpha\notin\FTV(\sigma)$,
 \item
-$\Sem{\All\alpha\sigma\R\tau}=\Sem{(\Ex\alpha\sigma)\R\tau}$
+$\Sem{\All\alpha\sigma\R\tau}~\Env
+=
+\Sem{(\Ex\alpha\sigma)\R\tau}~\Env$
 \quad if\quad $\alpha\notin\FTV(\tau)$,
 \item
-$\Sem{\Ex\alpha\sigma\R\tau}=\Sem{(\All\alpha\sigma)\R\tau}$
+$\Sem{\Ex\alpha\sigma\R\tau}~\Env
+\subseteq
+\Sem{(\All\alpha\sigma)\R\tau}~\Env$
 \quad if\quad $\alpha\notin\FTV(\tau)$,
 \item
-$\Sem{\All\alpha\Ex\beta\tau}=\Sem{\Ex\beta\All\alpha\tau}$.
+$\Sem{\Ex\beta\All\alpha\tau}~\Env
+\subseteq
+\Sem{\All\alpha\Ex\beta\tau}~\Env$.
 \end{enumerate}
-Types on either side of (i), (ii) are equisatisfiable as
-propositions of intuitionistic logic. Types on either side of
-(iii), (iv) are equisatisfiable as propositions of classical
-logic. The equivalence expressed by (v) is seen in neither.
-
-Most of the equations can be shown just using set theory, except
-(iv), who requires the intersection of a certain family of
-wrongless downsets to be a member of that family. The additional
-requirement isn't difficult prove using the denotation of types
-(\S\ref{denotation-types}).
+These relations agree with System~F. Nuclear Football Megaslave
+can be regarded as a nonstandard extension of System~F. A type
+variable in System~F may stand for any System~F type. A type
+variable in Megaslave may stand for any System~F type as well as
+``ineffable'' types---the nameless wrongless downsets not denoted
+by any System~F type. If integers form a base type, then there
+are strictly more wrongless downsets than F types. Each subset of
+integers form a wrongless downset together with $\bot$; they are
+uncountable. F types are strings and thus always countable.
 
 \subsection{Syntax of subtype judgements}
 
@@ -364,7 +372,19 @@ have
 \]
 
 \begin{proof}
-Straightforward induction on a derivation of the subtype judgement.
+The proof is an induction on a derivation of the subtype
+judgement.
+
+If \textsc{S-Refl} is the last rule used, then the proof goal is
+the tautology that some sets to be subsets of themselves.
+
+TODO: \textsc{S-El} is problematic. We \emph{have} to be able to
+push existentials inside. Two solutions.
+\begin{enumerate}
+\item Make prefix order dependent.
+\item Imagine orderless notion of types.
+\end{enumerate}
+We're going with (1) for now because it's easier. (2) is better.
 \end{proof}
 
 \subsection{Constrained typing}
