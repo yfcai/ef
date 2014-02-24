@@ -166,7 +166,7 @@ trait FlatTypes
       val τ = fst.rhs
       val (p, σ0) = σ.unbindAll(avoid0, Universal, Existential)
       val avoid1 = avoid0 ++ p.map(_.x)
-      val (q, τ0) = σ.unbindAll(avoid1, Universal, Existential)
+      val (q, τ0) = τ.unbindAll(avoid1, Universal, Existential)
       val avoid2 = avoid1 ++ q.map(_.x)
 
       // ancestry by progeny (phase 1): intra-chain
@@ -314,8 +314,7 @@ trait FlatTypes
           // ancestry by dependence (loner)
           // can choose to depend on either lhs or rhs
           // not sure which one's best
-          // (or, we can play with fire and depend on both.)
-          val dep = (lhs ++ rhs).map(_._1)
+          val dep = (lhs /* ++ rhs */).map(_._1)
           dep.foldRight[Set[String]](Set.empty) {
             case (σ, set) => set ++ σ.freeNames
           } foreach { forebear =>
