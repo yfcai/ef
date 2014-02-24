@@ -61,7 +61,7 @@ trait FlatTypes
     // do not quantify minimally on creation.
     // quantify minimally when adding new constraints
     // at sites of application.
-    case class Inst(lhs: Tree, rhs: Tree, forebear: Option[String]) {
+    case class Inst(lhs: Tree, rhs: Tree, forebear: List[String]) {
       def contains(α: String): Boolean =
         lhs.freeNames.contains(α) || rhs.freeNames.contains(α)
 
@@ -71,14 +71,14 @@ trait FlatTypes
     type ⊑ = Inst
 
     object ⊑ {
-      def apply(lhs: Tree, rhs: Tree, maybeForebear: Option[String]):
-          Inst = Inst(lhs, rhs, maybeForebear)
+      def apply(lhs: Tree, rhs: Tree, forebear: List[String]):
+          Inst = Inst(lhs, rhs, forebear)
 
-      def apply(lhs: Tree, rhs: Tree, forebear: String): Inst =
-        Inst(lhs, rhs, Some(forebear))
+      def apply(lhs: Tree, rhs: Tree, forebear: String*): Inst =
+        Inst(lhs, rhs, forebear.toList)
 
       def apply(lhs: Tree, rhs: Tree): Inst =
-        Inst(lhs, rhs, None)
+        Inst(lhs, rhs, Nil)
 
       def unapply(c: Inst): Option[(Tree, Tree)] =
         Some((c.lhs, c.rhs))
@@ -169,7 +169,7 @@ trait FlatTypes
       val (q, τ0) = σ.unbindAll(avoid1, Universal, Existential)
       val avoid2 = avoid1 ++ q.map(_.x)
 
-      // ancestry by progeny
+      // ancestry by progeny (phase 1): intra-chain
       def addBindingChain(p: List[BinderSpec]) {
         if (! p.isEmpty) (p, p.tail).zipped.foreach {
           case (outer, inner) =>
@@ -182,10 +182,19 @@ trait FlatTypes
       val reps =
         (if (p.isEmpty) Nil else List(p.head.x)) ++
           (if (q.isEmpty) Nil else List(q.head.x))
+      val lasts =
+        (if (p.isEmpty) Nil else List(p.last.x)) ++
+          (if (q.isEmpty) Nil else List(q.last.x))
       for {
         rep <- reps
         name <- σ.freeNames ++ τ.freeNames
       } { ancestry.addBinding(rep, name) }
+
+      // ancestry by progeny (phase 2): outside the chain
+      for {
+        dad <- fst.forebear
+        son <- reps
+      } { ancestry.addBinding(son, dad) }
 
       // add things to prefix and stuff
       val accomodating =
@@ -197,7 +206,7 @@ trait FlatTypes
 
       val (all, ex, cs) = breakUp(
         prefix ++ accomodating,
-        ⊑(σ0, τ0) :: rest,
+        ⊑(σ0, τ0, lasts) :: rest,
         avoid2,
         ancestry)
 
@@ -251,14 +260,14 @@ trait FlatTypes
     // partition constraints with respect to a loner
     // @return (lhs, rhs, remaining-constraints)
     def partition(loner: String, cs: List[⊑]):
-        (List[Tree], List[Tree], List[⊑]) = {
+        (List[(Tree, List[String])], List[(Tree, List[String])], List[⊑]) = {
       val α = æ(loner)
       val lhs = cs.flatMap({
-        case σ ⊑ τ if τ == α => Some(σ)
+        case c @ σ ⊑ τ if τ == α => Some(σ -> c.forebear)
         case _ => None
       })
       val rhs = cs.flatMap({
-        case σ ⊑ τ if σ == α => Some(τ)
+        case c @ σ ⊑ τ if σ == α => Some(τ -> c.forebear)
         case _ => None
       })
       val rest = cs.filter(c => c.lhs != α && c.rhs != α)
@@ -266,10 +275,11 @@ trait FlatTypes
     }
 
     // remove α-equiv entries in list of types
-    def deduplicate(types: List[Tree]): List[Tree] =
-      types.foldRight[List[Tree]](Nil) {
+    def deduplicate(types: List[(Tree, List[String])]):
+        List[(Tree, List[String])] =
+      types.foldRight[List[(Tree, List[String])]](Nil) {
         case (τ, acc) =>
-          if (acc.find(_ α_equiv τ) == None)
+          if (acc.find(_._1 α_equiv τ._1) == None)
             τ :: acc
           else
             acc
@@ -304,17 +314,21 @@ trait FlatTypes
           // ancestry by dependence (loner)
           // can choose to depend on either lhs or rhs
           // not sure which one's best
-          val dep = lhs
+          // (or, we can play with fire and depend on both.)
+          val dep = (lhs ++ rhs).map(_._1)
           dep.foldRight[Set[String]](Set.empty) {
             case (σ, set) => set ++ σ.freeNames
           } foreach { forebear =>
             ancestry.addBinding(loner, forebear)
           }
 
-          val newCs = for { σ <- lhs ; τ <- rhs } yield ⊑(σ, τ, loner)
+          val newCs = for { σ <- lhs ; τ <- rhs }
+                      yield ⊑(σ._1, τ._1, σ._2 ++ τ._2)
           val (all, ex, solved, unsolved) =
             solve(all2, ex2, newCs ++ rest, avoid, ancestry)
-          (all, ex, Coll(loner, lhs, rhs) :: solved, unsolved)
+          (all, ex,
+            Coll(loner, lhs.map(_._1), rhs.map(_._1)) :: solved,
+            unsolved)
 
         // 3-2. no loner exists any more
         // put remaining constraints aside for later use
