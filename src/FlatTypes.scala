@@ -193,11 +193,13 @@ trait FlatTypes
 
       // do not break up if 1 side is a universal
       // (these are the key to typing matchList correctly! why?!)
-      case (fst @ æ(α) ⊑ _) :: rest if prefix contains α =>
+      case (fst @ æ(α) ⊑ τ) :: rest
+          if (prefix contains α) && æ(α) != τ =>
         val (all, ex, cs) = breakUp(prefix, rest, avoid, ancestry)
         (all, ex, fst :: cs)
 
-      case (fst @ _ ⊑ æ(α)) :: rest if prefix contains α =>
+      case (fst @ τ ⊑ æ(α)) :: rest
+          if (prefix contains α) && æ(α) != τ =>
         val (all, ex, cs) = breakUp(prefix, rest, avoid, ancestry)
         (all, ex, fst :: cs)
 
@@ -241,6 +243,10 @@ trait FlatTypes
           (ε.get :: all, ex, cs)
         else
           (all, ε.get :: ex, cs)
+
+      // remove refl (interferes with loner search)
+      case σ ⊑ τ :: rest if σ α_equiv τ =>
+        breakUp(prefix, rest, avoid, ancestry)
 
       // unbreakable, e. g., ℤ  ⊑  α → β
       case fst :: rest =>
@@ -322,6 +328,7 @@ trait FlatTypes
         // 3-2. no loner exists any more
         // put remaining constraints aside for later use
         case None =>
+          println(s"\nHERE\n∀$all2\n$cs1\n") // debug
           (all2, ex2, Nil, cs1)
       }
     }
@@ -353,7 +360,13 @@ trait FlatTypes
           s"""|The term
               |  ${term.unparse}
               |generates unsolvable constraints
+              |
+              |∀${all.mkString(", ")}.
+              |∃${ex.mkString(", ")}.
+              |
               |${unsolvable.map(c => s"  $c").mkString("\n")}
+              |
+              |loner = ${getLoner(all, unsolvable)}
               |""".stripMargin)
       Solution(all, ex, rep, coll, origin, ancestry)
     }
