@@ -176,7 +176,7 @@ trait FlatTypes
             ancestry.addBinding(inner.x, outer.x)
         }
       }
-      addBindingChain(p) ; addBindingChain(q)
+      /* addBindingChain(p) ; addBindingChain(q) */
 
       // ancestry by dependence
       val reps =
@@ -188,13 +188,16 @@ trait FlatTypes
       for {
         rep <- reps
         name <- σ.freeNames ++ τ.freeNames
-      } { ancestry.addBinding(rep, name) }
+      } { ancestry.addBinding(rep, name) } // HERE
+      // HERE produces the epsilon-precedes-stuff, with rep = epsilon
 
       // ancestry by progeny (phase 2): outside the chain
+      /*
       for {
         dad <- fst.forebear
         son <- reps
       } { ancestry.addBinding(son, dad) }
+       */
 
       // add things to prefix and stuff
       val accomodating =

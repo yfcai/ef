@@ -109,7 +109,7 @@ ns : List ℤ
 
 match2 : ℤ → MatchList → MatchList
 
-(ns const match2 : MatchList)
+.(ns const match2 : MatchList)
 
 .(λf : γ → δ. λxs : List γ. xs nil (compose cons f)) :
 .  ∀γ δ. (γ → δ) → List γ → List δ
@@ -123,3 +123,7 @@ match2 : ℤ → MatchList → MatchList
 
 .λf : α → List β. λxs : List α.
 .  xs nil (λx : α. concat (f x))
+
+(λg : β → γ. λf : α → β. λx : α. g (f x)) :
+  ∀ε η. (ε → η) → ∀δ. (δ → ε) → (δ → η)
+
