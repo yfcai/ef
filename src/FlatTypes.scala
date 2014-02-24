@@ -36,8 +36,8 @@ trait FlatTypes
 
     // resolve and quantify minimally
     def minimize(τ: Tree): Tree =
-      //resolve(τ)
-      quantifyMinimally(resolve(τ), Set.empty)
+      resolve(τ)
+      //quantifyMinimally(resolve(τ), Set.empty)
 
     def quantifyMinimally(τ: Tree, avoid: Set[String]): Tree = {
       val (prenex, newAvoid) = Prenex(τ, avoid)
@@ -328,7 +328,6 @@ trait FlatTypes
         // 3-2. no loner exists any more
         // put remaining constraints aside for later use
         case None =>
-          println(s"\nHERE\n∀$all2\n$cs1\n") // debug
           (all2, ex2, Nil, cs1)
       }
     }
