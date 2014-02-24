@@ -36,6 +36,7 @@ trait FlatTypes
 
     // resolve and quantify minimally
     def minimize(τ: Tree): Tree =
+      //resolve(τ)
       quantifyMinimally(resolve(τ), Set.empty)
 
     def quantifyMinimally(τ: Tree, avoid: Set[String]): Tree = {
