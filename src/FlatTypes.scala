@@ -1,15 +1,38 @@
+/** Subtype constraint resolution with ordering
+  */
 trait FlatTypes
-    extends TypedModules with IntsAndBools with Prenex
+    extends TypedModules with IntsAndBools with Prenex with Topology
 {
   def typeCheck(m: Module):
       Either[Problem, Seq[(Option[String], Tree, Tree, Token)]] =
     ???
+
+  case class Circular(ancestry: Ancestry)
+      extends Exception(ancestry.map({
+        case (a, set) =>
+          "%-2s ↦ %s".format(a, set.mkString(", "))
+      }).mkString("\n"))
+
+  case class Insoluble(msg: String) extends Exception(msg)
+
+  type Ancestry = collection.mutable.MultiMap[String, String]
+
+  def newEmptyAncestry: Ancestry =
+    new collection.mutable.HashMap[String,
+      collection.mutable.Set[String]] with
+        collection.mutable.MultiMap[String, String]
 
   class FlatTyping(module: Module)
       extends SynonymResolution(module)
   {
     typing =>
     import module._
+
+    def isCircular(ancestry: Ancestry): Boolean =
+      topologicalOrder(ancestry) match {
+        case Left(_) => true
+        case Right(_) => false
+      }
 
     // resolve and quantify minimally
     def minimize(τ: Tree): Tree =
@@ -59,14 +82,27 @@ trait FlatTypes
     // do not quantify minimally on creation.
     // quantify minimally when adding new constraints
     // at sites of application.
-    case class ⊑(lhs: Tree, rhs: Tree) {
+    case class Inst(lhs: Tree, rhs: Tree, forebear: Option[String]) {
       def contains(α: String): Boolean =
         lhs.freeNames.contains(α) || rhs.freeNames.contains(α)
 
       override def toString = s"${lhs.unparse}  ⊑  ${rhs.unparse}"
     }
-    implicit class CreateInstantiationConstraint(lhs: Tree) {
-      def ⊑ (rhs: Tree): ⊑ = new ⊑(lhs, rhs)
+
+    type ⊑ = Inst
+
+    object ⊑ {
+      def apply(lhs: Tree, rhs: Tree, maybeForebear: Option[String]):
+          Inst = Inst(lhs, rhs, maybeForebear)
+
+      def apply(lhs: Tree, rhs: Tree, forebear: String): Inst =
+        Inst(lhs, rhs, Some(forebear))
+
+      def apply(lhs: Tree, rhs: Tree): Inst =
+        Inst(lhs, rhs, None)
+
+      def unapply(c: Inst): Option[(Tree, Tree)] =
+        Some((c.lhs, c.rhs))
     }
 
     // minimizing lookup function
@@ -116,14 +152,14 @@ trait FlatTypes
           val CType(xType, xCons, xOrg) = collect(x, gamma, abc)
           CType(
             b,
-            fType ⊑ →(a, b) :: xType ⊑ a :: fCons ++ xCons,
+            ⊑(fType, →(a, b)) :: ⊑(xType, a) :: fCons ++ xCons,
             (fOrg ++ xOrg).updated(a.get, term).updated(b.get, term)
           )
 
         case Ascr(t, τ0) =>
           val τ = minimize(τ0)
           val CType(rep, cs, org) = collect(t, gamma, abc)
-          CType(τ, rep ⊑ τ :: cs, org)
+          CType(τ, ⊑(rep, τ) :: cs, org)
       }
 
     def getLoner(prefix: List[String], constraints: List[⊑]):
@@ -141,43 +177,63 @@ trait FlatTypes
     }
 
     // precondition: prefix ⊆ avoid
+    // @return (all, ex, broken-constraints, ancestry)
     def breakUp(
       prefix: List[String],
       constraints: List[⊑],
-      avoid: Set[String]
+      avoid: Set[String],
+      ancestry: Ancestry // outparam
     ): (List[String], List[String], List[⊑]) = constraints match {
       // deal with function types
-      case (σ0 → σ1) ⊑ (τ0 → τ1) :: rest =>
-        breakUp(prefix, τ0 ⊑ σ0 :: σ1 ⊑ τ1 :: rest, avoid)
+      case (c @ (σ0 → σ1) ⊑ (τ0 → τ1)) :: rest =>
+        val f = c.forebear
+        breakUp(prefix, ⊑(τ0, σ0, f) :: ⊑(σ1, τ1, f) :: rest,
+          avoid, ancestry)
 
       // do not break up if 1 side is a universal
       // (these are the key to typing matchList correctly! why?!)
       case (fst @ æ(α) ⊑ _) :: rest if prefix contains α =>
-        val (all, ex, cs) = breakUp(prefix, rest, avoid)
+        val (all, ex, cs) = breakUp(prefix, rest, avoid, ancestry)
         (all, ex, fst :: cs)
 
       case (fst @ _ ⊑ æ(α)) :: rest if prefix contains α =>
-        val (all, ex, cs) = breakUp(prefix, rest, avoid)
+        val (all, ex, cs) = breakUp(prefix, rest, avoid, ancestry)
         (all, ex, fst :: cs)
 
       // unbind quantifiers,
-      case ((σ @ ⊹(binder: Binder, _*)) ⊑ τ) :: rest =>
+      case (c @ (σ @ ⊹(binder: Binder, _*)) ⊑ τ) :: rest =>
         val (α, Seq(_, body)) = binder.unbind(σ, avoid).get
+        val newC = ⊑(body, τ, α.get)
         val (all, ex, cs) =
           breakUp(
             if (binder == Universal) α.get :: prefix else prefix,
-            body ⊑ τ :: rest, avoid + α.get)
+            newC :: rest, avoid + α.get,
+            ancestry)
+        c.forebear match {
+          case None => ()
+          case Some(β) => ancestry.addBinding(α.get, β)
+        }
         if (binder == Universal)
           (α.get :: all, ex, cs)
         else
           (all, α.get :: ex, cs)
 
-      case (σ ⊑ (τ @ ⊹(binder: Binder, _*))) :: rest =>
+      case (c @ σ ⊑ (τ @ ⊹(binder: Binder, _*))) :: rest =>
         val (ε, Seq(_, body)) = binder.unbind(τ, avoid).get
+        val newC = ⊑(σ, body, ε.get)
         val (all, ex, cs) =
           breakUp(
             if (binder == Existential) ε.get :: prefix else prefix,
-            σ ⊑ body :: rest, avoid + ε.get)
+            newC :: rest, avoid + ε.get,
+            ancestry)
+
+
+        c.forebear match {
+          case None => ()
+          case Some(β) => ancestry.addBinding(ε.get, β)
+        }
+
+
         if (binder == Existential)
           (ε.get :: all, ex, cs)
         else
@@ -185,7 +241,7 @@ trait FlatTypes
 
       // unbreakable, e. g., ℤ  ⊑  α → β
       case fst :: rest =>
-        val (all, ex, cs) = breakUp(prefix, rest, avoid)
+        val (all, ex, cs) = breakUp(prefix, rest, avoid, ancestry)
         (all, ex, fst :: cs)
 
       case Nil =>
@@ -225,10 +281,12 @@ trait FlatTypes
       all0: List[String],
       ex0: List[String],
       cs0: List[⊑],
-      avoid: Set[String] // should be free variables of that term
+      avoid: Set[String], // should be free variables of that term
+      ancestry: Ancestry // outparam
     ): (List[String], List[String], List[Coll], List[⊑]) = {
       // 1. break up constraints
-      val (all1, ex1, cs1) = breakUp(all0, cs0, avoid ++ all0 ++ ex0)
+      val (all1, ex1, cs1) =
+        breakUp(all0, cs0, avoid ++ all0 ++ ex0, ancestry)
 
       // 2. find loner
       val all2 = all1 ++ all0
@@ -243,9 +301,20 @@ trait FlatTypes
           val lhs = deduplicate(lhs0)
           val rhs = deduplicate(rhs0)
 
-          val newCs = for { σ <- lhs ; τ <- rhs } yield σ ⊑ τ
+          // add all loner prereqs into ancestry
+          lhs.foldRight[Set[String]](
+            rhs.foldRight[Set[String]](Set.empty) {
+              case (τ, set) => set ++ τ.freeNames
+            }
+          ) {
+            case (σ, set) => set ++ σ.freeNames
+          } foreach { forebear =>
+            ancestry.addBinding(loner, forebear)
+          }
+
+          val newCs = for { σ <- lhs ; τ <- rhs } yield ⊑(σ, τ, loner)
           val (all, ex, solved, unsolved) =
-            solve(all2, ex2, newCs ++ rest, avoid)
+            solve(all2, ex2, newCs ++ rest, avoid, ancestry)
           (all, ex, Coll(loner, lhs, rhs) :: solved, unsolved)
 
         // 3-2. no loner exists any more
@@ -256,11 +325,12 @@ trait FlatTypes
     }
 
     case class Solution(
-      all    : List[String],
-      ex     : List[String],
-      rep    : Tree,
-      coll   : List[Coll],
-      origin : Map[String, Tree]
+      all      : List[String],
+      ex       : List[String],
+      rep      : Tree,
+      coll     : List[Coll],
+      origin   : Map[String, Tree],
+      ancestry : Ancestry
     )
 
     def solve(term: Tree): Solution = {
@@ -271,22 +341,26 @@ trait FlatTypes
       // generated during constraint collection
       val all0 = getPrefix(term) ++ origin.keys
 
-      val (all, ex, coll, rest) = solve(all0, Nil, cs, term.freeNames)
+      val ancestry = newEmptyAncestry
+
+      val (all, ex, coll, rest) =
+        solve(all0, Nil, cs, term.freeNames, ancestry)
       val unsolvable = rest.filter(c => ! (c.lhs α_equiv c.rhs))
       if (! unsolvable.isEmpty)
-        sys error s"""|The term
-                      |  ${term.unparse}
-                      |generates unsolvable constraints
-                      |${unsolvable.map(c => s"  $c").mkString("\n")}
-                      |""".stripMargin
-      Solution(all, ex, rep, coll, origin)
+        throw Insoluble(
+          s"""|The term
+              |  ${term.unparse}
+              |generates unsolvable constraints
+              |${unsolvable.map(c => s"  $c").mkString("\n")}
+              |""".stripMargin)
+      Solution(all, ex, rep, coll, origin, ancestry)
     }
 
     lazy val Γ = Γ0 ++ module.sig addTypes module.syn.keySet
 
     def show(term: Tree) {
       println(term.unparse)
-      val Solution(all, ex, rep, coll, origin) = solve(term)
+      val Solution(all, ex, rep, coll, origin, ancestry) = solve(term)
       println()
       if (! all.isEmpty) println(s"∀${all.mkString(" ")}")
       if (!  ex.isEmpty) println(s"∃${ ex.mkString(" ")}")
@@ -317,7 +391,25 @@ trait FlatTypes
         case (α, t) =>
           println(s"$α  from  ${t.unparse}")
       }
+
+      // circularity test
+      println("\nAncestry:")
+      println(Circular(ancestry).getMessage)
+      if (isCircular(ancestry))
+        println("ERROR: Cycle detected!")
+      else
+        println("(not circular)")
     }
+
+    def typeCheck(t: Tree): Boolean =
+      try {
+        val s = solve(t)
+        ! isCircular(s.ancestry)
+      }
+      catch {
+        case Insoluble(_) | Circular(_) =>
+          false
+      }
   }
 }
 
