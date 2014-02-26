@@ -249,16 +249,11 @@ whichever ideals are chosen for them; they are \emph{exigent}.
 {A;E\vdash\emptyset}
 
 \infrule[S-Refl]
-{\FTV(\tau_0)\subseteq A\cup E
-~
-\cdots
-~
-\FTV(\tau_n)\subseteq A\cup E
+{\FTV(\tau)\subseteq A\cup E
 \andalso
 A;E\vdash C
 }
-{A;E \vdash \tau_0\Sub\tau_0,\tau_1\Sub\tau_1,
-\ldots,\tau_n\Sub\tau_n,C}
+{A;E \vdash \tau\Sub\tau,C}
 
 \infrule[S-Arrow]
 {A;E\vdash\tau_0\Sub\sigma_0,\sigma_1\Sub\tau_1,C}
