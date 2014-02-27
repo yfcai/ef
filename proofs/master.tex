@@ -30,196 +30,13 @@
 \\
 \mbox{term}\\
 s, t & ::= & x & \mbox{variable} \\
-& | & \Abs{x}t  & \mbox{lambda abstraction} \\
+& | & \Abs{x:\tau}t  & \mbox{lambda abstraction} \\
 & | & t~t & \mbox{function application} \\
 & | & \cdots & \mbox{primitives}
 \end{syntax}
 
-\subsection{Domain}
-The domain of values $V$ is the solution to the following domain
-equations.
-\begin{align*}
-V &= F + B_0 + B_1 + \cdots + \{\Wrong\}
-  &&\mbox{disjoint sum of domains}\\
-F &= V \R V &&\mbox{continuous functions from $V$ to $V$}
-\end{align*}
-Here and elsewhere, we omit all domain-theoretic details, such as
-the fact that domain equations are solved only up to isomorphism,
-and that disjoint sum with a bottomless set (say, $\{\Wrong\}$)
-must be encoded as smash sum with a flat domain. To lighten
-notational and conceptual burden, let us treat $B_i$, $F$ and
-$\{\Wrong\}$ as if they were actual subsets of $V$.
-
-\subsection{Denotation of terms}
-\label{denotation-terms}
-Terms denote values as in untyped lambda calculus. Primitives may
-denote anything in $V$, as long as the value of each primitive
-operator satisfies strong type soundness.
-
-Upper case $\Env$ will refer to type-level environments
-(\S\ref{denotation-types}). Lower case $\env$ refers to a
-term-level environment mapping term variables to values in $V$.
-\begin{align*}
-\Sem{x}~\env&=\env(x)\\
-\Sem{\Abs{x}t}~\env&=
-  f\in F\text{\quad such that\quad}
-  f(v)=\Sem{t}~(\Update\env{x\mapsto v})
-\\
-\Sem{s~t}~\env&=
-\begin{cases}
-\bot&\text{if }(\Sem{s}~\env)=\bot
-\\
-f(\Sem{t}~\env)&\text{if }(\Sem{s}~\env)=f\in F
-\\
-\Wrong&\text{if }(\Sem{s}~\env)\notin F\cup\{\bot\}
-\end{cases}
-\\
-\Sem{\mathrm{primitive}}~\env&=\cdots
-\end{align*}
-
-\subsection{Ideals}
-\label{ideal}
-Ideals are the traditional denotation assigned to types. TODO:
-write detailed definition here.
-
-Write $\Ideals$ for the family of ideals of $V-\{\Wrong\}$. It is
-always nonempty, because $\{\bot\}$ and ${V-\{\Wrong\}}$ are both
-ideals.
-
-We say ``$u$ precedes $v$'' to mean that $u$, $v$ are related by
-the inherent partial order in the domain $V$. Intuitively, if $u$
-precedes $v$, then $u$ has at most as much information as $v$ and
-the information in $u$ never conflicts with the information in
-$v$. The function undefined everywhere precedes the function that
-acts as the identity between integers and is undefined elsewhere,
-which in turn precedes the identity function over all of $V$.
-
-\subsection{Functionality of ideals}
-\label{functionality}
-Let $S_0$ and $S_1$ be ideals. The \emph{functionality} from
-$S_0$ to $S_1$, writ $S_0\RR S_1$, is the set that consists of
-$\bot$ and all functions who always map values in $S_0$ to values
-in $S_1$, but may map values outside $S_0$ to anything in $V$,
-including $\Wrong$.
-\[
-S_0 \RR S_1 =
-\{\bot\}\cup\{f\in F \Or f(S_0) \subseteq S_1\}.
-\]
-Function types denote functionalities. Functionalities are
-defined to be inclusive enough to contain all appropriate
-polymorphic function values. The functionality from integers to
-integers will also contain the identity function on all of $V$,
-for example.
-
-The functionality of ideals is described in
-Milner~\cite{Milner78} and attributed to Dana Scott.
-
-\subsection{Closure properties of ideals}
-The functionality between two ideals is an ideal. The
-intersection of a nonempty family of ideals is an ideal.
-
-\subsection{Denotation of types}
-\label{denotation-types}
-Closed types denote ideals. Open types denote a partial function
-mapping a type-level environment to an ideal.
-
-Upper case $\Env$ refers to a type-level environment mapping each
-type variable to an ideal. Lower case $\env$ refers to a
-term-level environment mapping term variables to values
-(\S\ref{denotation-terms}).
-\begin{align*}
-\Sem{\iota_i}~\Env &= \{\bot\}\cup B_i\\
-\Sem{\alpha}~\Env &= \Env(\alpha)\\
-\Sem{\sigma\R\tau}~\Env&=
-  (\Sem{\sigma}~\Env)\RR(\Sem{\tau}~\Env)\\
-\Sem{\All\alpha\tau}~\Env&=
-  {\textstyle\bigcap_{S\in\Ideals}}
-  \left(\Sem\tau~(\Update\Env{\alpha\mapsto S})\right)
-\end{align*}
-The reader may verify that the right hand side of this definition
-is always an ideal. The family $\Ideals$ of all ideals is defined
-in \S\ref{ideal}. The functionality construction $\RR$ is
-described in \S\ref{functionality}.
-
-\subsection{Examples of type denotations}
-\label{free-theorems}
-~
-\begin{enumerate}[(a)]
-\item $\Sem{\All\alpha\alpha}~\emptyset=\{\bot\}$
-\item $\Sem{\All\alpha\alpha\R\alpha}~\emptyset=\{\bot\}\cup
-\{f\in F
-\Or
-f(v)\text{ precedes }v\text{ for all }v\neq\Wrong
-\}$
-\end{enumerate}
-
-Equation (a) holds because $\{\bot\}$ is an ideal and all ideals,
-by their nonemptiness and downward closedness, contains $\bot$.
-
-Equation (b) says that every member $f$ of the type
-$\All\alpha\alpha\R\alpha$ maps each value~$v$ either to itself
-or to a less informative version of itself. If $n$ is an integer,
-then $f(n)$ would have to be $n$ or $\bot$. \S\ref{ideal}
-contains a discussion about the intuition behind the inherent
-partial order of a domain invoked in the phrase ``$f(v)$ precedes
-$v$''.
-
-For (b), we show that its left hand side and right hand side are
-subsets of each other. The $\supseteq$ direction holds due to the
-definition of functionality, and because $\bot$ is a member of
-every ideal. The $\subseteq$ direction requires case analysis.
-Choose $f\in\Sem{\All\alpha\alpha\R\alpha}~\emptyset$. If
-$f=\bot$, then $f$ is a member of the right hand side. If
-$f\neq\bot$, then $f\in F$, as it is a member of some
-functionality. Choose~$v\neq\Wrong$. The set $S$ of everything
-preceding $v$ is an ideal. Since $v\in S$ and
-$f(S)\subseteq S$, we have $f(v)\in S$ and thus precedes $v$.
-
-\subsection{Ecospheres}
-
-An \emph{ecosphere} is a set of sequences of ideals indexed by
-type variables. Each ecosphere $\Eco$ has enough information to
-construct an ideal from any type $\tau$. One may regard each
-$\Eco$ as a nonstandard semantic function.
-\[
-\Eco[\tau] \quad =
-\bigcap_{S_\alpha,\ldots,S_\omega\in \Eco}
-\Sem\tau~(\alpha\mapsto S_\alpha,\ldots,\omega\mapsto S_\omega)
-\]
-The meanings of closed types are invariant with respect to
-ecospheres and to environments. If $\tau$ is closed, then for all
-ecosphere~$\Eco$ and type-level environment~$\Env$ we have
-\[
-\Eco[\tau] = \Sem{\tau}~\Env = \Sem{\tau}~\emptyset.
-\]
-
-\subsection{Union of of ecospheres}
-The union of ecospheres takes types to the intersections of
-corresponding ideals.
-\[
-\left(\bigcup_i\Eco_i\right)[\tau]
-=
-\bigcap_i\Eco_i[\tau]
-\]
-The union of ecospheres preserves ideal containment. If for every
-$j$ we have
-\[
-\Eco_j[\sigma]\subseteq\Eco_j[\tau],
-\]
-then
-\[
-\left(\bigcup_i\Eco_i\right)[\sigma]
-\subseteq
-\left(\bigcup_i\Eco_i\right)[\tau]
-\]
-
 \subsection{Syntax of subtype judgements}
 
-We define a syntactic relation $\Sub$ on types. We call it the
-\emph{subtype} relation because for closed types $\sigma$,
-$\tau$, the relation $\sigma \Sub \tau$ implies that the ideal
-denoted by $\sigma$ is a \emph{subset} of the ideal denoted by
-$\tau$ (\S\ref{subsound}).
 \begin{syntax}
 \mbox{list of type variables}\\
 A,E
@@ -235,12 +52,7 @@ C
 \\
 \mbox{subtype judgement}
 &::=&A;E\vdash C
-\end{syntax}%
-In a judgement $A;E\vdash C$, the type variables in $A$ represent
-ideals that can be chosen later so that constraints in $C$ hold;
-they are \emph{accommodating}. The type variables in $E$
-represent demands that the constraints in $C$ must be satisfiable
-whichever ideals are chosen for them; they are \emph{exigent}.
+\end{syntax}
 
 \subsection{Derivation of subtype judgements}~
 
@@ -283,38 +95,17 @@ A;E\vdash
 A;\alpha,E\vdash\sigma\Sub\tau,C}
 {A;E\vdash\sigma\Sub(\All\alpha\tau),C}
 
-% Reason of existence: T-App.
-\infrule[S-Forget]
-{C_0\subseteq C_1\andalso A;E\vdash C_1}
-{A;E\vdash C_0}
+% Reason of existence: CT-App.
+\infrule[S-Dupe]
+{A;E\vdash \sigma\Sub\tau, C}
+{A;E\vdash \sigma\Sub\tau, \sigma\Sub\tau, C}
 
-\subsection{Accommodating extensions of exigent ecospheres}
-This is a concept necessary to appreciate how an open type can be
-a subtype of another.
+% Reason of existence: CT-App.
 
-TODO: Define me.
-
-\subsection{Soundness of subtyping}
-\label{subsound}
-If the subtype judgement $A;E\vdash C$ is derivable, then every
-exigent ecosphere $\Eco_0$ has an accommodating extension $\Eco$
-such that for every constraint $\sigma\Sub\tau$ in $C$ we have
-\[
-\Eco[\sigma] \subseteq \Eco[\tau].
-\]
-
-\begin{proof}
-The proof is an induction on a derivation of the subtype
-judgement.
-
-If \textsc{S-Vacuous} is the last rule used, then the proof goal
-is vacuously true.
-
-If \textsc{S-Refl} is the last rule used, then the proof goal is
-the tautology that some sets to be subsets of themselves.
-
-TODO: Complete this.
-\end{proof}
+% Reason of existence: Substitution lemma.
+\infrule[S-Trans]
+{A;E\vdash \sigma\Sub\tau,\tau\Sub\tau',C}
+{A;E\vdash \sigma\Sub\tau',C}
 
 \subsection{Constrained typing}
 \begin{syntax}
@@ -322,71 +113,239 @@ TODO: Complete this.
 &::=&\tau \Given C
 \\\\
 \mbox{constrained typing judgement}
-&::=&A;E;\Gamma \vdash t : \tau \Given C
+&::=&\Gamma \vdash t : \tau \Given C
 \end{syntax}%
 \infrule[CT-Var]
 {x:\tau\in\Gamma}
-{A;\Gamma\vdash x : \tau \Given \emptyset}
+{\Gamma\vdash x : \tau \Given \emptyset}
 
 \infrule[CT-Abs]
 {\FTV(\sigma)\subseteq A
 \andalso
-A;\Gamma,x:\sigma \vdash t : \tau \Given C}
-{A;\Gamma\vdash (\Abs{x}t) : \sigma\R\tau \Given C}
+\Gamma,x:\sigma \vdash t : \tau \Given C}
+{\Gamma\vdash (\Abs{x:\sigma}t) : \sigma\R\tau \Given C}
 
 \infrule[CT-App]
 {\alpha,\beta\text{ fresh}
 \andalso
-A;\Gamma\vdash s : \sigma \Given C_1
+\Gamma\vdash s : \sigma \Given C_1
 \andalso
-A;\Gamma\vdash t : \tau \Given C_2}
-{\alpha,\beta,A;\Gamma\vdash s~t : \beta \Given
+\Gamma\vdash t : \tau \Given C_2}
+{\Gamma\vdash s~t : \beta \Given
 \sigma\Sub\alpha\R\beta,\tau\Sub\alpha,C_1\cup C_2}
 
-\subsection{Denotation of typing contexts}
-The denotation of a typing context $\Gamma$ is a partial function
-mapping ecospheres to the set of compatible
-term-level environments.
+\subsection{Substitution lemma}
+We set out to prove that if $t$ can be typed $\tau_0$, then after
+a well-typed substitution it can still be typed $\tau_0$.
+
+Let $\Piggy$ be a set of ``piggy-backed'' constraints. Suppose
+the following judgements are derivable.
+\begin{align}
+\Gamma,x:\sigma_x&\vdash t:\tau\Given C_t \notag
+\\
+\Gamma&\vdash v:\sigma_v \Given C_v \notag
+\\
+A;\emptyset&\vdash
+\sigma_v\Sub\sigma_x, \tau\Sub\tau_0,C_t\cup C_v\cup\Piggy
+\label{eq:subass}
+\end{align}
+Then there exists $A'$ such that we can derive
 \begin{align*}
-\Sem{\Gamma}~\Eco&=
-\left\{\env \Or
-\env(x)\in\Eco[\tau]\text{ whenever }x:\tau\in\Gamma
-\right\}
+A';\Gamma&\vdash t[x\mapsto v] : \tau'\Given C',\\
+A';\emptyset &\vdash \tau'\Sub\tau_0, C_t\cup C_v\cup C'\cup\Piggy.
 \end{align*}
 
-\subsection{Soundness of constrained typing}
-\label{consound}
-If
-$A;\Gamma\vdash t : \sigma\Given C$ and
-$A;\emptyset\vdash{\sigma\Sub\tau},C$
-are both derivable, then there exist an ecosphere $\Eco$ such
-that for every term-level $\env\in(\Sem{\Gamma}~\Eco)$ we have
-$(\Sem{t}~\env)\in\Eco[\tau]$.
-
 \begin{proof}
-A fun and not-at-all complicated induction on typing derivations.
-\end{proof}
+By induction on a constrained typing derivation of $t$ and by
+case analysis on the last rule used.
 
-\subsection{Well-typed programs don't go wrong}~
+\Case\textsc{CT-Var}: We know $t=x$. The assumptions are
+specialized to the simple form below.
+\begin{samepage}
+\begin{align}
+\Gamma,x:\sigma&\vdash x:\sigma_x\Given\emptyset
+\notag
+\\
+\Gamma&\vdash v:\sigma_v\Given C_v
+\label{eq:subvar1}
+\\
+A;\emptyset&\vdash \sigma_v\Sub\sigma_x,\sigma_x\Sub\tau_0,C_v\cup\Piggy
+\label{eq:subvar2}
+\end{align}
+\end{samepage}%
+Since $t[x\mapsto v]=v$, the desired constrained typing judgement
+is exactly \eqref{eq:subvar1}. The desired subtype judgement
+follows from one use of \textsc{S-Trans} on \eqref{eq:subvar2}.
+\[
+A;\emptyset\vdash \sigma_v\Sub\tau_0,C_v\cup\Piggy.
+\]
 
-\infrule[T]
-{
-A;\emptyset\vdash\sigma\Sub\tau,C
+\Case\textsc{CT-Abs}: $t=\Abs{y:\sigma_y}s$.
+\def\yasump{\Gamma,y:\sigma_y\vdash s:\tau_s\Given C_s}
+\infrule[CT-Abs]
+{\yasump}
+{\Gamma\vdash(\Abs{y:\sigma_y}s):\sigma_y\R\tau_s \Given C_s}
+Assumption~\eqref{eq:subass} translates to
+\[
+A;\emptyset\vdash
+\sigma_v\Sub\sigma_x,
+\sigma_y\R\tau_s\Sub\tau_0,C_s\cup C_v\cup\Piggy.
+\]
+By \textsc{S-Refl},
+\[
+A;\emptyset\vdash
+    \tau_s\Sub\tau_s,
+\sigma_v\Sub\sigma_x,
+\sigma_y\R\tau_s\Sub\tau_0,C_s\cup C_v\cup\Piggy.
+\]
+Since the constrained typing of $t$ contains a derivation for
+\[\yasump,\]
+we invoke the induction hypothesis with the piggyback
+$(\sigma_y\R\tau_s\Sub\tau_0,\Piggy)$ to conclude that for some
+appropriate $A'$ and argument type annotations,
+\begin{align}
+s'&=s[x\mapsto v]\notag
+\\
+A';\Gamma,y:\sigma_y&\vdash s' : \tau_s'\Given C'
+\label{eq:subabs1}
+\\
+A';\emptyset&\vdash
+    \tau_s'\Sub\tau_s,
+\sigma_y\R\tau_s\Sub\tau_0,C_s\cup C_v\cup C'\cup\Piggy.
+\label{eq:subabs2}
+\end{align}
+By \eqref{eq:subabs1} and \textsc{CT-Abs},
+\[
+A';\Gamma\vdash(\Abs{y:\sigma_y}.s)[x\mapsto v] : \sigma_y\R\tau_s'\Given C'.
+\]
+By \eqref{eq:subabs2} and \textsc{S-Refl},
+\[
+A';\emptyset\vdash
+    \sigma_y\Sub\sigma_y,
+    \tau_s'\Sub\tau_s,
+\sigma_y\R\tau_s\Sub\tau_0,C_s\cup C_v\cup C'\cup\Piggy.
+\]
+\textsc{S-Arrow} produces
+\[
+A';\emptyset\vdash
+    \sigma_y\R\tau_s'\Sub\sigma_y\R\tau_s,
+\sigma_y\R\tau_s\Sub\tau_0,C_s\cup C_v\cup C'\cup\Piggy
+\]
+and \textsc{S-Trans} concludes
+\[
+A';\emptyset\vdash
+    \sigma_y\R\tau_s'\Sub\tau_0,
+C_s\cup C_v\cup C'\cup\Piggy.
+\]
+
+\Case\textsc{CT-App}: $t=s_1~s_2$.
+\infrule[CT-App]
+{\alpha,\beta\text{ fresh}
 \andalso
-A;\Gamma\vdash t : \sigma\Given C
+\Gamma\vdash s_1:\sigma_1\Given C_1
+\andalso
+\Gamma\vdash s_2:\sigma_2\Given C_2
 }
-{t:\tau}
-
-A term $t$ has type $\tau$, writ $t:\tau$, if both
-$A;\Gamma\vdash t : \sigma\Given C$ and
-$A;\emptyset\vdash\sigma\Sub\tau,C$ are derivable for some $A$,
-$\Gamma$.
-
-If $t:\tau$ with $t$, $\tau$ both closed, then
-$\Sem{t}~\emptyset~\in~\Sem{\tau}~\emptyset$. In particular,
-$\Sem{t}~\emptyset\neq\Wrong$. This is a corollary of
-\S\ref{consound}.
-
-
+{\Gamma\vdash s_1~s_2:\beta\Given
+\sigma_1\Sub\alpha\R\beta,\sigma_2\Sub\alpha,C_1\cup C_2
+}
+Set
+\[
+C_t=\sigma_1\Sub\alpha\R\beta,\sigma_2\Sub\alpha,C_1\cup C_2,
+\]
+then assumption~\eqref{eq:subass} becomes
+\[
+A;\emptyset\vdash
+  \sigma_v\Sub\sigma_x,
+  \beta\Sub\tau_0,
+  C_t\cup C_v\cup\Piggy.
+\]
+Set
+\[
+D=
+\sigma_1\Sub\alpha\R\beta,
+\sigma_1\Sub\alpha\R\beta,
+\sigma_2\Sub\alpha,
+\sigma_2\Sub\alpha,C_1\cup C_2,
+\]
+Some uses of \textsc{S-Dupe} and \textsc{S-Refl} produce
+\[
+A;\emptyset\vdash
+  \sigma_1\Sub\sigma_1,
+  \sigma_v\Sub\sigma_x,\sigma_v\Sub\sigma_x,
+  \beta\Sub\tau_0,
+  D\cup C_v\cup\Piggy.
+\]
+Invoking the induction hypothesis on $s_1$, we obtain
+\begin{align}
+s_1'&=s_1[x\mapsto v]\notag,
+\\
+\Gamma&\vdash s_1' : \sigma_1' \Given C_1',
+\label{eq:subapp1}
+\\
+A_1';\emptyset&\vdash
+  \sigma_v\Sub\sigma_x,
+  \sigma_1'\Sub\sigma_1,
+  \beta\Sub\tau_0,
+  D\cup C_v\cup\Piggy.
+\label{eq:subapp2}
+\end{align}
+From \eqref{eq:subapp2}, \textsc{S-Refl} produces
+\begin{align}
+A_1';\emptyset\vdash
+  \sigma_2\Sub\sigma_2,
+  \sigma_v\Sub\sigma_x,
+  \sigma_1'\Sub\sigma_1,
+  \beta\Sub\tau_0,
+  D\cup C_v\cup C_1'\cup\Piggy.
+\label{eq:subappf}
+\end{align}
+Invoking the induction hypothesis on $s_2$ and \eqref{eq:subapp2}
+produces
+\begin{align}
+A_2';\emptyset&\vdash
+  \sigma_1'\Sub\sigma_1,
+  \sigma_2'\Sub\sigma_2,
+  \beta\Sub\tau_0,
+  D\cup C_v\cup C_1'\cup C_2'\cup\Piggy
+\notag\\
+&\vdash
+  \beta\Sub\tau_0,
+  \sigma_1'\Sub\sigma_1,
+  \sigma_2'\Sub\sigma_2,
+  % dfn of C_t
+  \sigma_1\Sub\alpha\R\beta,\sigma_2\Sub\alpha,
+  C_t\cup C_v\cup C_1'\cup C_2'\cup\Piggy,
+\notag
+\end{align}
+the last step by expanding $D$ partially to
+$\sigma_1\Sub\alpha\R\beta,\sigma_2\Sub\alpha,C_t$.
+Two uses of \textsc{S-Trans} gives us
+\begin{align}
+A_2';\emptyset\vdash
+  \beta\Sub\tau_0,
+  \sigma_1'\Sub\alpha\R\beta,\sigma_2'\Sub\alpha,
+  C_t\cup C_v\cup C_1'\cup C_2'\cup\Piggy.
+\label{eq:subapps}
+\end{align}
+Since constraints in $D$ were hauled around piggybacked, the type
+variables $\alpha$~and $\beta$ occurs nowhere else.\footnote{
+It would be hard to formulate ``$\alpha$~and $\beta$ occurs
+nowhere else '' in Agda, I guess.
+%
+}%
+We use them to construct the desired constrained typing.
+\begin{align}
+t'&=s_1[x\mapsto v]~s_2[x\mapsto v]
+\notag\\
+\Gamma&\vdash t':
+\beta\Given
+\sigma_1'\Sub\alpha\R\beta,\sigma_2'\Sub\alpha,
+C_1'\cup C_2'
+\notag
+\end{align}
+We have already derived the desired subtype judgement: it is
+\eqref{eq:subapps}.
+\end{proof}
 
 \input{bib.tex}\end{document}
