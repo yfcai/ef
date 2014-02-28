@@ -120,14 +120,12 @@ A;\alpha,E\vdash\sigma\Sub\tau,C}
 {\Gamma\vdash x : \tau \Given \emptyset}
 
 \infrule[CT-Abs]
-{\FTV(\sigma)\subseteq A
-\andalso
+{
 \Gamma,x:\sigma \vdash t : \tau \Given C}
 {\Gamma\vdash (\Abs{x:\sigma}t) : \sigma\R\tau \Given C}
 
 \infrule[CT-App]
-{\alpha,\beta\text{ fresh}
-\andalso
+{
 \Gamma\vdash s : \sigma \Given C_1
 \andalso
 \Gamma\vdash t : \tau \Given C_2}
@@ -240,8 +238,7 @@ C_s\cup C_v\cup C'\cup\Piggy.
 
 \Case\textsc{CT-App}: $t=s_1~s_2$.
 \infrule[CT-App]
-{\alpha,\beta\text{ fresh}
-\andalso
+{
 \Gamma\vdash s_1:\sigma_1\Given C_1
 \andalso
 \Gamma\vdash s_2:\sigma_2\Given C_2
@@ -266,7 +263,7 @@ D=
 \sigma_1\Sub\alpha\R\beta,
 \sigma_1\Sub\alpha\R\beta,
 \sigma_2\Sub\alpha,
-\sigma_2\Sub\alpha,C_1\cup C_2,
+\sigma_2\Sub\alpha,C_1\cup C_2\cup C_v.
 \]
 Some uses of \textsc{S-Dupe} and \textsc{S-Refl} produce
 \[
@@ -274,7 +271,7 @@ A;\emptyset\vdash
   \sigma_1\Sub\sigma_1,
   \sigma_v\Sub\sigma_x,\sigma_v\Sub\sigma_x,
   \beta\Sub\tau_0,
-  D\cup C_v\cup\Piggy.
+  D\cup\Piggy.
 \]
 Invoking the induction hypothesis on $s_1$, we obtain
 \begin{align}
@@ -287,7 +284,7 @@ A_1';\emptyset&\vdash
   \sigma_v\Sub\sigma_x,
   \sigma_1'\Sub\sigma_1,
   \beta\Sub\tau_0,
-  D\cup C_v\cup\Piggy.
+  D\cup\Piggy.
 \label{eq:subapp2}
 \end{align}
 From \eqref{eq:subapp2}, \textsc{S-Refl} produces
@@ -297,7 +294,7 @@ A_1';\emptyset\vdash
   \sigma_v\Sub\sigma_x,
   \sigma_1'\Sub\sigma_1,
   \beta\Sub\tau_0,
-  D\cup C_v\cup C_1'\cup\Piggy.
+  D\cup C_1'\cup\Piggy.
 \label{eq:subappf}
 \end{align}
 Invoking the induction hypothesis on $s_2$ and \eqref{eq:subapp2}
@@ -307,7 +304,7 @@ A_2';\emptyset&\vdash
   \sigma_1'\Sub\sigma_1,
   \sigma_2'\Sub\sigma_2,
   \beta\Sub\tau_0,
-  D\cup C_v\cup C_1'\cup C_2'\cup\Piggy
+  D\cup C_1'\cup C_2'\cup\Piggy
 \notag\\
 &\vdash
   \beta\Sub\tau_0,
@@ -319,7 +316,7 @@ A_2';\emptyset&\vdash
 \notag
 \end{align}
 the last step by expanding $D$ partially to
-$\sigma_1\Sub\alpha\R\beta,\sigma_2\Sub\alpha,C_t$.
+$\sigma_1\Sub\alpha\R\beta,\sigma_2\Sub\alpha,C_t\cup C_v$.
 Two uses of \textsc{S-Trans} gives us
 \begin{align}
 A_2';\emptyset\vdash
@@ -328,13 +325,8 @@ A_2';\emptyset\vdash
   C_t\cup C_v\cup C_1'\cup C_2'\cup\Piggy.
 \label{eq:subapps}
 \end{align}
-Since constraints in $D$ were hauled around on piggyback, the
-type variables $\alpha$~and $\beta$ occurs nowhere
-else.\footnote{ It would be hard to formulate ``$\alpha$~and
-$\beta$ occurs nowhere else '' in Agda, I guess.
-%
-}%
-We use them to construct the desired constrained typing.
+Use existing type variables $\alpha$, $\beta$ to construct the
+desired constrained typing.
 \begin{align}
 t'&=s_1[x\mapsto v]~s_2[x\mapsto v]
 \notag\\
@@ -344,7 +336,7 @@ t'&=s_1[x\mapsto v]~s_2[x\mapsto v]
 C_1'\cup C_2'
 \notag
 \end{align}
-We have already derived the desired subtype judgement: it is
+The desired subtype judgement is derived already: it is
 \eqref{eq:subapps}.
 \end{proof}
 
