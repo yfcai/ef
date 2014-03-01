@@ -19,23 +19,27 @@
 \tableofcontents
 
 \subsection{Syntax}
+\label{syntax}
 \begin{syntax}
 \mbox{type}\\
 \sigma, \tau
-&::=& \iota_0 \Or \iota_1 \Or \cdots &\mbox{base type}\\
-&|& \alpha \Or \beta \Or \cdots & \mbox{type variable} \\
+&::=& \iota &\mbox{base type}\\
+&|& \alpha & \mbox{type variable} \\
 &|& \tau \rightarrow \tau & \mbox{function type} \\
-&|& \All\alpha\tau & \mbox{universal type}
+&|& \All\alpha\tau
+&
+\mbox{universal type, requires }
+\alpha\in\FTV(\tau)\text{ and }\tau\neq\alpha
 \\
 \\
 \mbox{term}\\
 s, t & ::= & x & \mbox{variable} \\
-& | & \Abs{x:\tau}t  & \mbox{lambda abstraction} \\
-& | & t~t & \mbox{function application} \\
-& | & \cdots & \mbox{primitives}
+& | & \Abs{x:\sigma}t  & \mbox{lambda abstraction} \\
+& | & t_1~t_2 & \mbox{function application} \\
+& | & c~t_1~\cdots~t_n& \mbox{$n$-nary constant}
 \end{syntax}
 
-\subsection{Syntax of subtype judgements}
+\subsection{Subtyping}
 
 \begin{syntax}
 \mbox{list of type variables}\\
@@ -53,8 +57,6 @@ C
 \mbox{subtype judgement}
 &::=&A;E\vdash C
 \end{syntax}
-
-\subsection{Derivation of subtype judgements}~
 
 \infrule[S-vacuous]
 {}
@@ -75,12 +77,12 @@ A;E\vdash C
 {\alpha\notin A\cup E\cup\FTV(C)
 \andalso
 A;E\vdash
-\{ \sigma_i\Sub\tau_j \Or 0 \le i \le m, 0 \le j \le n \}
+\{ \sigma_i\Sub\tau_j \Or 1 \le i \le m, 1 \le j \le n \}
 \cup C
 }{
 \alpha,A;E \vdash
-\sigma_0\Sub\alpha,\ldots,\sigma_m\Sub\alpha,
-\alpha\Sub\tau_0,\ldots,\alpha\Sub\tau_n,C
+\sigma_1\Sub\alpha,\ldots,\sigma_m\Sub\alpha,
+\alpha\Sub\tau_1,\ldots,\alpha\Sub\tau_n,C
 }
 
 \infrule[S-Al]
@@ -132,7 +134,68 @@ A;\alpha,E\vdash\sigma\Sub\tau,C}
 {\Gamma\vdash s~t : \beta \Given
 \sigma\Sub\alpha\R\beta,\tau\Sub\alpha,C_1\cup C_2}
 
+\infrule[CT-Con]
+{
+\Gamma\vdash t_1:\tau_1\Given C_1
+\andalso
+\cdots
+\andalso
+\Gamma\vdash t_n:\tau_n\Given C_n
+}
+{\Gamma\vdash c~t_1~\cdots~t_n:\iota_c\Given
+\tau_1\Sub\iota_1,\ldots,\tau_n\Sub\iota_n,
+{\textstyle\bigcup_{i=1}^n C_i}
+}
+
+\subsection{Evaluation}
+
+\begin{syntax}
+\mbox{value}\\
+v&::=&c&\mbox{nullary constant}\\
+&|&\Abs{x:\sigma}t&\mbox{lambda abstraction}
+\end{syntax}
+
+\infrule[$\beta$]
+{}
+{(\Abs{x:\sigma}s)~t \Red s[x\mapsto t]}
+
+\infrule[$\delta$]
+{}
+{c~c_1~\cdots~c_n \Red c'}
+
+\infrule[E-App]
+{s\Red s'}
+{s~t\Red s'~t}
+
+\infrule[E-Con]
+{t_i\Red t_i'}
+{c~t_1~\cdots~t_i~\cdots~t_n
+\Red
+c~t_1~\cdots~t_i'~\cdots~t_n
+}
+
+Rule \textsc{$\delta$} represents all $\delta$-reductions. The
+$\delta$-reductions are required to satisfy what
+Wright~and Felleisen~\cite{Wright94} call $\delta$-typability:
+\begin{align*}
+&\text{Let $c$ be the constant in \textsc{CT-Con}.}\\[-4pt]
+\tag{$\delta$-typeability}\label{delta-typability}
+&\text{For each nullary constant $c_i$ with type $\iota_i$,}\\[-4pt]
+&\text{there exists a nullary constant $c'$ of type $\iota_c$ such that}\\
+&\hspace{2em}c~c_1~\cdots~c_n\Red c'.
+\end{align*}
+
+
+The congruence rule \textsc{E-App} implements call-by-name so
+that we write the hardest proof. With call-by-value, progress is
+easier and preservation is no harder.
+
+The congruence rule \text{E-Con} says that primitive operators
+are supposed to be strict, but they are free to force their
+arguments in any order.
+
 \subsection{Substitution lemma}
+\label{sublem}
 We set out to prove that if $t$ can be typed $\tau_0$, then after
 a well-typed substitution it can still be typed $\tau_0$.
 
@@ -147,10 +210,10 @@ A;\emptyset&\vdash
 \sigma_v\Sub\sigma_x, \tau\Sub\tau_0,C_t\cup C_v\cup\Piggy
 \label{eq:subass}
 \end{align}
-Then there exists $A'$ such that we can derive
+Then there exist $\tau'$ and $C'$ such that we can derive
 \begin{align*}
-A';\Gamma&\vdash t[x\mapsto v] : \tau'\Given C',\\
-A';\emptyset &\vdash \tau'\Sub\tau_0, C_t\cup C_v\cup C'\cup\Piggy.
+A;\Gamma&\vdash t[x\mapsto v] : \tau'\Given C',\\
+A;\emptyset &\vdash \tau'\Sub\tau_0, C_t\cup C_v\cup C'\cup\Piggy.
 \end{align*}
 
 \begin{proof}
@@ -200,38 +263,38 @@ Since the constrained typing of $t$ contains a derivation for
 \[\yasump,\]
 we invoke the induction hypothesis with the piggyback
 $(\sigma_y\R\tau_s\Sub\tau_0,\Piggy)$ to conclude that for some
-appropriate $A'$ and argument type annotations,
+appropriate $A$ and argument type annotations,
 \begin{align}
 s'&=s[x\mapsto v]\notag
 \\
-A';\Gamma,y:\sigma_y&\vdash s' : \tau_s'\Given C'
+A;\Gamma,y:\sigma_y&\vdash s' : \tau_s'\Given C'
 \label{eq:subabs1}
 \\
-A';\emptyset&\vdash
+A;\emptyset&\vdash
     \tau_s'\Sub\tau_s,
 \sigma_y\R\tau_s\Sub\tau_0,C_s\cup C_v\cup C'\cup\Piggy.
 \label{eq:subabs2}
 \end{align}
 By \eqref{eq:subabs1} and \textsc{CT-Abs},
 \[
-A';\Gamma\vdash(\Abs{y:\sigma_y}.s)[x\mapsto v] : \sigma_y\R\tau_s'\Given C'.
+A;\Gamma\vdash(\Abs{y:\sigma_y}.s)[x\mapsto v] : \sigma_y\R\tau_s'\Given C'.
 \]
 By \eqref{eq:subabs2} and \textsc{S-Refl},
 \[
-A';\emptyset\vdash
+A;\emptyset\vdash
     \sigma_y\Sub\sigma_y,
     \tau_s'\Sub\tau_s,
 \sigma_y\R\tau_s\Sub\tau_0,C_s\cup C_v\cup C'\cup\Piggy.
 \]
 \textsc{S-Arrow} produces
 \[
-A';\emptyset\vdash
+A;\emptyset\vdash
     \sigma_y\R\tau_s'\Sub\sigma_y\R\tau_s,
 \sigma_y\R\tau_s\Sub\tau_0,C_s\cup C_v\cup C'\cup\Piggy
 \]
 and \textsc{S-Trans} concludes
 \[
-A';\emptyset\vdash
+A;\emptyset\vdash
     \sigma_y\R\tau_s'\Sub\tau_0,
 C_s\cup C_v\cup C'\cup\Piggy.
 \]
@@ -338,6 +401,219 @@ C_1'\cup C_2'
 \end{align}
 The desired subtype judgement is derived already: it is
 \eqref{eq:subapps}.
+
+\Case\textsc{CT-Con}: We know $t=c~t_1~\cdots~t_n$
+and $\tau=\iota_c$.
+%
+\infrule[CT-Con]
+{
+\Gamma\vdash t_1:\tau_1\Given C_1
+\andalso
+\cdots
+\andalso
+\Gamma\vdash t_n:\tau_n\Given C_n
+}
+{\Gamma\vdash c~t_1~\cdots~t_n:\iota_c\Given
+\tau_1\Sub\iota_1,\ldots,\tau_n\Sub\iota_n,
+{\textstyle\bigcup_{i=1}^n C_i}
+}
+%
+Write
+\[
+C_t=\tau_1\Sub\iota_1,\ldots,\tau_n\Sub\iota_n,
+{\textstyle\bigcup_{i=1}^n C_i}.
+\]
+Suppose
+\begin{align*}
+\Gamma&\vdash t_1[x\mapsto v]:\tau_1'\Given C_1',\\
+&~\vdots\\
+\Gamma&\vdash t_n[x\mapsto v]:\tau_n'\Given C_n',\\
+\Gamma&\vdash t[x\mapsto v]:\iota_c\Given
+\tau_1'\Sub\iota_1,\ldots,\tau_n'\Sub\iota_n,
+{\textstyle\bigcup_{i=1}^n C_i'}.
+\end{align*}
+If we write as usual $t'=t[x\mapsto v]$, then the constraints
+generated in the typing of $t'$ are
+\[
+C'=\tau_1'\Sub\iota_1,\ldots,\tau_n'\Sub\iota_n,
+{\textstyle\bigcup_{i=1}^n C_i'}.
+\]
+By assumption, we can derive
+\[
+A;\emptyset\vdash \sigma_x\Sub\sigma_v,\iota_c\Sub\tau_0,
+\tau_1\Sub\iota_1,\ldots,\tau_n\Sub\iota_n,
+({\textstyle\bigcup_{i=1}^n C_i})
+\cup C_v\cup\Piggy.
+\]
+With some judicious use of \textsc{S-Refl} and \textsc{S-Dupe}
+like those we have seen in previous cases, we can derive
+\[
+A;\emptyset\vdash \sigma_x\Sub\sigma_v,\iota_c\Sub\tau_0,
+\tau_1'\Sub\tau_1,
+\tau_1\Sub\iota_1,\ldots,\tau_n\Sub\iota_n,
+C_t\cup C_v\cup\Piggy,
+\]
+and \textsc{S-Trans} gives us
+\[
+A;\emptyset\vdash \sigma_x\Sub\sigma_v,\iota_c\Sub\tau_0,
+\tau_1'\Sub\iota_1,
+\tau_2\Sub\iota_2,\ldots,\tau_n\Sub\iota_n,
+C_1'\cup
+C_t\cup C_v\cup
+\Piggy.
+\]
+The same trick will let us derive
+\[
+A;\emptyset\vdash \sigma_x\Sub\sigma_v,\iota_c\Sub\tau_0,
+\tau_1'\Sub\iota_1,
+\tau_2'\Sub\iota_2,
+\tau_3\Sub\iota_3,
+\ldots,\tau_n\Sub\iota_n,
+C_1'\cup C_2'\cup
+C_t\cup C_v\cup\Piggy
+\]
+all the way up to
+\begin{align}
+A;\emptyset&\vdash \iota_c\Sub\tau_0,
+\tau_1'\Sub\iota_1,\ldots,\tau_n'\Sub\iota_n,
+({\textstyle\bigcup_{i=1}^nC_i'})\cup
+C_t\cup C_v\cup\Piggy,
+\label{eq:subcon}
+\end{align}
+refraining from duplicating $\sigma_x\Sub\sigma_v$ at the last
+step. If we collect constraints of $C'$ in \eqref{eq:subcon},
+then it becomes apparent that \eqref{eq:subcon} is in fact the
+subtype judgement we are after:
+\[
+A;\emptyset\vdash \iota_c\Sub\tau_0,
+C_t\cup C_v\cup C'\cup\Piggy.
+\]
+\end{proof}
+
+\subsection{Preservation}
+
+Informally, if $t$ can be typed $\tau_0$ and $t\Red t'$,
+then $t'$ can be given the type $\tau_0$.
+
+Let $t$ be a closed term and let $\Piggy$ be a set of constraints
+(on piggyback). If $t\Red t'$ and there exists $A$ such that
+\begin{align*}
+&\vdash t:\tau \Given C,\\
+A;\emptyset&\vdash \tau\Sub\tau_0,C\cup\Piggy,
+\end{align*}
+then there exist $\tau'$ and $C'$ such that
+\begin{align*}
+&\vdash t':\tau'\Given C',\\
+A;\emptyset&\vdash \tau'\Sub\tau_0,C\cup C'\cup\Piggy.
+\end{align*}
+
+\begin{proof}
+Induction on the derivation $t\Red t'$ and case analysis on the
+last rule.
+
+\Case($\beta$): The substitution lemma~(\S\ref{sublem}) gives us
+the desired derivations.
+
+\Case($\delta$): $C$ is a bunch of reflexive constraints, $C'$ is
+empty, and the desired subtype derivation is identical to the
+assumed one.
+
+\Case\textsc{E-App}: $t=t_1~t_2$ and $t_1\Red t_1'$. Invoke the
+induction hypothesis on $t_1$, piggyback along the two extra
+constraints generated by the topmost application of $t$. Make
+the conclusion fit the typing of $t'=t_1'~t_2$ by the trick used
+at the end of the \textsc{CT-App} case in the proof of the
+substitution lemma (\S\ref{sublem}).
+
+\Case\textsc{E-Con}: $t=c~t_1~\cdots~t_i~\cdots~t_n$ and $t_i\Red
+t_i'$. Invoke the induction hypothesis on $t_i$, piggyback along
+the extra constraints generated by the topmost $n$-nary constant
+expression in $t$. Duplicating constraints of the form
+$\tau_j\Sub\iota_j$ will give us the desired subtype derivation.
+\end{proof}
+
+\subsection{Segregation of base types and function types}
+\label{segre}
+If $\tau\neq\iota$, then it is never possible to derive any
+subtype judgement of the form
+\begin{align*}
+A;E&\vdash \iota\Sub\tau,C&
+&\mbox{or}&
+A;E&\vdash\tau\Sub\iota,C.
+\end{align*}
+We prove it by induction on the derivation sequence. Due to
+\textsc{S-Trans}, we need a stronger induction hypothesis: If
+$\tau\neq\iota$, then there never is any derivation ending with a
+sequence of constraints containing a \emph{forbidden chain} from
+$\tau$ to $\iota$,
+\[
+\tau\Sub\tau_1,\tau_1\Sub\tau_2,\ldots,\tau_n\Sub\iota,
+\]
+or a forbidden chain from $\iota$ to $\tau$,
+\[
+\iota\Sub\tau_1,\tau_1\Sub\tau_2,\ldots,\tau_n\Sub\tau.
+\]
+
+The proof itself is a mechanical case analysis on the last rule
+used.
+
+The conclusion of \textsc{S-Vacuous} contains no constraint and
+hence no forbidden chain.
+
+If a forbidden chain appears in the conclusion of \textsc{S-Refl},
+\textsc{S-Loner}, \textsc{S-Dupe} or \textsc{S-Trans}, then a
+forbidden chain exists in the premise, which the induction
+hypothesis asserts to be impossible.
+
+If a forbidden chain appears
+in the conclusion of \textsc{S-Arrow}, then a chain exists in the
+premise between $\iota$ and a function type, which is impossible.
+
+Suppose a forbidden chain appears in the conclusion of
+\textsc{S-Al} or \textsc{S-Er}. Since we forbid polymorphic
+non-functions (\S\ref{syntax}), a chain exists in the premise
+between $\iota$ and a function type, which is impossible.
+
+\subsection{Progress} Let $t$ be a closed well-typed term. Which
+is to say, there exists a type $\tau_0$ such that for some
+$\tau$, $A$, $C$ and $C'$,
+\begin{align*}
+&\vdash t:\tau\Given C\\
+A;\emptyset&\vdash \tau\Sub\tau_0,C\cup C'.
+\end{align*}
+One of the following is true.
+\begin{itemize}
+\item $t$ is a value.
+\item There exists $t'$ such that $t\Red t'$.
+\end{itemize}
+
+\begin{proof}
+Induction on the syntax of $t$.
+
+\Case$t=x$: Impossible, since $t$ is closed.
+
+\Case$t=\Abs{x:\sigma}t$: $t$ is a value.
+
+\Case$t=s_0~s_1$: If $s_0\Red s_0'$, then $t\Red s_0'~s_1$. If
+$s_0$ does not reduce, then it is a value. We know that
+\begin{align}
+A;\emptyset&\vdash \beta\Sub\tau_0,
+\sigma_0\Sub\alpha\R\beta,\sigma_1\Sub\alpha,C_0\cup C_1,
+\label{eq:prog0}
+\end{align}
+where $\sigma_0\Given C_0$ is the constrained type of $s_0$ and
+$\sigma_1\Given C_1$ is the constrained type of $s_1$. If $s_0$
+is a nullary constant, then $\sigma_0=\iota$ for some base type
+$\iota$, and \eqref{eq:prog0} would be impossible to derive
+(\S\ref{segre}). Therefore $s_0$ is a lambda abstraction, and $t$
+is a $\beta$-redex.
+
+\Case$t=c~s_1~\cdots~s_n$: If $n=0$, then $t$ is a value. If one
+of the $s_i$ is reducible, then $t$ is reducible. If all $s_i$
+are values, then by \S\ref{segre}, they cannot be anything other
+than nullary constants of the appropriate ground types. Progress
+follows from $\delta$-typability (displayed equation on
+page~\pageref{delta-typability}).
 \end{proof}
 
 \input{bib.tex}\end{document}

@@ -2,4 +2,5 @@ master.log
 master.aux
 master.pdf
 master.toc
+master.synctex.gz
 texput.log

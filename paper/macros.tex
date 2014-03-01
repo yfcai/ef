@@ -1,4 +1,5 @@
 \usepackage{stmaryrd}
+\usepackage[cmtip,all]{xy}
 \newcommand{\nc}{\newcommand}
 \newcommand{\DotExpr}[2]{#1 #2.\ }
 \newenvironment{syntax}{\[\begin{array}{rrll}}{\end{array}\]}
@@ -43,6 +44,8 @@
 \nc\Tabs      {\DotExpr\Lambda}
 \nc\Tech      {\text{technical}}
 \nc\R         {\rightarrow}
+%\nc\Red       {\xymatrix{{}\ar@{~>}[r]&{}}}
+\nc\Red       {\rightsquigarrow}
 \nc\RR        {\Rightarrow}
 \nc\Unpack    {\mathrm{unpack}}
 \nc\Undo      {\operatorname{undo}}
