@@ -184,7 +184,7 @@ v&::=&c&\mbox{nullary constant of base type}\\
 
 \infrule[$\delta$]
 {}
-{c~c_1~\cdots~c_n \Red c'}
+{c~v_1~\cdots~v_n \Red c'}
 
 \infrule[E-App]
 {s\Red s'}
@@ -231,16 +231,14 @@ Here are some $\delta$-rules examples.
 \Add~1~2&\Red3\\
 \Add~38701589~8472584&\Red47174173
 \end{align*}
-For each type variable
-$\alpha$ there exists a pair of $\delta$-rules
+One can imagine $\delta$-rules such as
 \begin{align*}
 \If~\True &\Red\Abs{x:\alpha}\Abs{y:\alpha}x,\\
-\If~\False&\Red\Abs{x:\alpha}\Abs{y:\alpha}y.
+\If~\False&\Red\Abs{x:\alpha}\Abs{y:\alpha}y,\\
+\Fix~(\Abs{x:\sigma} t)&\Red t[x\mapsto \Fix~(\Abs{x:\sigma} t)].
 \end{align*}
-For each lambda abstraction there exists a $\delta$-rule
-\[
-\Fix~(\Abs{x:\sigma} t)\Red t[x\mapsto \Fix~(\Abs{x:\sigma} t)].
-\]
+Proving them to satisfy $\delta$-typability in the precise sense
+of preservation (\S\ref{preservation}) is nontrivial, though.
 
 \subsection{Substitution lemma}
 \label{sublem}
@@ -450,8 +448,11 @@ C_1'\cup C_2'
 The desired subtype judgement is derived already: it is
 \eqref{eq:subapps}.
 
-\Case\textsc{CT-Con}: We know $t=c~s_1~\cdots~s_n$
-and $\tau=\tau_c$.
+\Case\textsc{CT-Con}: The argument here is a straightforward
+generalization of \hbox{\textsc{CT-App}} to $n$ subterms and
+arbitrary constraints on the types of subterms.
+
+We know $t=c~s_1~\cdots~s_n$ and $\tau=\tau_c$.
 %
 \infrule[CT-Con]
 {
@@ -545,6 +546,7 @@ C_t\cup C_v\cup C'\cup\Piggy.
 \end{proof}
 
 \subsection{Preservation}
+\label{preservation}
 
 Informally, if $t$ can be typed $\tau_0$ and $t\Red t'$,
 then $t'$ can be given the type $\tau_0$.
@@ -568,9 +570,8 @@ last rule.
 \Case($\beta$): The substitution lemma~(\S\ref{sublem}) gives us
 the desired derivations.
 
-\Case($\delta$): $C$ is a bunch of reflexive constraints, $C'$ is
-empty, and the desired subtype derivation is identical to the
-assumed one.
+\Case($\delta$): Preservation on $\delta$-reduction is the
+precise meaning of $\delta$-typability (\S\ref{eval}).
 
 \Case\textsc{E-App}: $t=t_1~t_2$ and $t_1\Red t_1'$. Invoke the
 induction hypothesis on $t_1$, piggyback along the two extra
@@ -588,8 +589,8 @@ $\tau_j\Sub\iota_j$ will give us the desired subtype derivation.
 
 \subsection{Segregation of base types and function types}
 \label{segre-types}
-If $\tau\neq\iota$, then it is never possible to derive any
-subtype judgement of the form
+If $\tau$ is a function type or a base type dinstinct from $\iota$,
+then it is impossible to derive any subtype judgement of the form
 \begin{align*}
 A;E&\vdash \iota\Sub\tau,C&
 &\mbox{or}&
@@ -597,9 +598,10 @@ A;E&\vdash\tau\Sub\iota,C.
 \end{align*}
 We prove it by induction on the derivation sequence. Due to
 \textsc{S-Trans}, we need a stronger induction hypothesis: If
-$\tau\neq\iota$, then there never is any derivation ending with a
-sequence of constraints containing a \emph{forbidden chain} from
-$\tau$ to $\iota$,
+$\tau$ is a function type or a base type dinstinct from $\iota$,
+then there never is any derivation ending in a sequence of
+constraints containing a \emph{forbidden chain} from $\tau$ to
+$\iota$,
 \[
 \tau\Sub\tau_1,\tau_1\Sub\tau_2,\ldots,\tau_n\Sub\iota,
 \]
