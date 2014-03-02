@@ -136,22 +136,45 @@ A;\alpha,E\vdash\sigma\Sub\tau,C}
 
 \infrule[CT-Con]
 {
-\Gamma\vdash t_1:\tau_1\Given C_1
+\Gamma\vdash s_1:\sigma_1\Given C_1
 \andalso
 \cdots
 \andalso
-\Gamma\vdash t_n:\tau_n\Given C_n
+\Gamma\vdash s_n:\sigma_n\Given C_n
 }
-{\Gamma\vdash c~t_1~\cdots~t_n:\iota_c\Given
-\tau_1\Sub\iota_1,\ldots,\tau_n\Sub\iota_n,
+{\Gamma\vdash c~s_1~\cdots~s_n:\tau_c\Given
+\sigma_1\Sub\tau_1,\ldots,\sigma_n\Sub\tau_n,
 {\textstyle\bigcup_{i=1}^n C_i}
 }
 
+In \textsc{CT-Con}, the types $\tau_c,\tau_1,\ldots,\tau_n$
+depends on $c$ alone. One constant $c$ may have multiple
+\textsc{CT-Con} rules, as long as the corresponding
+$\delta$-typability requirement is satisfied
+(\S\ref{eval}). Here are some examples.
+
+\infrule[CT-Add]
+{\Gamma\vdash s_1:\sigma_1\Given C_1
+\andalso
+\Gamma\vdash s_2:\sigma_2\Given C_2
+}
+{\Gamma\vdash\Add~s_1~s_2:
+\Int\Given\sigma_1\Sub\Int,\sigma_2\Sub\Int,C_1\cup C_2}
+
+\infrule[CT-If]
+{\Gamma\vdash s:\sigma\Given C}
+{\Gamma\vdash\If~s:\alpha\R\alpha\R\alpha\Given\sigma\Sub\Bool,C}
+
+\infrule[CT-Fix]
+{\Gamma\vdash s:\sigma\Given C}
+{\Gamma\vdash\Fix~s:\alpha\Given\sigma\Sub \alpha\R\alpha,C}
+
 \subsection{Evaluation}
+\label{eval}
 
 \begin{syntax}
 \mbox{value}\\
-v&::=&c&\mbox{nullary constant}\\
+v&::=&c&\mbox{nullary constant of base type}\\
 &|&\Abs{x:\sigma}t&\mbox{lambda abstraction}
 \end{syntax}
 
@@ -174,18 +197,6 @@ v&::=&c&\mbox{nullary constant}\\
 c~t_1~\cdots~t_i'~\cdots~t_n
 }
 
-Rule \textsc{$\delta$} represents all $\delta$-reductions. The
-$\delta$-reductions are required to satisfy what
-Wright~and Felleisen~\cite{Wright94} call $\delta$-typability:
-\begin{align*}
-&\text{Let $c$ be the constant in \textsc{CT-Con}.}\\[-4pt]
-\tag{$\delta$-typeability}\label{delta-typability}
-&\text{For each nullary constant $c_i$ with type $\iota_i$,}\\[-4pt]
-&\text{there exists a nullary constant $c'$ of type $\iota_c$ such that}\\
-&\hspace{2em}c~c_1~\cdots~c_n\Red c'.
-\end{align*}
-
-
 The congruence rule \textsc{E-App} implements call-by-name so
 that we write the hardest proof. With call-by-value, progress is
 easier and preservation is no harder.
@@ -193,6 +204,43 @@ easier and preservation is no harder.
 The congruence rule \text{E-Con} says that primitive operators
 are supposed to be strict, but they are free to force their
 arguments in any order.
+
+Rule \textsc{$\delta$} represents all $\delta$-reductions. The
+$\delta$-reductions are required to satisfy what
+Wright~and Felleisen~\cite{Wright94} call $\delta$-typability:
+\begin{align*}
+&\text{Let $c$ be the constant in \textsc{CT-Con}.}\\[-4pt]
+\tag{$\delta$-typeability}\label{delta-typability}
+&\text{For each value $v_i$ with type $\tau_i$,}\\[-4pt]
+&\text{there exists a value $v'$ of type $\tau_c$ such that}\\
+&\hspace{2em}c~v_1~\cdots~v_n\Red v'.
+\end{align*}
+
+By ``nullary constant of base type'', we mean any nullary
+constant $c$ for which there is a constrained typing rule
+\[
+\Gamma\vdash c:\iota\Given\emptyset.
+\]
+Nullary constants of function type, if exist, are not values. By
+$\delta$-typability, each of them evaluates to a lambda
+abstraction of appropriate type.
+
+Here are some $\delta$-rules examples.
+\begin{align*}
+\Add~1~1&\Red2\\
+\Add~1~2&\Red3\\
+\Add~38701589~8472584&\Red47174173
+\end{align*}
+For each type variable
+$\alpha$ there exists a pair of $\delta$-rules
+\begin{align*}
+\If~\True &\Red\Abs{x:\alpha}\Abs{y:\alpha}x,\\
+\If~\False&\Red\Abs{x:\alpha}\Abs{y:\alpha}y.
+\end{align*}
+For each lambda abstraction there exists a $\delta$-rule
+\[
+\Fix~(\Abs{x:\sigma} t)\Red t[x\mapsto \Fix~(\Abs{x:\sigma} t)].
+\]
 
 \subsection{Substitution lemma}
 \label{sublem}
@@ -402,90 +450,96 @@ C_1'\cup C_2'
 The desired subtype judgement is derived already: it is
 \eqref{eq:subapps}.
 
-\Case\textsc{CT-Con}: We know $t=c~t_1~\cdots~t_n$
-and $\tau=\iota_c$.
+\Case\textsc{CT-Con}: We know $t=c~s_1~\cdots~s_n$
+and $\tau=\tau_c$.
 %
 \infrule[CT-Con]
 {
-\Gamma\vdash t_1:\tau_1\Given C_1
+\Gamma\vdash s_1:\sigma_1\Given C_1
 \andalso
 \cdots
 \andalso
-\Gamma\vdash t_n:\tau_n\Given C_n
+\Gamma\vdash s_n:\sigma_n\Given C_n
 }
-{\Gamma\vdash c~t_1~\cdots~t_n:\iota_c\Given
-\tau_1\Sub\iota_1,\ldots,\tau_n\Sub\iota_n,
+{\Gamma\vdash c~s_1~\cdots~s_n:\tau_c\Given
+\sigma_1\Sub\tau_1,\ldots,\sigma_n\Sub\tau_n,
 {\textstyle\bigcup_{i=1}^n C_i}
 }
 %
 Write
 \[
-C_t=\tau_1\Sub\iota_1,\ldots,\tau_n\Sub\iota_n,
+C_t=\sigma_1\Sub\tau_1,\ldots,\sigma_n\Sub\tau_n,
 {\textstyle\bigcup_{i=1}^n C_i}.
 \]
 Suppose
 \begin{align*}
-\Gamma&\vdash t_1[x\mapsto v]:\tau_1'\Given C_1',\\
+\Gamma&\vdash s_1[x\mapsto v]:\sigma_1'\Given C_1',\\
 &~\vdots\\
-\Gamma&\vdash t_n[x\mapsto v]:\tau_n'\Given C_n',\\
-\Gamma&\vdash t[x\mapsto v]:\iota_c\Given
-\tau_1'\Sub\iota_1,\ldots,\tau_n'\Sub\iota_n,
+\Gamma&\vdash s_n[x\mapsto v]:\sigma_n'\Given C_n',\\
+\Gamma&\vdash t[x\mapsto v]:\tau_c\Given
+\sigma_1'\Sub\tau_1,\ldots,\sigma_n'\Sub\tau_n,
 {\textstyle\bigcup_{i=1}^n C_i'}.
 \end{align*}
 If we write as usual $t'=t[x\mapsto v]$, then the constraints
 generated in the typing of $t'$ are
 \[
-C'=\tau_1'\Sub\iota_1,\ldots,\tau_n'\Sub\iota_n,
+C'=\sigma_1'\Sub\tau_1,\ldots,\sigma_n'\Sub\tau_n,
 {\textstyle\bigcup_{i=1}^n C_i'}.
 \]
 By assumption, we can derive
 \[
-A;\emptyset\vdash \sigma_x\Sub\sigma_v,\iota_c\Sub\tau_0,
-\tau_1\Sub\iota_1,\ldots,\tau_n\Sub\iota_n,
+A;\emptyset\vdash \sigma_x\Sub\sigma_v,\tau_c\Sub\tau_0,
+\sigma_1\Sub\tau_1,\ldots,\sigma_n\Sub\tau_n,
 ({\textstyle\bigcup_{i=1}^n C_i})
 \cup C_v\cup\Piggy.
 \]
-With some judicious use of \textsc{S-Refl} and \textsc{S-Dupe}
-like those we have seen in previous cases, we can derive
+As in previous cases, some judicious use of \textsc{S-Refl} and
+\textsc{S-Dupe} allows us to derive
 \[
-A;\emptyset\vdash \sigma_x\Sub\sigma_v,\iota_c\Sub\tau_0,
-\tau_1'\Sub\tau_1,
-\tau_1\Sub\iota_1,\ldots,\tau_n\Sub\iota_n,
-C_t\cup C_v\cup\Piggy,
+A;\emptyset\vdash \sigma_x\Sub\sigma_v,\tau_c\Sub\tau_0,
+\sigma_1\Sub\sigma_1,
+\sigma_1\Sub\tau_1,\ldots,\sigma_n\Sub\tau_n,
+C_t\cup C_v\cup\Piggy.
+\]
+The induction hypothesis produces
+\[
+A;\emptyset\vdash \sigma_x\Sub\sigma_v,\tau_c\Sub\tau_0,
+\sigma_1'\Sub\sigma_1,
+\sigma_1\Sub\tau_1,\ldots,\sigma_n\Sub\tau_n,
+C_1\cup C_t\cup C_v\cup\Piggy,
 \]
 and \textsc{S-Trans} gives us
 \[
-A;\emptyset\vdash \sigma_x\Sub\sigma_v,\iota_c\Sub\tau_0,
-\tau_1'\Sub\iota_1,
-\tau_2\Sub\iota_2,\ldots,\tau_n\Sub\iota_n,
+A;\emptyset\vdash \sigma_x\Sub\sigma_v,\tau_c\Sub\tau_0,
+\sigma_1'\Sub\tau_1,
+\sigma_2\Sub\tau_2,\ldots,\sigma_n\Sub\tau_n,
 C_1'\cup
 C_t\cup C_v\cup
 \Piggy.
 \]
-The same trick will let us derive
+The same trick will produce
 \[
-A;\emptyset\vdash \sigma_x\Sub\sigma_v,\iota_c\Sub\tau_0,
-\tau_1'\Sub\iota_1,
-\tau_2'\Sub\iota_2,
-\tau_3\Sub\iota_3,
-\ldots,\tau_n\Sub\iota_n,
+A;\emptyset\vdash \sigma_x\Sub\sigma_v,\tau_c\Sub\tau_0,
+\sigma_1'\Sub\tau_1,
+\sigma_2'\Sub\tau_2,
+\sigma_3\Sub\tau_3,
+\ldots,\sigma_n\Sub\tau_n,
 C_1'\cup C_2'\cup
 C_t\cup C_v\cup\Piggy
 \]
 all the way up to
 \begin{align}
-A;\emptyset&\vdash \iota_c\Sub\tau_0,
-\tau_1'\Sub\iota_1,\ldots,\tau_n'\Sub\iota_n,
+A;\emptyset&\vdash \tau_c\Sub\tau_0,
+\sigma_1'\Sub\tau_1,\ldots,\sigma_n'\Sub\tau_n,
 ({\textstyle\bigcup_{i=1}^nC_i'})\cup
 C_t\cup C_v\cup\Piggy,
 \label{eq:subcon}
 \end{align}
 refraining from duplicating $\sigma_x\Sub\sigma_v$ at the last
 step. If we collect constraints of $C'$ in \eqref{eq:subcon},
-then it becomes apparent that \eqref{eq:subcon} is in fact the
-subtype judgement we are after:
+then it becomes the desired subtype judgement
 \[
-A;\emptyset\vdash \iota_c\Sub\tau_0,
+A;\emptyset\vdash \tau_c\Sub\tau_0,
 C_t\cup C_v\cup C'\cup\Piggy.
 \]
 \end{proof}
@@ -533,7 +587,7 @@ $\tau_j\Sub\iota_j$ will give us the desired subtype derivation.
 \end{proof}
 
 \subsection{Segregation of base types and function types}
-\label{segre}
+\label{segre-types}
 If $\tau\neq\iota$, then it is never possible to derive any
 subtype judgement of the form
 \begin{align*}
@@ -574,6 +628,19 @@ Suppose a forbidden chain appears in the conclusion of
 non-functions (\S\ref{syntax}), a chain exists in the premise
 between $\iota$ and a function type, which is impossible.
 
+\subsection{Segregation of base values and function values}
+\label{segre-values}
+A consequence of \S\ref{segre-types} is as follows. Let $v$ be a
+value such that $\Gamma\vdash v:\sigma_v\Given C$. If
+\[
+A;E\vdash \sigma_v\Sub\iota,C\cup C'
+\]
+is derivable, then $v$ is a nullary constant. If
+\[
+A;E\vdash \sigma_v\Sub\sigma\R\tau,C\cup C'
+\]
+is derivable, then $v$ is a lambda abstraction.
+
 \subsection{Progress} Let $t$ be a closed well-typed term. Which
 is to say, there exists a type $\tau_0$ such that for some
 $\tau$, $A$, $C$ and $C'$,
@@ -601,20 +668,16 @@ A;\emptyset&\vdash \beta\Sub\tau_0,
 \sigma_0\Sub\alpha\R\beta,\sigma_1\Sub\alpha,C_0\cup C_1,
 \label{eq:prog0}
 \end{align}
-where $\sigma_0\Given C_0$ is the constrained type of $s_0$ and
-$\sigma_1\Given C_1$ is the constrained type of $s_1$. If $s_0$
-is a nullary constant, then $\sigma_0=\iota$ for some base type
-$\iota$, and \eqref{eq:prog0} would be impossible to derive
-(\S\ref{segre}). Therefore $s_0$ is a lambda abstraction, and $t$
-is a $\beta$-redex.
+where $\sigma_0\Given C_0$ is the constrained type of $s_0$, and
+$\sigma_1\Given C_1$ is the constrained type of $s_1$. Since
+\eqref{eq:prog0} is derivable, $s_0$ is a lambda abstraction
+(\S\ref{segre-values}), and $t$ is a $\beta$-redex.
 
-\Case$t=c~s_1~\cdots~s_n$: If $n=0$, then $t$ is a value. If
-$n>0$ and one
-of the $s_i$ is reducible, then $t$ is reducible. If all $s_i$
-are values, then by \S\ref{segre}, they cannot be anything other
-than nullary constants of the appropriate ground types. Progress
-follows from $\delta$-typability (displayed equation on
-page~\pageref{delta-typability}).
+\Case$t=c~s_1~\cdots~s_n$: If $n=0$ and $c$ has a base type, then
+$t=c$ is a value. If $n>0$ and one of the $s_i$ is reducible,
+then $t$ is reducible via the congruence rule \textsc{E-Con}. If
+$n>0$ and all $s_i$ are values, then by $\delta$-typability
+(\S\ref{eval}), $t$ is a $\delta$-redex.
 \end{proof}
 
 \input{bib.tex}\end{document}
