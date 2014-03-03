@@ -65,10 +65,6 @@ cons = λx : _0_. λxs : _1_. λz : _2_. λf : _3_. (f x (xs z f))
 
 type MatchList η = ∀ξ. ξ → (η → List η → ξ) → ξ
 
-. If we do not annotate ys,
-. then  f x ys   is also well-typed as a body.
-. It is not what we meant.
-. Thus, annotate somewhat to guard against errors.
 matchList : ∀α. List α → MatchList α
 matchList = λxs : _0_.
   xs const
