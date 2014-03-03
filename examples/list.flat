@@ -3,6 +3,9 @@
 auto : (∀ω. ω → ω) → (∀ω. ω → ω)
 auto = λx : ∀ω. ω → ω. x x
 
+const : ∀ β γ. β -> γ -> β
+const = λx : α. λy : β. x
+
 flip : ∀α β γ. (α → β → γ) → (β → α → γ)
 flip = λf : α → β → γ. λy : β. λx : α. f x y
 
@@ -45,9 +48,10 @@ inj₂ = λy : β. λf : α → γ. λg : β → γ. g y
 type List α = ∀β. β → (α → β → β) → β
 
 . List is desugared to (∀α. List α)
-.nil : List
+nil : ∀α. List α
 nil = const
 
+cons : ∀α. α → List α → List α
 cons = λx : α. λxs : List α. λz : β. λf : α → β → β. (f x (xs z f))
 
 . BӦHM-BERADUCCI ENCODING FOR PATTERN MATCHING ON LISTS
@@ -57,7 +61,7 @@ type MatchList η = ∀ξ. ξ → (η → List η → ξ) → ξ
 matchList : ∀α. List α → MatchList α
 matchList = λxs : List α.
   xs const
-     (λx : α. λys : MatchList α. Λβ. λz : β. λf : α → List α → β.
+     (λx : α. λys : MatchList α. Λ. λz : β. λf : α → List α → β.
        f x (ys nil cons))
 
 map : ∀α β. (α → β) → List α → List β
@@ -89,82 +93,13 @@ ana-ℤ = λn : ℤ. iterate n nil cons
 sum : List ℤ → ℤ
 sum = λns : List ℤ. ns 0 +
 
-.sum (cons 1 (cons 2 (cons 3 (cons 4 (cons 5 nil)))))
+sum (cons 1 (cons 2 (cons 3 (cons 4 (cons 5 nil)))))
 
 list1-5 : List ℤ
 list1-5 = ana-ℤ 5
 
-.head nil
+head nil
 
-.tail nil
+tail nil
 
-.map (* 2)
-
-const = λx : α. λy : β. x
-
-match2 : ℤ → MatchList ℤ → MatchList ℤ
-
-nConst : (ℤ → MatchList ℤ → MatchList ℤ) -> MatchList ℤ
-
-.okay
-.rant
- (ns const match2 : MatchList ℤ)
-
-.okay
-.rant
- (ns const : (ℤ → MatchList ℤ → MatchList ℤ) -> MatchList ℤ)
-
-.okay
-.rant
- ((λx : Int. λys : MatchList Int. λz : β. λf : Int → List Int → β.
-      f x (ys nil cons))
-  : ℤ → MatchList ℤ → MatchList ℤ)
-
-.okay
-.rant
- nConst
-  (λx : Int. λys : MatchList Int. λz : β. λf : Int → List Int → β.
-    f x (ys nil cons)) : MatchList Int
-
-.okay
-.rant
- (ns const
-  (λx : Int. λys : MatchList Int. λz : β. λf : Int → List Int → β.
-      f x (ys nil cons))
-  )
-
-.bad
-.rant
- (ns const
-  (λx : Int. λys : MatchList Int. λz : β. λf : Int → List Int → β.
-      f x (ys nil cons))
-  : MatchList Int)
-
-ns : ∀ α. α -> (ℤ -> α -> α) -> α
-
-const : ∀ β γ. β -> γ -> β
-
-nil : ∀ θ κ. κ -> (θ -> κ -> κ) -> κ
-
-cons : ∀ μ. μ ->
-                (∀ ξ.  ξ  -> (μ -> ξ  -> ξ ) -> ξ ) ->
-                (∀ ρ. ρ -> (μ -> ρ -> ρ) -> ρ)
-
-(ns const (
-   \abs x  : ℤ.
-   \abs ys : ∀ δ.
-               δ ->
-               (ℤ -> (∀ ε. ε -> (ℤ -> ε -> ε) -> ε) -> δ) ->
-               δ.
-   \Tabs ζ.
-   \abs z  : ζ.
-   \abs w  : ℤ -> (∀ η. η -> (ℤ -> η -> η) -> η) -> ζ.
-     w x (ys nil cons)
- ))
- 
- .rant (bad)
- :
- ∀ σ.
-    σ ->
-    (ℤ -> (∀ τ. τ -> (ℤ -> τ -> τ) -> τ) -> σ) ->
-    σ
+sum (map (* 2) list1-5)

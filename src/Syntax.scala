@@ -243,7 +243,7 @@ trait SyntaxFactories extends Presyntax {
     def symbol = Seq("∃", """\ex""")
   }
 
-  val typeOps: List[Operator] =
+  lazy val typeOps: List[Operator] =
     List(
       Universal,
       Universal.collapsed,
@@ -254,7 +254,7 @@ trait SyntaxFactories extends Presyntax {
       ParenthesizedType,
       FreeTypeVar)
 
-  val termOps: List[Operator] =
+  lazy val termOps: List[Operator] =
     List(
       TypeAbstraction,
       AnnotatedAbstraction) ++

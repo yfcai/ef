@@ -5,6 +5,42 @@ trait FlatTypes
        with MinimalQuantification
        with ConstrainedTypes
 {
+  override lazy val termOps: List[Operator] =
+    List(
+      PolymorphismMarker,
+      AnnotatedAbstraction,
+      IfThenElse,
+      Ascription,
+      Instantiation,
+      Application,
+      ParenthesizedTerm,
+      FreeVar)
+
+  // polymorphism marker: for performance.
+  case object PolymorphismMarker extends Operator {
+    def genus = Term
+    def symbol = Seq("Λ", """\polymorphic""")
+
+    override def precondition(items: Seq[Tree]): Boolean =
+      items.length > 2 &&
+      fixity.hasBody(items.head, symbol) &&
+      fixity.hasBody(items.tail.head, ".")
+
+    val fixity: Fixity = new Fixity {
+      def splits(items: Items): Iterator[ItemGroups] =
+        Iterator(Seq(items drop 2))
+    }
+
+    def tryNext: Seq[Seq[Operator]] = Seq(termOps)
+
+    def cons(children: Seq[Tree]): Tree = ⊹(this, children.head)
+
+    override def unparse(t: Tree): String = t match {
+      case ⊹(tag, body) if tag == this =>
+        s"Λ. ${body.unparse}"
+    }
+  }
+
   // if ill-typed, throw tantrum.
   def typeCheck(m: Module):
       Either[Problem, Seq[(Option[String], Tree, Tree, Token)]] = {
@@ -99,14 +135,14 @@ trait FlatTypes
           val CType(rep, cs, org) = collect(t, gamma, abc)
           CType(τ, ⊑(rep, τ) :: cs, org)
 
-        // on type abstraction,
+        // on polymorphism marker,
         // put everything inside representative,
         // including things generated so far.
         // we don't care what alpha is, so long it is something.
         // it makes sense to do this at every abstraction,
         // but it is costly,
-        // so we do it once, at the marked place.
-        case Λ(alpha, t) =>
+        // so we do it once for each marked place.
+        case ⊹(PolymorphismMarker, t) =>
           val CType(rep, cs, org) = collect(t, gamma, abc)
           // No smart-Alex pruning of constraints here.
           // Each type abstraction doubles the number of constraints.
