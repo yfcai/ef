@@ -1,19 +1,26 @@
 . PRELUDE
 
+. ill-typed with the signature
+.   auto : ∀α. α → α
+. even as we do not annotate the argument type.
 auto : (∀ω. ω → ω) → (∀ω. ω → ω)
-auto = λx : ∀ω. ω → ω. x x
+auto = λx : _0_. x x
+
+. Ω is always ill-typed.
+.Ω : ∃i. i
+.Ω = (λx : _0_. x x) (λx : _1_. x x)
 
 const : ∀ β γ. β -> γ -> β
-const = λx : α. λy : β. x
+const = λx : _0_. λy : _1_. x
 
 flip : ∀α β γ. (α → β → γ) → (β → α → γ)
-flip = λf : α → β → γ. λy : β. λx : α. f x y
+flip = λf : _0_. λy : _1_. λx : _2_. f x y
 
 id : ∀ι. ι → ι
-id = λx : α. x
+id = λx : _0_. x
 
 compose : ∀β γ. (β → γ) → ∀α. (α → β) → (α → γ)
-compose = λg : β → γ. λf : α → β. λx : α. g (f x)
+compose = λg : _0_. λf : _1_. λx : _2_. g (f x)
 
 
 . CONJUNCTION
@@ -21,13 +28,13 @@ compose = λg : β → γ. λf : α → β. λx : α. g (f x)
 type Pair α β = ∀γ. (α → β → γ) → γ
 
 pair : ∀α β. α → β → Pair α β
-pair = λx : α. λy : β. λf : α → β → γ. f x y
+pair = λx : _0_. λy : _1_. λf : _2_. f x y
 
 proj₁ : ∀α β. Pair α β → α
-proj₁ = λp : Pair α β. p const
+proj₁ = λp : _0_. p const
 
 proj₂ : ∀α β. Pair α β → β
-proj₂ = λp : Pair α β. p (flip const)
+proj₂ = λp : _0_. p (flip const)
 
 
 . DISJUNCTION
@@ -35,10 +42,10 @@ proj₂ = λp : Pair α β. p (flip const)
 type Either α β = ∀γ. (α → γ) → (β → γ) → γ
 
 inj₁ : ∀α β. α → Either α β
-inj₁ = λx : α. λf : α → γ. λg : β → γ. f x
+inj₁ = λx : _0_. λf : _1_. λg : _2_. f x
 
 inj₂ : ∀α β. β → Either α β
-inj₂ = λy : β. λf : α → γ. λg : β → γ. g y
+inj₂ = λy : _0_. λf : _1_. λg : _2_. g y
 
 . a disjunction is its own elimination form
 
@@ -52,46 +59,51 @@ nil : ∀α. List α
 nil = const
 
 cons : ∀α. α → List α → List α
-cons = λx : α. λxs : List α. λz : β. λf : α → β → β. (f x (xs z f))
+cons = λx : _0_. λxs : _1_. λz : _2_. λf : _3_. (f x (xs z f))
 
 . BӦHM-BERADUCCI ENCODING FOR PATTERN MATCHING ON LISTS
 
 type MatchList η = ∀ξ. ξ → (η → List η → ξ) → ξ
 
+. If we do not annotate ys,
+. then  f x ys   is also well-typed as a body.
+. It is not what we meant.
+. Thus, annotate somewhat to guard against errors.
 matchList : ∀α. List α → MatchList α
 matchList = λxs : List α.
   xs const
      (λx : α. λys : MatchList α. Λ. λz : β. λf : α → List α → β.
        f x (ys nil cons))
 
+. Even without annotations,
+. the following bodies are ill-typed:
+.   xs nil cons
+.   xs nil f
 map : ∀α β. (α → β) → List α → List β
-map = λf : α → β. λxs : List α.
-  xs nil (compose cons f)
+map = λf : _0_. λxs : _1_. xs nil (compose cons f)
 
 concat : ∀α. List α → List α → List α
-concat = λxs : List α. λys : List α. xs ys cons
+concat = λxs : _0_. λys : _1_. xs ys cons
 
 concatMap : ∀α β. (α → List β) → List α → List β
-concatMap = λf : α → List β. λxs : List α.
-  xs nil (λx : α. concat (f x))
+concatMap = λf : _0_. λxs : _1_. xs nil (compose concat f)
 
 filter : ∀α. (α → Bool) → List α → List α
-filter = λp : α → Bool. λxs : List α.
-  xs nil (λx : α. if p x then cons x else id)
+filter = λp : _0_. λxs : _1_. xs nil (λx : _3_. if p x then cons x else id)
 
 . USAGE
 
 head : ∀α. List α → α
-head = λxs : List α. xs ??? const
+head = λxs : _0_. xs ??? const
 
 tail : ∀α. List α → List α
-tail = λxs : List α. matchList xs ??? (flip const)
+tail = λxs : _0_. matchList xs ??? (flip const)
 
 ana-ℤ : ℤ → List ℤ
-ana-ℤ = λn : ℤ. iterate n nil cons
+ana-ℤ = λn : _0_. iterate n nil cons
 
 sum : List ℤ → ℤ
-sum = λns : List ℤ. ns 0 +
+sum = λns : _0_. ns 0 +
 
 sum (cons 1 (cons 2 (cons 3 (cons 4 (cons 5 nil)))))
 
