@@ -16,6 +16,9 @@ trait FlatTypes
       ParenthesizedTerm,
       FreeVar)
 
+  // absoluteFlag: if set, insert polymorphism markers everywhere
+  def absoluteFlag: Boolean = ! manualFlag
+
   // polymorphism marker: for performance.
   case object PolymorphismMarker extends Operator {
     def genus = Term

@@ -72,7 +72,7 @@ type MatchList η = ∀ξ. ξ → (η → List η → ξ) → ξ
 matchList : ∀α. List α → MatchList α
 matchList = λxs : List α.
   xs const
-     (λx : α. λys : MatchList α. Λ. λz : β. λf : α → List α → β.
+     (λx : α. λys : MatchList α. λz : β. λf : α → List α → β.
        f x (ys nil cons))
 
 . Even without annotations,

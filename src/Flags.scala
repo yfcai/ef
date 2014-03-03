@@ -47,6 +47,6 @@ trait Flags {
   def I_hate_unicode =
     ! unicodeFlag & (I_am_Windows | asciiFlag)
 
-  // whether to insert polymorphism marker everywhere
-  def absoluteFlag: Boolean = flag("absolute")
+  // do not insert polymorphism marker everywhere
+  def manualFlag: Boolean = flag("manual")
 }
