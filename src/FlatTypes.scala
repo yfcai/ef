@@ -227,10 +227,8 @@ trait FlatTypes
         breakUp(prefix, τ0 ⊑ σ0 :: σ1 ⊑ τ1 :: rest, avoid)
 
       // deal with constrained types
+      // constrained type will never happen on RHS
       case ConstrainedType(σ, cs) ⊑ τ :: rest =>
-        breakUp(prefix, σ ⊑ τ :: cs.toList ++ rest, avoid)
-
-      case σ ⊑ ConstrainedType(τ, cs) :: rest =>
         breakUp(prefix, σ ⊑ τ :: cs.toList ++ rest, avoid)
 
       // do not break up if 1 side is a universal
