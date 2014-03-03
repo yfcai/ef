@@ -47,6 +47,6 @@ trait Flags {
   def I_hate_unicode =
     ! unicodeFlag & (I_am_Windows | asciiFlag)
 
-  // whether should do minimal quantification
-  def mqFlag: Boolean = flag("mq")
+  // whether to insert polymorphism marker everywhere
+  def absoluteFlag: Boolean = flag("absolute")
 }

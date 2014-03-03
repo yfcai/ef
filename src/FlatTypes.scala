@@ -92,38 +92,47 @@ trait FlatTypes
       }).toList
     }
 
-    // override `resolve` to input minimally quantified types only?
-    override def resolve(tau: Tree): Tree =
-      if (mqFlag) {
-        val x = super.resolve(tau)
-        val y = quantifyMinimally(x, x.freeNames)
-        if (! x.α_equiv(y))
-        println(s"\n\nFOUND ${x.unparse}  !=  ${y.unparse}\n\n")
-        y
-      }
-      else
-        super.resolve(tau)
-
     // ensure: representative is minimally quantified
     // initial value of name generator should be ABCSong
     // avoiding freenames in term
     def collect(term: Tree, gamma: Gamma, abc: ABCSong):
-        CType =
-      term match {
+        CType = {
+      def loop(term: Tree, gamma: Gamma, abc: ABCSong, delta: Set[String]):
+          CType = term match {
         case χ(x) =>
           // eliminate undeclared variable in a previous scan
           CType(resolve(gamma(x)), Nil, Map.empty)
 
         case λ(x, σ0, body) =>
-          val σ = resolve(σ0) // for rep.
-          val CType(τ, constraints, origin) =
-            collect(body, gamma.updated(x, σ), abc)
-          CType(→(σ, τ), constraints, origin)
+          if (absoluteFlag) {
+            val σ = resolve(σ0)
+            val newTypeVars = σ.freeNames -- delta
+            val CType(τ, cs, origin) =
+              loop(body, gamma.updated(x, σ), abc, delta ++ newTypeVars)
+            // optimization: refrain from duplicating too much
+            if (newTypeVars.isEmpty)
+              CType(→(σ, τ), cs, origin)
+            else {
+              val rep = →(σ, τ)
+              val degreesOfFreedom =
+                cs.foldRight(rep.freeNames)(_.freeNames ++ _).toSeq
+              val newRep = if (cs.isEmpty) rep else ConstrainedType(rep, cs)
+              CType(
+                ∀(degreesOfFreedom, newRep),
+                cs, origin)
+            }
+          }
+          else {
+            val σ = resolve(σ0) // for rep.
+            val CType(τ, constraints, origin) =
+              loop(body, gamma.updated(x, σ), abc, delta)
+            CType(→(σ, τ), constraints, origin)
+          }
 
         case f ₋ x =>
           val (a, b) = (æ(abc.next), æ(abc.next))
-          val CType(fType, fCons, fOrg) = collect(f, gamma, abc)
-          val CType(xType, xCons, xOrg) = collect(x, gamma, abc)
+          val CType(fType, fCons, fOrg) = loop(f, gamma, abc, delta)
+          val CType(xType, xCons, xOrg) = loop(x, gamma, abc, delta)
           CType(
             b,
             ⊑(fType, →(a, b)) :: ⊑(xType, a) :: fCons ++ xCons,
@@ -132,7 +141,7 @@ trait FlatTypes
 
         case Ascr(t, τ0) =>
           val τ = resolve(τ0)
-          val CType(rep, cs, org) = collect(t, gamma, abc)
+          val CType(rep, cs, org) = loop(t, gamma, abc, delta)
           CType(τ, ⊑(rep, τ) :: cs, org)
 
         // on polymorphism marker,
@@ -143,15 +152,23 @@ trait FlatTypes
         // but it is costly,
         // so we do it once for each marked place.
         case ⊹(PolymorphismMarker, t) =>
-          val CType(rep, cs, org) = collect(t, gamma, abc)
-          // No smart-Alex pruning of constraints here.
-          // Each type abstraction doubles the number of constraints.
-          val degreesOfFreedom =
-            cs.foldRight(rep.freeNames)(_.freeNames ++ _).toSeq
-          CType(
-            ∀(degreesOfFreedom, ConstrainedType(rep, cs)),
-            cs, org)
+          val ct = loop(t, gamma, abc, delta)
+          if (absoluteFlag)
+            ct
+          else {
+            val CType(rep, cs, org) = ct
+            // No smart-Alex pruning of constraints here.
+            // Each type abstraction doubles the number of constraints.
+            val degreesOfFreedom =
+              cs.foldRight(rep.freeNames)(_.freeNames ++ _).toSeq
+            val newRep = if (cs.isEmpty) rep else ConstrainedType(rep, cs)
+            CType(
+              ∀(degreesOfFreedom, newRep),
+              cs, org)
+          }
       }
+      loop(term, gamma, abc, gamma.types)
+    }
 
     def getLoner(prefix: List[String], constraints: List[Tree]):
         Option[String] = {

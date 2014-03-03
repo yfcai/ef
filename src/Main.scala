@@ -26,6 +26,8 @@ object Main extends ARGV0 with Calculi {
               |${Generator.commands}
               |Flags
               |
+              | -absolute insert polymorphism marker everywhere
+              |
               | -ascii    do not print unicode
               |
               | -debug    step through constraint solver on type error
