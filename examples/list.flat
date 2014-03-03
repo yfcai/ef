@@ -70,10 +70,9 @@ type MatchList η = ∀ξ. ξ → (η → List η → ξ) → ξ
 . It is not what we meant.
 . Thus, annotate somewhat to guard against errors.
 matchList : ∀α. List α → MatchList α
-matchList = λxs : List α.
+matchList = λxs : _0_.
   xs const
-     (λx : α. λys : MatchList α. λz : β. λf : α → List α → β.
-       f x (ys nil cons))
+     (λx : _1_. λys : MatchList α. λz : _3_. λf : _4_. f x (ys nil cons))
 
 . Even without annotations,
 . the following bodies are ill-typed:
@@ -108,22 +107,10 @@ sum = λns : _0_. ns 0 +
 list1-5 : List ℤ
 list1-5 = ana-ℤ 5
 
-.head nil
+head nil
 
-.tail nil
+tail nil
 
-.sum (cons 1 (cons 2 (cons 3 (cons 4 (cons 5 nil)))))
+sum (cons 1 (cons 2 (cons 3 (cons 4 (cons 5 nil)))))
 
-.sum (map (* 2) list1-5)
-
-sum' : List ℤ → ℤ
-sum' = λxs : _0_. matchWhat xs 0 (λn : _1_. λxs : _2_. + n (sum xs))
-
-.sum' (cons 1 (cons 2 (cons 3 nil)))
-
-matchWhat : ∀α. List α → MatchList α
-matchWhat = λxs : _0_.
-  xs const (λx : _1_. λys : _2_. λz : _3_. λf : _4_. f x ys)
-
-(λxs : _xs. xs const (λx : _x. λys : _ys. Λ. λz : _z. λf : _f. f x ys))
-  : ∀α. List α → MatchList α
+sum (map (* 2) list1-5)
