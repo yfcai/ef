@@ -26,15 +26,20 @@
 &::=& \iota &\mbox{base type}\\
 &|& \alpha & \mbox{type variable} \\
 &|& \tau \rightarrow \tau & \mbox{function type} \\
-&|& \All\alpha\tau
-&
-\mbox{universal type, requires }
-\alpha\in\FTV(\tau)\text{ and }\tau\neq\alpha
+&|& \tau\R\tau\Given C&\mbox{constrained function type}\\
+&|& \All\alpha\tau&\mbox{universal type, as long as $\tau$ is}\\
+&&&\quad\mbox{neither base type nor type variable}
+\\
+\\
+\mbox{constraints}\\
+C
+&::=&\emptyset\\
+&|& \tau\Sub\tau,C
 \\
 \\
 \mbox{term}\\
 s, t & ::= & x & \mbox{variable} \\
-& | & \Abs{x:\sigma}t  & \mbox{lambda abstraction} \\
+& | & \Abs{x:\tau}t  & \mbox{lambda abstraction} \\
 & | & t_1~t_2 & \mbox{function application} \\
 & | & c~t_1~\cdots~t_n& \mbox{$n$-nary constant}
 \end{syntax}
@@ -69,6 +74,16 @@ A;E\vdash C
 }
 {A;E \vdash \tau\Sub\tau,C}
 
+% Reason of existence: sublem
+\infrule[S-Dupe]
+{A;E\vdash \sigma\Sub\tau, C}
+{A;E\vdash \sigma\Sub\tau, \sigma\Sub\tau, C}
+
+% Reason of existence: sublem.
+\infrule[S-Trans]
+{A;E\vdash \tau_0\Sub\tau_1,\tau_1\Sub\tau_2,C}
+{A;E\vdash \tau_0\Sub\tau_2,C}
+
 \infrule[S-Arrow]
 {A;E\vdash\tau_0\Sub\sigma_0,\sigma_1\Sub\tau_1,C}
 {A;E\vdash\sigma_0\R\sigma_1\Sub\tau_0\R\tau_1,C}
@@ -85,35 +100,39 @@ A;E\vdash
 \alpha\Sub\tau_1,\ldots,\alpha\Sub\tau_n,C
 }
 
-\infrule[S-Al]
+\infrule[S-LI]
 {\alpha\notin A\cup E\cup\FTV(\tau)\cup\FTV(C)
 \andalso
 \alpha,A;E\vdash\sigma\Sub\tau,C}
 {A;E\vdash(\All\alpha\sigma)\Sub\tau,C}
 
-\infrule[S-Er]
+\infrule[S-LE]
+{\alpha\notin A\cup E\cup\FTV(\tau)\cup\FTV(C)
+\andalso
+A;E\vdash(\All\alpha\sigma)\Sub\tau,C}
+{\alpha,A;E\vdash\sigma\Sub\tau,C}
+
+\infrule[S-RI]
 {\alpha\notin A\cup E\cup\FTV(\tau)\cup\FTV(C)
 \andalso
 A;\alpha,E\vdash\sigma\Sub\tau,C}
 {A;E\vdash\sigma\Sub(\All\alpha\tau),C}
 
-% Reason of existence: CT-App.
-\infrule[S-Dupe]
-{A;E\vdash \sigma\Sub\tau, C}
-{A;E\vdash \sigma\Sub\tau, \sigma\Sub\tau, C}
+\infrule[S-CI]
+{A;E\vdash \sigma\Sub\tau,C_\sigma\cup C}
+{A;E\vdash (\sigma\Given C_\sigma)\Sub\tau,C}
 
-% Reason of existence: CT-App.
+\infrule[S-CE]
+{A;E\vdash (\sigma\Given C_\sigma)\Sub\tau,C}
+{A;E\vdash \sigma\Sub\tau,C_\sigma\cup C}
 
-% Reason of existence: Substitution lemma.
-\infrule[S-Trans]
-{A;E\vdash \sigma\Sub\tau,\tau\Sub\tau',C}
-{A;E\vdash \sigma\Sub\tau',C}
+Note that there are no analogues of \textsc{S-CI} or
+\textsc{S-CE} about constrained types on right hand side of a
+subtype constraint. There is the introduction rule \textsc{S-RI}
+without a corresponding elimination rule.
 
 \subsection{Constrained typing}
 \begin{syntax}
-\mbox{constrained type}
-&::=&\tau \Given C
-\\\\
 \mbox{constrained typing judgement}
 &::=&\Gamma \vdash t : \tau \Given C
 \end{syntax}%
@@ -146,6 +165,13 @@ A;\alpha,E\vdash\sigma\Sub\tau,C}
 \sigma_1\Sub\tau_1,\ldots,\sigma_n\Sub\tau_n,
 {\textstyle\bigcup_{i=1}^n C_i}
 }
+
+\infrule[CT-Poly]
+{
+\alpha_1,\ldots,\alpha_n\notin\FTV(\Gamma)
+\andalso
+\Gamma\vdash t : \sigma\R\tau \Given C}
+{\Gamma\vdash t : (\All{\alpha_1\cdots\alpha_n}\sigma\R\tau\Given C)\Given C}
 
 In \textsc{CT-Con}, the types $\tau_c,\tau_1,\ldots,\tau_n$
 depends on $c$ alone. One constant $c$ may have multiple
@@ -242,6 +268,8 @@ of preservation (\S\ref{preservation}) is nontrivial, though.
 
 \subsection{Substitution lemma}
 \label{sublem}
+\def\Xdef{w}
+\def\Exigent{\emptyset}
 We set out to prove that if $t$ can be typed $\tau_0$, then after
 a well-typed substitution it can still be typed $\tau_0$.
 
@@ -250,16 +278,17 @@ the following judgements are derivable.
 \begin{align}
 \Gamma,x:\sigma_x&\vdash t:\tau\Given C_t \notag
 \\
-\Gamma&\vdash v:\sigma_v \Given C_v \notag
+\Gamma&\vdash \Xdef:\sigma_\Xdef \Given C_\Xdef \notag
 \\
-A;\emptyset&\vdash
-\sigma_v\Sub\sigma_x, \tau\Sub\tau_0,C_t\cup C_v\cup\Piggy
+A;\Exigent&\vdash
+\sigma_\Xdef\Sub\sigma_x, \tau\Sub\tau_0,C_t\cup C_\Xdef\cup\Piggy
 \label{eq:subass}
 \end{align}
-Then there exist $\tau'$ and $C'$ such that we can derive
+Then there exist $A'$, $\tau'$, $C'$ and a set of constraints
+$\Piggy'\supseteq\Piggy$ such that we can derive
 \begin{align*}
-A;\Gamma&\vdash t[x\mapsto v] : \tau'\Given C',\\
-A;\emptyset &\vdash \tau'\Sub\tau_0, C_t\cup C_v\cup C'\cup\Piggy.
+A';\Gamma&\vdash t[x\mapsto \Xdef] : \tau'\Given C',\\
+A';\Exigent &\vdash \tau'\Sub\tau_0, C_t\cup C_\Xdef\cup C'\cup\Piggy'.
 \end{align*}
 
 \begin{proof}
@@ -270,21 +299,21 @@ case analysis on the last rule used.
 specialized to the simple form below.
 \begin{samepage}
 \begin{align}
-\Gamma,x:\sigma&\vdash x:\sigma_x\Given\emptyset
+\Gamma,x:\sigma&\vdash x:\sigma_x\Given\Exigent
 \notag
 \\
-\Gamma&\vdash v:\sigma_v\Given C_v
+\Gamma&\vdash \Xdef:\sigma_\Xdef\Given C_\Xdef
 \label{eq:subvar1}
 \\
-A;\emptyset&\vdash \sigma_v\Sub\sigma_x,\sigma_x\Sub\tau_0,C_v\cup\Piggy
+A;\Exigent&\vdash \sigma_\Xdef\Sub\sigma_x,\sigma_x\Sub\tau_0,C_\Xdef\cup\Piggy
 \label{eq:subvar2}
 \end{align}
 \end{samepage}%
-Since $t[x\mapsto v]=v$, the desired constrained typing judgement
+Since $t[x\mapsto \Xdef]=\Xdef$, the desired constrained typing judgement
 is exactly \eqref{eq:subvar1}. The desired subtype judgement
 follows from one use of \textsc{S-Trans} on \eqref{eq:subvar2}.
 \[
-A;\emptyset\vdash \sigma_v\Sub\tau_0,C_v\cup\Piggy.
+A;\Exigent\vdash \sigma_\Xdef\Sub\tau_0,C_\Xdef\cup\Piggy.
 \]
 
 \Case\textsc{CT-Abs}: $t=\Abs{y:\sigma_y}s$.
@@ -294,55 +323,56 @@ A;\emptyset\vdash \sigma_v\Sub\tau_0,C_v\cup\Piggy.
 {\Gamma\vdash(\Abs{y:\sigma_y}s):\sigma_y\R\tau_s \Given C_s}
 Assumption~\eqref{eq:subass} translates to
 \[
-A;\emptyset\vdash
-\sigma_v\Sub\sigma_x,
-\sigma_y\R\tau_s\Sub\tau_0,C_s\cup C_v\cup\Piggy.
+A;\Exigent\vdash
+\sigma_\Xdef\Sub\sigma_x,
+\sigma_y\R\tau_s\Sub\tau_0,C_s\cup C_\Xdef\cup\Piggy.
 \]
 By \textsc{S-Refl},
 \[
-A;\emptyset\vdash
+A;\Exigent\vdash
     \tau_s\Sub\tau_s,
-\sigma_v\Sub\sigma_x,
-\sigma_y\R\tau_s\Sub\tau_0,C_s\cup C_v\cup\Piggy.
+\sigma_\Xdef\Sub\sigma_x,
+\sigma_y\R\tau_s\Sub\tau_0,C_s\cup C_\Xdef\cup\Piggy.
 \]
 Since the constrained typing of $t$ contains a derivation for
 \[\yasump,\]
 we invoke the induction hypothesis with the piggyback
 $(\sigma_y\R\tau_s\Sub\tau_0,\Piggy)$ to conclude that for some
-appropriate $A$ and argument type annotations,
+appropriate $A'$ and argument type annotations,
 \begin{align}
-s'&=s[x\mapsto v]\notag
+s'&=s[x\mapsto \Xdef]\notag
 \\
-A;\Gamma,y:\sigma_y&\vdash s' : \tau_s'\Given C'
+A';\Gamma,y:\sigma_y&\vdash s' : \tau_s'\Given C'
 \label{eq:subabs1}
 \\
-A;\emptyset&\vdash
+A';\Exigent&\vdash
     \tau_s'\Sub\tau_s,
-\sigma_y\R\tau_s\Sub\tau_0,C_s\cup C_v\cup C'\cup\Piggy.
+\sigma_y\R\tau_s\Sub\tau_0,C_s\cup C_\Xdef\cup C'\cup\Piggy',
 \label{eq:subabs2}
 \end{align}
-By \eqref{eq:subabs1} and \textsc{CT-Abs},
+where $\Piggy'\supseteq\Piggy$. By \eqref{eq:subabs1} and
+\textsc{CT-Abs},
 \[
-A;\Gamma\vdash(\Abs{y:\sigma_y}.s)[x\mapsto v] : \sigma_y\R\tau_s'\Given C'.
+A';\Gamma\vdash(\Abs{y:\sigma_y}.s)[x\mapsto \Xdef] : \sigma_y\R\tau_s'\Given C'.
 \]
 By \eqref{eq:subabs2} and \textsc{S-Refl},
 \[
-A;\emptyset\vdash
+A';\Exigent\vdash
     \sigma_y\Sub\sigma_y,
     \tau_s'\Sub\tau_s,
-\sigma_y\R\tau_s\Sub\tau_0,C_s\cup C_v\cup C'\cup\Piggy.
+\sigma_y\R\tau_s\Sub\tau_0,C_s\cup C_\Xdef\cup C'\cup\Piggy'.
 \]
 \textsc{S-Arrow} produces
 \[
-A;\emptyset\vdash
+A';\Exigent\vdash
     \sigma_y\R\tau_s'\Sub\sigma_y\R\tau_s,
-\sigma_y\R\tau_s\Sub\tau_0,C_s\cup C_v\cup C'\cup\Piggy
+\sigma_y\R\tau_s\Sub\tau_0,C_s\cup C_\Xdef\cup C'\cup\Piggy'
 \]
 and \textsc{S-Trans} concludes
 \[
-A;\emptyset\vdash
+A';\Exigent\vdash
     \sigma_y\R\tau_s'\Sub\tau_0,
-C_s\cup C_v\cup C'\cup\Piggy.
+C_s\cup C_\Xdef\cup C'\cup\Piggy'.
 \]
 
 \Case\textsc{CT-App}: $t=s_1~s_2$.
@@ -361,10 +391,10 @@ C_t=\sigma_1\Sub\alpha\R\beta,\sigma_2\Sub\alpha,C_1\cup C_2,
 \]
 then assumption~\eqref{eq:subass} becomes
 \[
-A;\emptyset\vdash
-  \sigma_v\Sub\sigma_x,
+A;\Exigent\vdash
+  \sigma_\Xdef\Sub\sigma_x,
   \beta\Sub\tau_0,
-  C_t\cup C_v\cup\Piggy.
+  C_t\cup C_\Xdef\cup\Piggy.
 \]
 Set
 \[
@@ -372,48 +402,49 @@ D=
 \sigma_1\Sub\alpha\R\beta,
 \sigma_1\Sub\alpha\R\beta,
 \sigma_2\Sub\alpha,
-\sigma_2\Sub\alpha,C_1\cup C_2\cup C_v.
+\sigma_2\Sub\alpha,C_1\cup C_2\cup C_\Xdef.
 \]
 Some uses of \textsc{S-Dupe} and \textsc{S-Refl} produce
 \[
-A;\emptyset\vdash
+A;\Exigent\vdash
   \sigma_1\Sub\sigma_1,
-  \sigma_v\Sub\sigma_x,\sigma_v\Sub\sigma_x,
+  \sigma_\Xdef\Sub\sigma_x,\sigma_\Xdef\Sub\sigma_x,
   \beta\Sub\tau_0,
   D\cup\Piggy.
 \]
 Invoking the induction hypothesis on $s_1$, we obtain
 \begin{align}
-s_1'&=s_1[x\mapsto v]\notag,
+s_1'&=s_1[x\mapsto \Xdef]\notag,
 \\
 \Gamma&\vdash s_1' : \sigma_1' \Given C_1',
 \label{eq:subapp1}
 \\
-A_1';\emptyset&\vdash
-  \sigma_v\Sub\sigma_x,
+A_1';\Exigent&\vdash
+  \sigma_\Xdef\Sub\sigma_x,
   \sigma_1'\Sub\sigma_1,
   \beta\Sub\tau_0,
-  D\cup\Piggy.
+  D\cup\Piggy_1,
 \label{eq:subapp2}
 \end{align}
-From \eqref{eq:subapp2}, \textsc{S-Refl} produces
+where $\Piggy_1\supseteq\Piggy$. From \eqref{eq:subapp2},
+\textsc{S-Refl} produces
 \begin{align}
-A_1';\emptyset\vdash
+A_1';\Exigent\vdash
   \sigma_2\Sub\sigma_2,
-  \sigma_v\Sub\sigma_x,
+  \sigma_\Xdef\Sub\sigma_x,
   \sigma_1'\Sub\sigma_1,
   \beta\Sub\tau_0,
-  D\cup C_1'\cup\Piggy.
+  D\cup C_1'\cup\Piggy_1.
 \label{eq:subappf}
 \end{align}
 Invoking the induction hypothesis on $s_2$ and \eqref{eq:subapp2}
 produces
 \begin{align}
-A_2';\emptyset&\vdash
+A_2';\Exigent&\vdash
   \sigma_1'\Sub\sigma_1,
   \sigma_2'\Sub\sigma_2,
   \beta\Sub\tau_0,
-  D\cup C_1'\cup C_2'\cup\Piggy
+  D\cup C_1'\cup C_2'\cup\Piggy_2
 \notag\\
 &\vdash
   \beta\Sub\tau_0,
@@ -421,23 +452,23 @@ A_2';\emptyset&\vdash
   \sigma_2'\Sub\sigma_2,
   % dfn of C_t
   \sigma_1\Sub\alpha\R\beta,\sigma_2\Sub\alpha,
-  C_t\cup C_v\cup C_1'\cup C_2'\cup\Piggy,
+  C_t\cup C_\Xdef\cup C_1'\cup C_2'\cup\Piggy_2,
 \notag
 \end{align}
 the last step by expanding $D$ partially to
-$\sigma_1\Sub\alpha\R\beta,\sigma_2\Sub\alpha,C_t\cup C_v$.
+$\sigma_1\Sub\alpha\R\beta,\sigma_2\Sub\alpha,C_t\cup C_\Xdef$.
 Two uses of \textsc{S-Trans} gives us
 \begin{align}
-A_2';\emptyset\vdash
+A_2';\Exigent\vdash
   \beta\Sub\tau_0,
   \sigma_1'\Sub\alpha\R\beta,\sigma_2'\Sub\alpha,
-  C_t\cup C_v\cup C_1'\cup C_2'\cup\Piggy.
+  C_t\cup C_\Xdef\cup C_1'\cup C_2'\cup\Piggy_2.
 \label{eq:subapps}
 \end{align}
 Use existing type variables $\alpha$, $\beta$ to construct the
 desired constrained typing.
 \begin{align}
-t'&=s_1[x\mapsto v]~s_2[x\mapsto v]
+t'&=s_1[x\mapsto \Xdef]~s_2[x\mapsto \Xdef]
 \notag\\
 \Gamma&\vdash t':
 \beta\Given
@@ -474,14 +505,14 @@ C_t=\sigma_1\Sub\tau_1,\ldots,\sigma_n\Sub\tau_n,
 \]
 Suppose
 \begin{align*}
-\Gamma&\vdash s_1[x\mapsto v]:\sigma_1'\Given C_1',\\
+\Gamma&\vdash s_1[x\mapsto \Xdef]:\sigma_1'\Given C_1',\\
 &~\vdots\\
-\Gamma&\vdash s_n[x\mapsto v]:\sigma_n'\Given C_n',\\
-\Gamma&\vdash t[x\mapsto v]:\tau_c\Given
+\Gamma&\vdash s_n[x\mapsto \Xdef]:\sigma_n'\Given C_n',\\
+\Gamma&\vdash t[x\mapsto \Xdef]:\tau_c\Given
 \sigma_1'\Sub\tau_1,\ldots,\sigma_n'\Sub\tau_n,
 {\textstyle\bigcup_{i=1}^n C_i'}.
 \end{align*}
-If we write as usual $t'=t[x\mapsto v]$, then the constraints
+If we write as usual $t'=t[x\mapsto \Xdef]$, then the constraints
 generated in the typing of $t'$ are
 \[
 C'=\sigma_1'\Sub\tau_1,\ldots,\sigma_n'\Sub\tau_n,
@@ -489,60 +520,118 @@ C'=\sigma_1'\Sub\tau_1,\ldots,\sigma_n'\Sub\tau_n,
 \]
 By assumption, we can derive
 \[
-A;\emptyset\vdash \sigma_x\Sub\sigma_v,\tau_c\Sub\tau_0,
+A;\Exigent\vdash \sigma_x\Sub\sigma_\Xdef,\tau_c\Sub\tau_0,
 \sigma_1\Sub\tau_1,\ldots,\sigma_n\Sub\tau_n,
 ({\textstyle\bigcup_{i=1}^n C_i})
-\cup C_v\cup\Piggy.
+\cup C_\Xdef\cup\Piggy.
 \]
 As in previous cases, some judicious use of \textsc{S-Refl} and
 \textsc{S-Dupe} allows us to derive
 \[
-A;\emptyset\vdash \sigma_x\Sub\sigma_v,\tau_c\Sub\tau_0,
+A;\Exigent\vdash \sigma_x\Sub\sigma_\Xdef,\tau_c\Sub\tau_0,
 \sigma_1\Sub\sigma_1,
 \sigma_1\Sub\tau_1,\ldots,\sigma_n\Sub\tau_n,
-C_t\cup C_v\cup\Piggy.
+C_t\cup C_\Xdef\cup\Piggy.
 \]
 The induction hypothesis produces
 \[
-A;\emptyset\vdash \sigma_x\Sub\sigma_v,\tau_c\Sub\tau_0,
+A_1';\Exigent\vdash \sigma_x\Sub\sigma_\Xdef,\tau_c\Sub\tau_0,
 \sigma_1'\Sub\sigma_1,
 \sigma_1\Sub\tau_1,\ldots,\sigma_n\Sub\tau_n,
-C_1\cup C_t\cup C_v\cup\Piggy,
+C_1\cup C_t\cup C_\Xdef\cup\Piggy_1,
 \]
-and \textsc{S-Trans} gives us
+where $\Piggy_1\supseteq\Piggy$, and \textsc{S-Trans} gives us
 \[
-A;\emptyset\vdash \sigma_x\Sub\sigma_v,\tau_c\Sub\tau_0,
+A_1';\Exigent\vdash \sigma_x\Sub\sigma_\Xdef,\tau_c\Sub\tau_0,
 \sigma_1'\Sub\tau_1,
 \sigma_2\Sub\tau_2,\ldots,\sigma_n\Sub\tau_n,
 C_1'\cup
-C_t\cup C_v\cup
-\Piggy.
+C_t\cup C_\Xdef\cup
+\Piggy_1.
 \]
 The same trick will produce
-\[
-A;\emptyset\vdash \sigma_x\Sub\sigma_v,\tau_c\Sub\tau_0,
+\begin{align*}
+A_2';\Exigent\vdash\;& \sigma_x\Sub\sigma_\Xdef,\tau_c\Sub\tau_0,
 \sigma_1'\Sub\tau_1,
-\sigma_2'\Sub\tau_2,
-\sigma_3\Sub\tau_3,
+\sigma_2'\Sub\tau_2,\\
+&\sigma_3\Sub\tau_3,
 \ldots,\sigma_n\Sub\tau_n,
 C_1'\cup C_2'\cup
-C_t\cup C_v\cup\Piggy
-\]
+C_t\cup C_\Xdef\cup\Piggy_2
+\end{align*}
 all the way up to
 \begin{align}
-A;\emptyset&\vdash \tau_c\Sub\tau_0,
+A_n';\Exigent&\vdash \tau_c\Sub\tau_0,
 \sigma_1'\Sub\tau_1,\ldots,\sigma_n'\Sub\tau_n,
 ({\textstyle\bigcup_{i=1}^nC_i'})\cup
-C_t\cup C_v\cup\Piggy,
+C_t\cup C_\Xdef\cup\Piggy_n,
 \label{eq:subcon}
 \end{align}
-refraining from duplicating $\sigma_x\Sub\sigma_v$ at the last
+refraining from duplicating $\sigma_x\Sub\sigma_\Xdef$ at the last
 step. If we collect constraints of $C'$ in \eqref{eq:subcon},
 then it becomes the desired subtype judgement
 \[
-A;\emptyset\vdash \tau_c\Sub\tau_0,
-C_t\cup C_v\cup C'\cup\Piggy.
+A_n';\Exigent\vdash \tau_c\Sub\tau_0,
+C_t\cup C_\Xdef\cup C'\cup\Piggy_n.
 \]
+
+\Case\textsc{CT-Poly}: Let $\tau$ be the function type produced
+in the constrained typing derivation of $t$.
+\infrule[CT-Poly]
+{\alpha_1,\ldots,\alpha_n\notin\FTV(\Gamma)\cup\FTV(\sigma_x)
+\andalso
+\Gamma,x:\sigma_x\vdash t:\tau_\alpha\Given C_\alpha
+}
+{\Gamma,x:\sigma_x\vdash t:
+(\All{\alpha_1\cdots\alpha_n}\tau_\alpha\Given C_\alpha)
+\Given C_\alpha}
+%
+By assumption, we can derive
+\begin{align}
+A;\Exigent &\vdash \sigma_w\Sub\sigma_x,
+(\All{\alpha_1\cdots\alpha_n}\tau_\alpha\Given
+C_\alpha)\Sub\tau_0,
+C_\alpha\cup C_w\cup\Piggy,
+\label{eq:subpoly1}
+\end{align}
+Choose $\beta_1,\ldots,\beta_n$ outside every type variable
+occurring in $\Gamma$ or \eqref{eq:subpoly1}, bound or free or
+otherwise. Since all $\alpha_i$ and all $\beta_j$ are disjoint
+from free type variables in $\Gamma$ and $\sigma_x$, we can
+perform $\alpha$-renaming on the derivation of
+\[
+\Gamma,x:\sigma_x\vdash t : \tau_\alpha\Given C_\alpha
+\]
+to obtain a derivation of
+\def\tBeta{\Gamma,x:\sigma_x\vdash t : \tau_\beta\Given C_\beta}
+\[
+\tBeta.
+\]
+Judgement~\eqref{eq:subpoly1} is $\alpha$-equivalent to
+\[
+A;\Exigent \vdash \sigma_w\Sub\sigma_x,
+(\All{\beta_1\cdots\beta_n}\tau_\beta\Given
+C_\beta)\Sub\tau_0,
+C_\alpha\cup C_w\cup\Piggy.
+\]
+Several uses of \textsc{S-LE} followed by \textsc{S-CE} gives us
+\[
+\beta_1,\ldots,\beta_n,A;\Exigent \vdash \sigma_w\Sub\sigma_x,
+\tau_\beta\Sub\tau_0,
+C_\alpha\cup C_\beta\cup C_w\cup\Piggy.
+\]
+Calling the induction hypothesis on $(\tBeta)$ produces
+\begin{align}
+t&'=t[x\mapsto\Xdef],\notag\\
+\Gamma&\vdash t':\tau'\Given C',
+\label{eq:subpoly2}
+\\
+A';\Exigent&\vdash
+\tau'\Sub\tau_0,
+C_\alpha\cup C_w\cup C'\cup(C_\beta\cup\Piggy'),
+\label{eq:subpoly3}
+\end{align}
+which is exactly what we want, with a bigger piggyback.
 \end{proof}
 
 \subsection{Preservation}
@@ -557,10 +646,11 @@ Let $t$ be a closed term and let $\Piggy$ be a set of constraints
 &\vdash t:\tau \Given C,\\
 A;\emptyset&\vdash \tau\Sub\tau_0,C\cup\Piggy,
 \end{align*}
-then there exist $\tau'$ and $C'$ such that
+then there exist $\tau'$, $A'$, $C'$ and a set of constraints
+$\Piggy'\supseteq\Piggy$ such that
 \begin{align*}
 &\vdash t':\tau'\Given C',\\
-A;\emptyset&\vdash \tau'\Sub\tau_0,C\cup C'\cup\Piggy.
+A';\emptyset&\vdash \tau'\Sub\tau_0,C\cup C'\cup\Piggy'.
 \end{align*}
 
 \begin{proof}
@@ -587,28 +677,24 @@ expression in $t$. Duplicating constraints of the form
 $\tau_j\Sub\iota_j$ will give us the desired subtype derivation.
 \end{proof}
 
-\subsection{Segregation of base types and function types}
-\label{segre-types}
-If $\tau$ is a function type or a base type dinstinct from $\iota$,
-then it is impossible to derive any subtype judgement of the form
+\subsection{Isolation of base types}
+\label{isotypes}
+If $\tau$ is not a type variable and not equal to $\iota$, then
+it is impossible to derive any subtype judgement of the form
 \begin{align*}
 A;E&\vdash \iota\Sub\tau,C&
 &\mbox{or}&
 A;E&\vdash\tau\Sub\iota,C.
 \end{align*}
 We prove it by induction on the derivation sequence. Due to
-\textsc{S-Trans}, we need a stronger induction hypothesis: If
-$\tau$ is a function type or a base type dinstinct from $\iota$,
-then there never is any derivation ending in a sequence of
-constraints containing a \emph{forbidden chain} from $\tau$ to
-$\iota$,
+\textsc{S-Trans}, we need a stronger induction hypothesis: there
+never is any derivation ending in a sequence of constraints
+containing a \emph{forbidden chain}
 \[
-\tau\Sub\tau_1,\tau_1\Sub\tau_2,\ldots,\tau_n\Sub\iota,
+\sigma\Sub\alpha_1,\alpha_1\Sub\alpha_2,\ldots,\alpha_n\Sub\tau,
 \]
-or a forbidden chain from $\iota$ to $\tau$,
-\[
-\iota\Sub\tau_1,\tau_1\Sub\tau_2,\ldots,\tau_n\Sub\tau.
-\]
+where $\sigma\neq\tau$, and one of $\sigma,\tau$ is a base type
+and the other is not a type variable.
 
 The proof itself is a mechanical case analysis on the last rule
 used.
@@ -621,18 +707,24 @@ If a forbidden chain appears in the conclusion of \textsc{S-Refl},
 forbidden chain exists in the premise, which the induction
 hypothesis asserts to be impossible.
 
-If a forbidden chain appears
-in the conclusion of \textsc{S-Arrow}, then a chain exists in the
-premise between $\iota$ and a function type, which is impossible.
+If a forbidden chain appears in the conclusion of
+\textsc{S-Arrow} or \textsc{S-CI}, then a chain exists in the
+premise between a base type and a function type, which is
+impossible.
 
 Suppose a forbidden chain appears in the conclusion of
-\textsc{S-Al} or \textsc{S-Er}. Since we forbid polymorphic
-non-functions (\S\ref{syntax}), a chain exists in the premise
-between $\iota$ and a function type, which is impossible.
+\textsc{S-LI} or \textsc{S-RI}. Since we require polymorphic
+types to have a body that is neither base type nor type variable
+(\S\ref{syntax}), a chain exists in the premise.
 
-\subsection{Segregation of base values and function values}
-\label{segre-values}
-A consequence of \S\ref{segre-types} is as follows. Let $v$ be a
+If a forbidden chain appears in the conclusion of \textsc{S-LE}
+or \textsc{S-CE}, then there is a forbidden chain in the premise
+with a universal type or a constrained function type at one end,
+which is impossible.
+
+\subsection{Isolation of base values}
+\label{isovalues}
+A consequence of \S\ref{isotypes} is as follows. Let $v$ be a
 value such that $\Gamma\vdash v:\sigma_v\Given C$. If
 \[
 A;E\vdash \sigma_v\Sub\iota,C\cup C'
@@ -673,7 +765,7 @@ A;\emptyset&\vdash \beta\Sub\tau_0,
 where $\sigma_0\Given C_0$ is the constrained type of $s_0$, and
 $\sigma_1\Given C_1$ is the constrained type of $s_1$. Since
 \eqref{eq:prog0} is derivable, $s_0$ is a lambda abstraction
-(\S\ref{segre-values}), and $t$ is a $\beta$-redex.
+(\S\ref{isovalues}), and $t$ is a $\beta$-redex.
 
 \Case$t=c~s_1~\cdots~s_n$: If $n=0$ and $c$ has a base type, then
 $t=c$ is a value. If $n>0$ and one of the $s_i$ is reducible,
@@ -681,6 +773,36 @@ then $t$ is reducible via the congruence rule \textsc{E-Con}. If
 $n>0$ and all $s_i$ are values, then by $\delta$-typability
 (\S\ref{eval}), $t$ is a $\delta$-redex.
 \end{proof}
+
+\subsection{Faithfulness to System F}
+
+Suppose $\Gamma_F\vdash_F t_F:\tau_F$ in System $F$. Obtain $t$
+from $t_F$ by erasing all type abstractions (with appropriate
+capture-avoiding $\alpha$-renaming) and all type applications.
+If there is a derivation for
+\[
+\Gamma_F\vdash t : \tau\Given C,
+\]
+then there is a derivation for
+\[
+A;\emptyset\vdash \tau\Sub\tau_F, C.
+\]
+
+Proof by induction on $\vdash_F$. The CT judgement is not
+structurally recursive.
+
+Type abstraction: Use \textsc{CT-Poly} on CT judgement. Recurse.
+Done.
+
+Type application: Substitution lemma for System~F types.
+
+Abstraction: Should be easy right? Except \textsc{CT-Poly} may be
+called an arbitrary number of times already.
+
+Application: Deal with \textsc{CT-Poly}, recurse,
+\textsc{S-Loner}, \textsc{S-Trans}.
+
+Variable: \textsc{S-Refl}.
 
 \subsection{Delta-typability proofs}
 Here are $\delta$-typability proofs for concrete constants
