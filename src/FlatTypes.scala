@@ -97,9 +97,7 @@ trait FlatTypes
     // initial value of name generator should be ABCSong
     // avoiding freenames in term
     def collect(term: Tree, gamma: Gamma, abc: ABCSong):
-        CType = {
-      def loop(term: Tree, gamma: Gamma, abc: ABCSong, delta: Set[String]):
-          CType = term match {
+        CType = term match {
         case χ(x) =>
           // eliminate undeclared variable in a previous scan
           CType(resolve(gamma(x)), Nil, Map.empty)
@@ -107,16 +105,16 @@ trait FlatTypes
         case λ(x, σ0, body) =>
           if (absoluteFlag) {
             val σ = resolve(σ0)
-            val newTypeVars = σ.freeNames -- delta
+            val newTypeVars = σ.freeNames -- gamma.types
             val CType(τ, cs, origin) =
-              loop(body, gamma.updated(x, σ), abc, delta ++ newTypeVars)
+              collect(body, gamma.updated(x, σ).addTypes(newTypeVars), abc)
             // optimization: refrain from duplicating too much
             if (newTypeVars.isEmpty)
               CType(→(σ, τ), cs, origin)
             else {
               val rep = →(σ, τ)
               val degreesOfFreedom =
-                (cs.foldRight(rep.freeNames)(_.freeNames ++ _) -- delta -- Γ.types).toSeq
+                (cs.foldRight(rep.freeNames)(_.freeNames ++ _) -- gamma.types).toSeq
               val newRep = if (cs.isEmpty) rep else ConstrainedType(rep, cs)
               CType(
                 ∀(degreesOfFreedom, newRep),
@@ -126,14 +124,14 @@ trait FlatTypes
           else {
             val σ = resolve(σ0) // for rep.
             val CType(τ, constraints, origin) =
-              loop(body, gamma.updated(x, σ), abc, delta ++ σ.freeNames)
+              collect(body, gamma.updated(x, σ).addTypes(σ.freeNames), abc)
             CType(→(σ, τ), constraints, origin)
           }
 
         case f ₋ x =>
           val (a, b) = (æ(abc.next), æ(abc.next))
-          val CType(fType, fCons, fOrg) = loop(f, gamma, abc, delta)
-          val CType(xType, xCons, xOrg) = loop(x, gamma, abc, delta)
+          val CType(fType, fCons, fOrg) = collect(f, gamma, abc)
+          val CType(xType, xCons, xOrg) = collect(x, gamma, abc)
           CType(
             b,
             ⊑(fType, →(a, b)) :: ⊑(xType, a) :: fCons ++ xCons,
@@ -142,7 +140,7 @@ trait FlatTypes
 
         case Ascr(t, τ0) =>
           val τ = resolve(τ0)
-          val CType(rep, cs, org) = loop(t, gamma, abc, delta)
+          val CType(rep, cs, org) = collect(t, gamma, abc)
           CType(τ, ⊑(rep, τ) :: cs, org)
 
         // on polymorphism marker,
@@ -153,7 +151,7 @@ trait FlatTypes
         // but it is costly,
         // so we do it once for each marked place.
         case ⊹(PolymorphismMarker, t) =>
-          val ct = loop(t, gamma, abc, delta)
+          val ct = collect(t, gamma, abc)
           if (absoluteFlag)
             ct
           else {
@@ -161,15 +159,13 @@ trait FlatTypes
             // No smart-Alex pruning of constraints here.
             // Each type abstraction doubles the number of constraints.
             val degreesOfFreedom =
-              (cs.foldRight(rep.freeNames)(_.freeNames ++ _) -- delta -- Γ.types).toSeq
+              (cs.foldRight(rep.freeNames)(_.freeNames ++ _) -- gamma.types).toSeq
             val newRep = if (cs.isEmpty) rep else ConstrainedType(rep, cs)
             CType(
               ∀(degreesOfFreedom, newRep),
               cs, org)
           }
       }
-      loop(term, gamma, abc, gamma.types)
-    }
 
     def getLoner(prefix: List[String], constraints: List[Tree]):
         Option[String] = {
