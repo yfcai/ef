@@ -3,6 +3,7 @@
 trait FlatTypes
     extends TypedModules with IntsAndBools with Prenex with Topology
        with MinimalQuantification
+       with ConstrainedTypes
 {
   // if ill-typed, throw tantrum.
   def typeCheck(m: Module):
@@ -35,23 +36,9 @@ trait FlatTypes
     typing =>
     import module._
 
-    // do not quantify minimally on creation.
-    // quantify minimally when adding new constraints
-    // at sites of application.
-    case class ⊑(lhs: Tree, rhs: Tree) {
-      def contains(α: String): Boolean =
-        lhs.freeNames.contains(α) || rhs.freeNames.contains(α)
-
-      override def toString = s"${lhs.unparse}  ⊑  ${rhs.unparse}"
-    }
-
-    implicit class createSubtypeConstraint(lhs: Tree) {
-      def ⊑ (rhs: Tree): ⊑ = new ⊑(lhs, rhs)
-    }
-
     case class CType(
       representative: Tree,
-      constraints: List[⊑],
+      constraints: List[Tree],
       origin: Map[String, Tree]
     )
 
@@ -111,30 +98,46 @@ trait FlatTypes
           val τ = resolve(τ0)
           val CType(rep, cs, org) = collect(t, gamma, abc)
           CType(τ, ⊑(rep, τ) :: cs, org)
+
+        // on type abstraction,
+        // put everything inside representative,
+        // including things generated so far.
+        // we don't care what alpha is, so long it is something.
+        // it makes sense to do this at every abstraction,
+        // but it is costly,
+        // so we do it once, at the marked place.
+        case Λ(alpha, t) =>
+          val CType(rep, cs, org) = collect(t, gamma, abc)
+          // No smart-Alex pruning of constraints here.
+          // Each type abstraction doubles the number of constraints.
+          val degreesOfFreedom =
+            cs.foldRight(rep.freeNames)(_.freeNames ++ _).toSeq
+          CType(
+            ∀(degreesOfFreedom, ConstrainedType(rep, cs)),
+            cs, org)
       }
 
-    def getLoner(prefix: List[String], constraints: List[⊑]):
+    def getLoner(prefix: List[String], constraints: List[Tree]):
         Option[String] = {
       val live = prefix.filter({ α =>
-        constraints.find(_ contains α) != None
+        constraints.find(_.freeNames contains α) != None
       })
       live.find({ α =>
         constraints.map({
           case lhs ⊑ æ(β) if α == β => ! lhs.freeNames.contains(α)
           case æ(β) ⊑ rhs if α == β => ! rhs.freeNames.contains(α)
-          case constraint => ! constraint.contains(α)
+          case constraint => ! constraint.freeNames.contains(α)
         }).min
       })
     }
 
     def breakBinders(
       prefix: List[String],
-      css: List[⊑],
+      css: List[Tree],
       avoid0: Set[String]
-    ): (List[String], List[String], List[⊑]) = {
+    ): (List[String], List[String], List[Tree]) = {
       val fst :: rest = css
-      val σ = fst.lhs
-      val τ = fst.rhs
+      val σ ⊑ τ = fst
       val (p, σ0) = σ.unbindAll(avoid0, Universal, Existential)
       val avoid1 = avoid0 ++ p.map(_.x)
       val (q, τ0) = τ.unbindAll(avoid1, Universal, Existential)
@@ -160,12 +163,19 @@ trait FlatTypes
     // @return (all, ex, broken-constraints, ancestry)
     def breakUp(
       prefix: List[String],
-      constraints: List[⊑],
+      constraints: List[Tree],
       avoid: Set[String]
-    ): (List[String], List[String], List[⊑]) = constraints match {
+    ): (List[String], List[String], List[Tree]) = constraints match {
       // deal with function types
       case (c @ (σ0 → σ1) ⊑ (τ0 → τ1)) :: rest =>
         breakUp(prefix, τ0 ⊑ σ0 :: σ1 ⊑ τ1 :: rest, avoid)
+
+      // deal with constrained types
+      case ConstrainedType(σ, cs) ⊑ τ :: rest =>
+        breakUp(prefix, σ ⊑ τ :: cs.toList ++ rest, avoid)
+
+      case σ ⊑ ConstrainedType(τ, cs) :: rest =>
+        breakUp(prefix, σ ⊑ τ :: cs.toList ++ rest, avoid)
 
       // do not break up if 1 side is a universal
       // (these are the key to typing matchList correctly! why?!)
@@ -199,8 +209,8 @@ trait FlatTypes
 
     // partition constraints with respect to a loner
     // @return (lhs, rhs, remaining-constraints)
-    def partition(loner: String, cs: List[⊑]):
-        (List[Tree], List[Tree], List[⊑]) = {
+    def partition(loner: String, cs: List[Tree]):
+        (List[Tree], List[Tree], List[Tree]) = {
       val α = æ(loner)
       val lhs = cs.flatMap({
         case c @ σ ⊑ τ if τ == α => Some(σ)
@@ -210,7 +220,10 @@ trait FlatTypes
         case c @ σ ⊑ τ if σ == α => Some(τ)
         case _ => None
       })
-      val rest = cs.filter(c => c.lhs != α && c.rhs != α)
+      val rest = cs.filter(c => {
+        val lhs ⊑ rhs = c
+        lhs != α && rhs != α
+      })
       (lhs, rhs, rest)
     }
 
@@ -229,9 +242,14 @@ trait FlatTypes
     def solve(
       all0: List[String],
       ex0: List[String],
-      cs0: List[⊑],
+      cs0: List[Tree],
       avoid: Set[String] // should be free variables of that term
-    ): (List[String], List[String], List[Coll], List[⊑]) = {
+    ): (List[String], List[String], List[Coll], List[Tree]) = {
+
+      // debug session
+      if (debugFlag)
+        debug(all0, ex0, cs0)
+
       // 1. break up constraints
       val (all1, ex1, cs1) =
         breakUp(all0, cs0, avoid ++ all0 ++ ex0)
@@ -282,17 +300,20 @@ trait FlatTypes
 
       val (all, ex, coll, rest) =
         solve(all0, Nil, cs, term.freeNames)
-      val unsolvable = rest.filter(c => ! (c.lhs α_equiv c.rhs))
+      val unsolvable = rest.filter(c => {
+        val lhs ⊑ rhs = c
+        ! (lhs α_equiv rhs)
+      })
       if (! unsolvable.isEmpty)
         throw Insoluble(
           s"""|The term
               |  ${term.unparse}
               |generates unsolvable constraints
               |
-              |∀${all.mkString(", ")}.
-              |∃${ex.mkString(", ")}.
+              |∀${all.mkString(" ")}.
+              |∃${ ex.mkString(" ")}.
               |
-              |${unsolvable.map(c => s"  $c").mkString("\n")}
+              |${unsolvable.map(c => s"  ${c.unparse}").mkString("\n")}
               |
               |loner = ${getLoner(all, unsolvable)}
               |""".stripMargin)
@@ -301,9 +322,38 @@ trait FlatTypes
 
     lazy val Γ = Γ0 ++ module.sig addTypes module.syn.keySet
 
+    def debug(all: List[String], ex: List[String], cs: List[Tree]) {
+      println()
+      if (! all.isEmpty) {
+        println(s"∀ ${all.mkString(" ")}")
+        println()
+      }
+      if (! ex.isEmpty) {
+        println(s"∃ ${ ex.mkString(" ")}")
+        println()
+      }
+      println(cs.map("  " + _.unparse).mkString("\n\n"))
+      println()
+      print("next?>  ")
+      System.out.flush()
+      val lines = scala.io.Source.stdin.getLines
+      if (lines.hasNext) {
+        val line = lines.next
+        if (line matches ".*[NnQq].*")
+          debugFlag = false
+      }
+      else
+        debugFlag = false
+    }
+
     def show(term: Tree) {
       println(term.unparse)
-      val Solution(all, ex, rep, coll, origin) = solve(term)
+      val solution = solve(term)
+      show(solve(term))
+    }
+
+    def show(solution: Solution) {
+      val Solution(all, ex, rep, coll, origin) = solution
       println()
       if (! all.isEmpty) println(s"∀${all.mkString(" ")}")
       if (!  ex.isEmpty) println(s"∃${ ex.mkString(" ")}")

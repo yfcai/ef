@@ -57,7 +57,7 @@ type MatchList η = ∀ξ. ξ → (η → List η → ξ) → ξ
 matchList : ∀α. List α → MatchList α
 matchList = λxs : List α.
   xs const
-     (λx : α. λys : MatchList α. λz : β. λf : α → List α → β.
+     (λx : α. λys : MatchList α. Λβ. λz : β. λf : α → List α → β.
        f x (ys nil cons))
 
 map : ∀α β. (α → β) → List α → List β
@@ -140,29 +140,31 @@ nConst : (ℤ → MatchList ℤ → MatchList ℤ) -> MatchList ℤ
       f x (ys nil cons))
   : MatchList Int)
 
-ns : \all alp. alp -> (Int -> alp -> alp) -> alp
+ns : ∀ α. α -> (ℤ -> α -> α) -> α
 
-const : \all bet gam. bet -> gam -> bet
+const : ∀ β γ. β -> γ -> β
 
-nil : \all the kap. kap -> (the -> kap -> kap) -> kap
+nil : ∀ θ κ. κ -> (θ -> κ -> κ) -> κ
 
-cons : \all mu. mu ->
-                (\all xi.  xi  -> (mu -> xi  -> xi ) -> xi ) ->
-                (\all rho. rho -> (mu -> rho -> rho) -> rho)
+cons : ∀ μ. μ ->
+                (∀ ξ.  ξ  -> (μ -> ξ  -> ξ ) -> ξ ) ->
+                (∀ ρ. ρ -> (μ -> ρ -> ρ) -> ρ)
 
-(ns const
-  (\abs x  : Int.
-   \abs ys : \all del.
-               del ->
-               (Int -> (\all eps. eps -> (Int -> eps -> eps) -> eps) -> del) ->
-               del.
-   \abs z  : zet.
-   \abs w  : Int -> (\all eta. eta -> (Int -> eta -> eta) -> eta) -> zet.
-     w x (ys nil cons)))
+(ns const (
+   \abs x  : ℤ.
+   \abs ys : ∀ δ.
+               δ ->
+               (ℤ -> (∀ ε. ε -> (ℤ -> ε -> ε) -> ε) -> δ) ->
+               δ.
+   \Tabs ζ.
+   \abs z  : ζ.
+   \abs w  : ℤ -> (∀ η. η -> (ℤ -> η -> η) -> η) -> ζ.
+     w x (ys nil cons)
+ ))
  
-.rant (bad)
+ .rant (bad)
  :
- \all sig.
-    sig ->
-    (Int -> (\all tau. tau -> (Int -> tau -> tau) -> tau) -> sig) ->
-    sig
+ ∀ σ.
+    σ ->
+    (ℤ -> (∀ τ. τ -> (ℤ -> τ -> τ) -> τ) -> σ) ->
+    σ
