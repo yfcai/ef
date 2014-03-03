@@ -105,13 +105,25 @@ ana-ℤ = λn : _0_. iterate n nil cons
 sum : List ℤ → ℤ
 sum = λns : _0_. ns 0 +
 
-sum (cons 1 (cons 2 (cons 3 (cons 4 (cons 5 nil)))))
-
 list1-5 : List ℤ
 list1-5 = ana-ℤ 5
 
-head nil
+.head nil
 
-tail nil
+.tail nil
 
-sum (map (* 2) list1-5)
+.sum (cons 1 (cons 2 (cons 3 (cons 4 (cons 5 nil)))))
+
+.sum (map (* 2) list1-5)
+
+sum' : List ℤ → ℤ
+sum' = λxs : _0_. matchWhat xs 0 (λn : _1_. λxs : _2_. + n (sum xs))
+
+.sum' (cons 1 (cons 2 (cons 3 nil)))
+
+matchWhat : ∀α. List α → MatchList α
+matchWhat = λxs : _0_.
+  xs const (λx : _1_. λys : _2_. λz : _3_. λf : _4_. f x ys)
+
+(λxs : _xs. xs const (λx : _x. λys : _ys. Λ. λz : _z. λf : _f. f x ys))
+  : ∀α. List α → MatchList α

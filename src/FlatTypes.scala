@@ -1,5 +1,4 @@
-/** Subtype constraint resolution with ordering
-  */
+/** Nuclear Football Megaslave */
 trait FlatTypes
     extends TypedModules with IntsAndBools with Prenex with Topology
        with MinimalQuantification
@@ -86,7 +85,6 @@ trait FlatTypes
 
     // get prefix by a preorder traversal
     def getPrefix(term: Tree): List[String] = {
-      val Γ = Γ0
       term.preorder.flatMap({
         case æ(α) if ! Γ.hasType(α) =>
           Some(α)
@@ -118,7 +116,7 @@ trait FlatTypes
             else {
               val rep = →(σ, τ)
               val degreesOfFreedom =
-                cs.foldRight(rep.freeNames)(_.freeNames ++ _).toSeq
+                (cs.foldRight(rep.freeNames)(_.freeNames ++ _) -- delta -- Γ.types).toSeq
               val newRep = if (cs.isEmpty) rep else ConstrainedType(rep, cs)
               CType(
                 ∀(degreesOfFreedom, newRep),
@@ -128,7 +126,7 @@ trait FlatTypes
           else {
             val σ = resolve(σ0) // for rep.
             val CType(τ, constraints, origin) =
-              loop(body, gamma.updated(x, σ), abc, delta)
+              loop(body, gamma.updated(x, σ), abc, delta ++ σ.freeNames)
             CType(→(σ, τ), constraints, origin)
           }
 
@@ -163,7 +161,7 @@ trait FlatTypes
             // No smart-Alex pruning of constraints here.
             // Each type abstraction doubles the number of constraints.
             val degreesOfFreedom =
-              cs.foldRight(rep.freeNames)(_.freeNames ++ _).toSeq
+              (cs.foldRight(rep.freeNames)(_.freeNames ++ _) -- delta -- Γ.types).toSeq
             val newRep = if (cs.isEmpty) rep else ConstrainedType(rep, cs)
             CType(
               ∀(degreesOfFreedom, newRep),
