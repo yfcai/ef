@@ -1,0 +1,135 @@
+\subsection{Contextual extension of constrained typing
+judgements}
+
+Let $t$ be a term. The concept of \emph{contextual extension}
+helps us match each subterm $s$ of $t$ with the part of of any
+constrained typing derivation of $t$ contributed by $s$.
+
+Let $C$ be a one-hole term context. Let $s$ be a term whose free
+variables are not captured in $C$. Let $D_s$ be a constrained
+typing derivation of $s$. A constrained typing derivation of
+$C[s]$ is a contextual extension of $D_s$ if it is constructed
+from $D_s$ by constrained typing rules in lockstep as $C[s]$ is
+constructed on top of $s$.
+
+More formally, a constrained typing derivation $D$ of $C[s]$ is a
+contextual extension of the constrained typing derivation $D_s$
+of $s$ relative to the one-hole context $C$ if one of the
+following holds.
+\begin{enumerate}
+\item $C$ is the hole and $D$ is a weakening of $D_s$. (A
+weakening of a constrained typing derivation is another
+derivation that has some unused extra bindings in its typing
+context but is otherwise identical.)
+\item The top-level term constructor of $C$ is an abstraction,
+application or $n$-nary constant. Let $C_0$ be the immediate
+one-hole subcontext of $C$. The derivation $D$ is obtained by one
+constrained typing rule from a contextual extension $D_0$ of
+$D_s$ relative to $C_0$. If $C_0$ is the $i$th child of $C$, then
+$D_0$ is the $i$th structural-recursive antecedent of $D$.
+\end{enumerate}
+
+
+\subsection{Replacement lemma}
+\label{sublem}
+
+We set out to prove that if a term can be typed $\tau$, then it
+can still be typed $\tau$ after replacing one subterm by
+something of a more general type. The substitution lemma common
+in preservation proofs is a corollary of the replacement lemma
+phrased in this way.
+
+\def\Exi{\emptyset}
+
+Let $p$, $q$ be terms. Let $C$ be a one-hole context capturing no
+free variable in $p$ or $q$. Suppose we can derive
+\[
+\Gamma_c\vdash C[p]:\sigma_{cp}\Given K_{cp}
+\]
+with a contextual extension of a known derivation of
+\[
+\Gamma\vdash p:\sigma_p \Given K_p.
+\]
+(It follows from the definition of contextual extension that
+$\Gamma\subseteq\Gamma_c$.) Suppose, under the aforementioned
+$\Gamma$, we can derive
+\begin{equation}
+\Gamma\vdash q:\sigma_q \Given K_q.
+\label{eq:subct}
+\end{equation}
+If $K\supseteq K_{cp}\cup K_p\cup K_q$ is a set of constraints
+such that there is a subtype derivation for
+\begin{align}
+A;\Exi&\vdash
+\sigma_{cp}\Sub\tau,
+\sigma_q\Sub\sigma_p,
+K,
+\label{eq:subass}
+\end{align}
+then there exists $\sigma_{cq}$ and $K_{cq}$ such that the
+constrained typing judgement
+\[
+\Gamma_c \vdash C[q]: \sigma_{cq}\Given K_{cq}
+\]
+is derivable via a contextual extension of \eqref{eq:subct}.
+Moreover, there exists $K'\supseteq K\cup K_{cq}$ such that
+\[
+A';\Exi \vdash \sigma_{cq}\Sub\tau,K'
+\]
+is derivable for some $A'$.
+
+\begin{proof}
+By induction on the structure of $C$.
+
+\Case$C=\bullet$. It follows that $C[p]=p$ and $C[q]=q$. Choose
+$\sigma_{cq}=\sigma_q$ and $K_{cq}=K_q$. The presumed derivation
+of $(\Gamma\vdash q:\sigma_q\Given K_q)$ can be weakend to the
+desired contextual extension of it. Since the constrained typing
+derivation of $C[p]$ is a contextual extension of the one of $p$,
+we have $\sigma_{cp}=\sigma_p$ and $K_{cp}=K_p$.
+By~\eqref{eq:subass}, we can derive
+\[
+A;\Exi\vdash \sigma_p\Sub\tau,\sigma_q\Sub\sigma_p,K.
+\]
+\textsc{S-Trans} produces
+\[
+A;\Exi\vdash \sigma_q\Sub\tau,K,
+\]
+which is the desired subtype derivation with $K'=K$.
+
+\Case$C=\Abs y C_0$. Let this be the last step in the presumed
+contextual extension of $(\Gamma\vdash p:\sigma_p\Given K_p)$:
+\infrule[CT-Abs]
+{
+\{\alpha_1,\ldots,\alpha_n\}=
+\FTV(\sigma_y,\sigma_0,K)-\FTV(\Gamma_c)
+\andalso
+\Gamma,y:\sigma_y \vdash C_0[p] : \sigma_0 \Given K_0
+}
+{\Gamma_c\vdash(\Abs y C_0[p]):
+(\All{\alpha_1\cdots\alpha_n}\sigma_y\R\sigma_0 \Given K_0)\Given
+K_0
+}%
+By the definition of contextual extension, the antecedent
+\[
+\Gamma,y:\sigma_y \vdash C_0[p] : \sigma_0 \Given K_0
+\]
+can be derived via a contextual extension of the presumed
+derivation of
+\[
+\Gamma\vdash p:\sigma_p\Given K_p.
+\]
+By assumption, there is a subtype derivation for
+\[
+A;\Exi\vdash
+(\All{\alpha_1\cdots\alpha_n}\sigma_y\R\sigma_0 \Given K_0)
+\Sub\tau,
+\sigma_q\Sub\sigma_p,K
+\]
+for some $K\supseteq K_0\cup K_p\cup K_q$. Choose fresh type
+variables $\beta_1,\ldots,\beta_n$. Some uses of \textsc{S-LE}
+followed by \textsc{S-KE} produce
+\[
+A;\Exi\vdash
+\]
+\end{proof}
