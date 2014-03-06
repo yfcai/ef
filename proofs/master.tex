@@ -264,6 +264,17 @@ One can imagine $\delta$-rules such as
 Proving them to satisfy $\delta$-typability is nontrivial,
 though.
 
+\subsection{Substitution lemma}
 
+TODO: rewrite without argument type being part of a term to spare
+us binders of type variables at term level.
+
+Idea: just translate the good old substitution lemma. Sync
+constrained typing derivations by $\Gamma$ and nothing else. We
+can't make this into a reusable replacement lemma because
+\textsc{CT-Abs} would want to bind type variables in the
+constraints of the previous subterm. Thus replacement lemma works
+only with a context containing no lambda abstractions. We may as
+well inline it into preservation, just like before.
 
 \input{bib.tex}\end{document}
