@@ -54,13 +54,13 @@ A,E
 \\
 \\
 \mbox{list of constraints}\\
-K
+C
 &::=& \emptyset \\
-&|& \sigma \Sub \tau, K
+&|& \sigma \Sub \tau, C
 \\
 \\
 \mbox{subtype judgement}
-&::=&A;E\vdash K
+&::=&A;E\vdash C
 \end{syntax}
 
 \infrule[S-vacuous]
@@ -70,71 +70,71 @@ K
 \infrule[S-Refl]
 {\FTV(\tau)\subseteq A\cup E
 \andalso
-A;E\vdash K
+A;E\vdash C
 }
-{A;E \vdash \tau\Sub\tau,K}
+{A;E \vdash \tau\Sub\tau,C}
 
 % Reason of existence: sublem
 \infrule[S-Dupe]
-{A;E\vdash \sigma\Sub\tau, K}
-{A;E\vdash \sigma\Sub\tau, \sigma\Sub\tau, K}
+{A;E\vdash \sigma\Sub\tau, C}
+{A;E\vdash \sigma\Sub\tau, \sigma\Sub\tau, C}
 
 % Reason of existence: sublem.
 \infrule[S-Trans]
-{A;E\vdash \tau_0\Sub\tau_1,\tau_1\Sub\tau_2,K}
-{A;E\vdash \tau_0\Sub\tau_2,K}
+{A;E\vdash \tau_0\Sub\tau_1,\tau_1\Sub\tau_2,C}
+{A;E\vdash \tau_0\Sub\tau_2,C}
 
 \infrule[S-Arrow]
-{A;E\vdash\tau_0\Sub\sigma_0,\sigma_1\Sub\tau_1,K}
-{A;E\vdash\sigma_0\R\sigma_1\Sub\tau_0\R\tau_1,K}
+{A;E\vdash\tau_0\Sub\sigma_0,\sigma_1\Sub\tau_1,C}
+{A;E\vdash\sigma_0\R\sigma_1\Sub\tau_0\R\tau_1,C}
 
 \infrule[S-Loner]
-{\alpha\notin A\cup E\cup\FTV(K)
+{\alpha\notin A\cup E\cup\FTV(C)
 \andalso
 A;E\vdash
 \{ \sigma_i\Sub\tau_j \Or 1 \le i \le m, 1 \le j \le n \}
-\cup K
+\cup C
 }{
 \alpha,A;E \vdash
 \sigma_1\Sub\alpha,\ldots,\sigma_m\Sub\alpha,
-\alpha\Sub\tau_1,\ldots,\alpha\Sub\tau_n,K
+\alpha\Sub\tau_1,\ldots,\alpha\Sub\tau_n,C
 }
 
 \infrule[S-LI]
-{\alpha\notin A\cup E\cup\FTV(\tau)\cup\FTV(K)
+{\alpha\notin A\cup E\cup\FTV(\tau)\cup\FTV(C)
 \andalso
-\alpha,A;E\vdash\sigma\Sub\tau,K}
-{A;E\vdash(\All\alpha\sigma)\Sub\tau,K}
+\alpha,A;E\vdash\sigma\Sub\tau,C}
+{A;E\vdash(\All\alpha\sigma)\Sub\tau,C}
 
 \infrule[S-LE]
-{\alpha\notin A\cup E\cup\FTV(\tau)\cup\FTV(K)
+{\alpha\notin A\cup E\cup\FTV(\tau)\cup\FTV(C)
 \andalso
-A;E\vdash(\All\alpha\sigma)\Sub\tau,K}
-{\alpha,A;E\vdash\sigma\Sub\tau,K}
+A;E\vdash(\All\alpha\sigma)\Sub\tau,C}
+{\alpha,A;E\vdash\sigma\Sub\tau,C}
 
 \infrule[S-RI]
-{\alpha\notin A\cup E\cup\FTV(\tau)\cup\FTV(K)
+{\alpha\notin A\cup E\cup\FTV(\tau)\cup\FTV(C)
 \andalso
-A;\alpha,E\vdash\sigma\Sub\tau,K}
-{A;E\vdash\sigma\Sub(\All\alpha\tau),K}
+A;\alpha,E\vdash\sigma\Sub\tau,C}
+{A;E\vdash\sigma\Sub(\All\alpha\tau),C}
 
-\infrule[S-KI]
-{A;E\vdash \sigma\Sub\tau,K_\sigma\cup K}
-{A;E\vdash (\sigma\Given K_\sigma)\Sub\tau,K}
+\infrule[S-CI]
+{A;E\vdash \sigma\Sub\tau,C_\sigma\cup C}
+{A;E\vdash (\sigma\Given C_\sigma)\Sub\tau,C}
 
-\infrule[S-KE]
-{A;E\vdash (\sigma\Given K_\sigma)\Sub\tau,K}
-{A;E\vdash \sigma\Sub\tau,K_\sigma\cup K}
+\infrule[S-CE]
+{A;E\vdash (\sigma\Given C_\sigma)\Sub\tau,C}
+{A;E\vdash \sigma\Sub\tau,C_\sigma\cup C}
 
-Note that there are no analogues of \textsc{S-KI} or
-\textsc{S-KE} about constrained types on right hand side of a
+Note that there are no analogues of \textsc{S-CI} or
+\textsc{S-CE} about constrained types on right hand side of a
 subtype constraint. There is the introduction rule \textsc{S-RI}
 without a corresponding elimination rule.
 
 \subsection{Constrained typing}
 \begin{syntax}
 \mbox{constrained typing judgement}
-&::=&\Gamma \vdash t : \tau \Given K
+&::=&\Gamma \vdash t : \tau \Given C
 \end{syntax}%
 \infrule[CT-Var]
 {x:\tau\in\Gamma}
@@ -142,32 +142,33 @@ without a corresponding elimination rule.
 
 \infrule[CT-Abs]
 {
-\{\alpha_1,\ldots,\alpha_n\}=
-\FTV(\sigma,\tau,K)-\FTV(\Gamma)
+\{\alpha_1,\ldots,\alpha_n\}
+\subseteq
+\FTV(\sigma,\tau,C)-\FTV(\Gamma)
 \andalso
-\Gamma,x:\sigma \vdash t : \tau \Given K}
+\Gamma,x:\sigma \vdash t : \tau \Given C}
 {\Gamma\vdash (\Abs x t) :
-(\All{\alpha_1\cdots\alpha_n}\sigma\R\tau\Given K) \Given K}
+(\All{\alpha_1\cdots\alpha_n}\sigma\R\tau\Given C) \Given C}
 
 \infrule[CT-App]
 {
-\Gamma\vdash s : \sigma \Given K_1
+\Gamma\vdash s : \sigma \Given C_1
 \andalso
-\Gamma\vdash t : \tau \Given K_2}
+\Gamma\vdash t : \tau \Given C_2}
 {\Gamma\vdash s~t : \beta \Given
-\sigma\Sub\alpha\R\beta,\tau\Sub\alpha,K_1\cup K_2}
+\sigma\Sub\alpha\R\beta,\tau\Sub\alpha,C_1\cup C_2}
 
 \infrule[CT-Con]
 {
-\Gamma\vdash s_1:\sigma_1\Given K_1
+\Gamma\vdash s_1:\sigma_1\Given C_1
 \andalso
 \cdots
 \andalso
-\Gamma\vdash s_n:\sigma_n\Given K_n
+\Gamma\vdash s_n:\sigma_n\Given C_n
 }
 {\Gamma\vdash c~s_1~\cdots~s_n:\tau_c\Given
 \sigma_1\Sub\tau_1,\ldots,\sigma_n\Sub\tau_n,
-{\textstyle\bigcup_{i=1}^n K_i}
+{\textstyle\bigcup_{i=1}^n C_i}
 }
 
 In \textsc{CT-Con}, the types $\tau_c,\tau_1,\ldots,\tau_n$
@@ -177,21 +178,21 @@ $\delta$-typability requirement is satisfied
 (\S\ref{eval}). Here are some examples.
 
 \infrule[CT-Add]
-{\Gamma\vdash s_1:\sigma_1\Given K_1
+{\Gamma\vdash s_1:\sigma_1\Given C_1
 \andalso
-\Gamma\vdash s_2:\sigma_2\Given K_2
+\Gamma\vdash s_2:\sigma_2\Given C_2
 }
 {\Gamma\vdash\Add~s_1~s_2:
-\Int\Given\sigma_1\Sub\Int,\sigma_2\Sub\Int,K_1\cup K_2}
+\Int\Given\sigma_1\Sub\Int,\sigma_2\Sub\Int,C_1\cup C_2}
 
 \infrule[CT-If]
-{\Gamma\vdash s:\sigma\Given K}
+{\Gamma\vdash s:\sigma\Given C}
 {\Gamma\vdash\If~s:
-(\All\alpha\alpha\R\alpha\R\alpha)\Given\sigma\Sub\Bool,K}
+(\All\alpha\alpha\R\alpha\R\alpha)\Given\sigma\Sub\Bool,C}
 
 \infrule[CT-Fix]
-{\Gamma\vdash s:\sigma\Given K}
-{\Gamma\vdash\Fix~s:\alpha\Given\sigma\Sub \alpha\R\alpha,K}
+{\Gamma\vdash s:\sigma\Given C}
+{\Gamma\vdash\Fix~s:\alpha\Given\sigma\Sub \alpha\R\alpha,C}
 
 \subsection{Evaluation}
 \label{eval}
@@ -266,15 +267,180 @@ though.
 
 \subsection{Substitution lemma}
 
-TODO: rewrite without argument type being part of a term to spare
-us binders of type variables at term level.
+We set out to prove that if $t$ can be typed $\tau$, then after
+a well-typed substitution it can still be typed $\tau$.
 
-Idea: just translate the good old substitution lemma. Sync
-constrained typing derivations by $\Gamma$ and nothing else. We
-can't make this into a reusable replacement lemma because
-\textsc{CT-Abs} would want to bind type variables in the
-constraints of the previous subterm. Thus replacement lemma works
-only with a context containing no lambda abstractions. We may as
-well inline it into preservation, just like before.
+\def\Exi{\emptyset}
+\def\s{s}
+\def\sigx{\sigma_x}
+\def\sigs{\sigma_\s}
+\def\sigt{\sigma_t}
+\def\sigts{\sigma_t^\s}
+\def\Ct{C_t}
+\def\Cs{C_\s}
+\def\Cts{C_t^\s}
+
+Suppose the following is derivable for some $C\supseteq \Ct\cup \Cs$.
+\begin{align}
+\Gamma,x:\sigx&\vdash t:\sigt\Given \Ct \notag
+\\
+\Gamma&\vdash \s:\sigs \Given \Cs \notag
+\\
+A;\Exi&\vdash
+\sigs\Sub\sigx, \sigt\Sub\tau,C
+\label{eq:subass}
+\end{align}
+Then under the aforementioned typing context $\Gamma$, we can
+derive
+\begin{align*}
+\Gamma&\vdash t[x\mapsto\s]:\sigts \Given \Cts\\
+A';\Exi&\vdash \sigts\Sub\tau, C'
+\end{align*}
+for some $C'\supseteq \Cts \cup C$.
+
+\begin{proof}
+By induction on the structure of $t$.
+
+\Case$t=y$, $y\neq x$. The assumption satisfies the proof goal.
+
+\Case$t=x$. Set $\sigts=\sigs$ and $\Cts=\Cs$. The presumed
+derivation of
+\[
+\Gamma\vdash \s : \sigs \Given \Cs
+\]
+is the desired constrained typing derivation. From the presumed
+derivation of
+\[
+A;\Exi\vdash \sigs\Sub\sigx, \sigx\Sub\tau,C,
+\]
+we derive the desired subtype judgement via one application of
+\textsc{S-Trans}:
+\[
+A;\Exi\vdash \sigs\Sub\tau,C.
+\]
+
+\Case$t=\Abs y t_0$. Let this be the last step in the presumed
+constrained typing derivation of $t$:
+
+\def\sigay{\sigma_y^\alpha}
+\def\siga0{\sigma_0^\alpha}
+\def\Ca0{C_0^\alpha}
+
+\def\sigby{\sigma_y^\beta}
+\def\sigb0{\sigma_0^\beta}
+\def\Cb0{C_0^\beta}
+
+
+\infrule[CT-Abs]
+{\{\alpha_1,\ldots,\alpha_n\}\subseteq
+\FTV(\sigay,\siga0,\Ca0) - \FTV(\Gamma,\sigx)
+\andalso
+\Gamma,x:\sigx,y:\sigay\vdash t_0 : \siga0\Given\Ca0
+}
+{\Gamma,x:\sigx\vdash(\Abs y t_0):
+(\All{\alpha_1\cdots\alpha_n}\sigay\R\siga0 \Given \Ca0)
+\Given\Ca0}
+
+Choose fresh type variables $\beta_1,\ldots,\beta_n$. Since
+$\alpha_1,\ldots,\alpha_n$ are disjoint from $\Gamma$ and
+$\sigx$, we can rename them uniformly in the constrained typing
+derivation of $t_0$ to obtain
+\begin{align}
+\Gamma,x:\sigx,y:\sigby&\vdash t_0 : \sigb0\Given\Cb0.
+\label{eq:subabs1}
+\end{align}
+We have assumed a subtype derivation ending in
+\[
+A;\Exi\vdash
+\sigs\Sub\sigx,
+(\All{\alpha_1\cdots\alpha_n}\sigay\R\siga0 \Given \Ca0)
+\Sub \tau,
+C
+\]
+where
+$C\supseteq \Ca0\cup \Cs$.
+The preceding is $\alpha$-equivalent to
+\[
+A;\Exi\vdash
+\sigs\Sub\sigx,
+(\All{\beta_1\cdots\beta_n}\sigby\R\sigb0 \Given \Cb0)
+\Sub \tau,
+C.
+\]
+After $n$ applications of \textsc{S-LE} and one application of
+\textsc{S-CE} we obtain
+\[
+\beta_1,\ldots,\beta_n,A;\Exi\vdash
+\sigs\Sub\sigx,
+\sigby\R\sigb0 \Sub \tau,
+\Cb0\cup C.
+\]
+\textsc{S-Refl} produces
+\begin{align}
+\beta_1,\ldots,\beta_n,A;\Exi&\vdash
+\sigs\Sub\sigx,
+\sigb0\Sub\sigb0,
+\sigby\R\sigb0 \Sub \tau,
+\Cb0\cup C.
+\label{eq:subabs2}
+\end{align}
+Invoking the induction hypothesis on \eqref{eq:subabs1}~and
+\eqref{eq:subabs2} give us derivations for
+\def\sig0s{\sigma_0^\s}
+\def\C0s{C_0^\s}
+\begin{align}
+\Gamma,y:\sigby &\vdash t_0[x\mapsto\s] :
+\sig0s\Given\C0s,
+\label{eq:subabs3}
+\\
+A';\Exi &\vdash
+\sig0s \Sub \sigb0, C'
+\label{eq:subabs4}
+\end{align}
+for some $C'\supseteq\{\sigby\R\sigb0 \Sub \tau\}\cup \Cb0 \cup
+C \cup \C0s$. From~\eqref{eq:subabs3}, the desired constrained
+typing derivation for $t[x\mapsto\s]$ is derived thus:
+%
+\infrule[CT-Abs]%
+{\emptyset\subseteq
+\FTV(\sigby,\sig0s,\C0s)-\FTV(\Gamma)
+\andalso
+\Gamma,y:\sigby \vdash t_0[x\mapsto\s] :
+\sig0s\Given\C0s
+}%
+{\Gamma\vdash
+\Abs y t_0[x\mapsto\s] :
+(\sigby\R\sig0s\Given \C0s)\Given\C0s}%
+%
+From~\eqref{eq:subabs4}, \textsc{S-Refl} and \textsc{S-Dupe} produce
+\[
+A';\Exi \vdash
+\sigby \Sub \sigby,
+\sig0s \Sub \sigb0,
+\sigby\R\sigb0 \Sub \tau,
+C'.
+\]
+\textsc{S-Arrow} yields
+\[
+A';\Exi \vdash
+\sigby\R\sig0s \Sub \sigby\R\sigb0,
+\sigby\R\sigb0 \Sub \tau,
+C',
+\]
+and \textsc{S-Trans} gives us
+\[
+A';\Exi \vdash
+\sigby\R\sig0s \Sub \tau,
+C'.
+\]
+\textsc{S-CI} after duplicating all constraints in $\C0s\subseteq
+C'$ produces
+\[
+A';\Exi \vdash
+(\sigby\R\sig0s\Given\C0s) \Sub \tau,
+C',
+\]
+which is the desired subtype derivation.
+\end{proof}
 
 \input{bib.tex}\end{document}
