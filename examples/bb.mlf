@@ -1,0 +1,32 @@
+type 'a list = 'b. 'a -> ('a -> 'b -> 'b) -> 'b
+
+type 'e match = 'z. 'z -> ('e -> 'e list -> 'z) -> 'z
+
+val id = fun x -> x
+
+val const = fun x y -> x
+
+val flip = fun f y x -> f x y
+
+val compose = fun g f x -> g (f x)
+
+val nil = const
+
+val cons = fun x xs z f -> f x (xs z f)
+
+val matchList (xs : 'a list) =
+  xs const (fun x (ys : 'a match) z f -> f x (ys nil cons))
+  (* MLF detects problem at call site if         ^^^ ^^^^ these are left out *)
+  (* and if you stop annotating xs & ys *)
+
+val map = fun f xs -> xs nil (compose cons f)
+
+val sum = fun xs -> xs 0 (fun x y -> x + y)
+
+val tail = fun xs -> matchList xs nil (flip const)
+
+val sumTail = compose sum tail
+
+(* val problem = sumTail (cons 1 (cons 2 (cons 3 nil))) *)
+
+val idInt (x : int) = x
