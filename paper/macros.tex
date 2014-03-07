@@ -4,6 +4,11 @@
 \newcommand{\DotExpr}[2]{#1 #2.\ }
 \newenvironment{syntax}{\[\begin{array}{rrll}}{\end{array}\]}
 
+\makeatletter
+\renewcommand{\@secnumfont}{\bfseries}
+\makeatother
+\def\thesubsection{\arabic{subsection}}
+
 \nc\Abs       {\DotExpr\lambda}
 \nc\Add       {\mathrm{add}}
 \nc\All       {\DotExpr\forall}
