@@ -2,7 +2,6 @@
 \usepackage[foot]{amsaddr}
 \usepackage{bcprules,url}
 
-% TODO: reformat bio-data as PLDI requires
 \title
 {Impredicative Polymorphism\break
 for Shakespearean Monkeys}
@@ -21,12 +20,27 @@ Philipps-Universit\"at Marburg\\
 
 \input{macros.tex}
 \begin{document}
-\maketitle
+
+\def\OK{\\[5pt]}
+\begin{tabular}{ll}
+Name & Yufei Cai\OK
+Affiliation & Philipps-Universit\"at Marburg\OK
+Email & \url{cai@mathematik.uni-marburg.de} \OK
+Address & 05D06 Mehrzweckgeb\"aude,\\
+              & Hans-Meerwein Stra\ss e,\\
+              & 35039 Marburg, Germany \OK
+Advisor & Prof.\ Dr.\ Klaus Ostermann \OK
+ACM number & 9866679 \OK
+Category & Graduate student \OK
+Research title & A simple impredicative type system
+\end{tabular}
+
+\bigbreak
 
 \subsection{Problem statement}
 
-The problem is, first-class polymorphism has hardly any presence
-in everyday computing.
+The problem is, first-class polymorphism does not have enough
+presence in everyday computing.
 
 First-class polymorphism is a wonderful feature for statically
 typed functional languages. It refers to the ability to not only
@@ -35,23 +49,110 @@ use them polymorphically in the body of any definition. With
 first-class polymorphism, a library function can sort arrays of
 different things with a user-defined sorting algorithm. Less
 mundane applications include B\"ohm-Berarducci encoding of
-algebraic data types~\cite{Boehm85}, scrap-your-boilerplate
-pattern~\cite{Laemmel03}, foldable higher-order abstract
-syntax~\cite{Washburn03}, and ST monad~\cite{Launchbury94}. Those
+algebraic data types~\cite{Boehm85}, extensible
+effects~\cite{Kiselyov13}, scrap-your-boilerplate
+pattern~\cite{Laemmel03}, ST monad~\cite{Launchbury94}, and
+foldable higher-order abstract syntax~\cite{Washburn03}. Those
 applications were discovered despite this age's far-from-perfect
 support for first-class polymorphism. One may wonder how much
-more would be found expressible if first-class polymorphism were
-effortless to use.
+more would be found expressible if it were effortless to use.
 
-A type system with first-class polymorphism would become
-practical sooner if it were easy to use and easy to implement. A
-perspicuous type safety proof could help as well. Such a type
-system is my goal.
+A type system with first-class polymorphism would sooner become
+practical if it were easy to use and easy to implement.
+Perspicuous safety and utility proofs could help as well. Such a
+type system is my goal.
 
-TODO: short summary of what is meant by ``ease of use'' and
-``ease of implementation''.
+\subsection{Background}
 
-\subsection{Historical background}
+System~F~\cite{Reynolds74} is the first type system to support
+first-class polymorphism. In System~F, types of function
+arguments are fully annotated. Polymorphism is expressed through
+universally quantified types. The user must specialize
+polymorphic functions via type arguments before applying them to
+other terms. Researchers noticed the heavy notational overhead of
+System~F from the very beginning and sought ways of avoiding it,
+until type inference was proven
+undecidable~\cite{Schubert98,Wells96}. The burden of type
+annotation is both quantitative and qualitative. The types
+$\All\alpha\All\beta\alpha\R\beta\R\alpha$ and
+$\All\beta\All\alpha\alpha\R\beta\R\alpha$ express essentially
+identical behavior, but users have to distinguish between them to
+put type arguments in the right order. Correct usage of a library
+function requires more than keeping its input/output behavior in
+mind.
 
+Rank-N-Types~\cite{Jones07} adds first-class polymorphism to
+languages similar to Haskell~\cite{Marlow10} or
+ML~\cite{Milner97}. At the heart of Rank-N-Types is an algorithm
+capable of reconstructing all unquantified type arguments in a
+System~F term. It is an intellectual continuation of
+Algorithm~W~\cite{Milner78} in the tradition of \emph{predicative
+polymorphism}, where the instantiations of type variables are
+restricted so as to circumvent undecidability. Rank-N-Types
+eliminates a significant portion of notational overhead and is
+usable in
+practice~\cite{Kiselyov13,Laemmel03,Launchbury94,Washburn03}.
+However, use cases tend to require quantified type arguments,
+which the user must in some way provide. The programmer's mental
+model remains complex. One has to think about type applications
+to decide where an annotation may be necessary. Other predicative
+systems have the same drawback: They reduce manual labor without
+reducing mental effort.
+
+\MLF!~\cite{LeBotlan03,RemyMLF} is an impredicative type system.
+It requires annotation only on a subset of polymorphic arguments.
+System~F is easily embedded into \MLF!. The theoretic
+investigation of related systems is incredibly
+thorough~\cite{RemyMLF}. \MLF! has every potential for ease of
+use. That it is not a household name yet, we may blame on the
+complexity of the underlying theory and of the type inference
+algorithm. In \MLF!, a quantified type variable can be subject to
+a rigid or flexible constraint against any other type. It can be
+hard to discern the input/output behavior of a function given its
+type. The 4 years between the initial publication of \MLF! and
+the first prototype\footnote{ Boris Yakobowski developed the
+first prototype of \MLF! and published it on 8 April
+2008~\cite{RemyMLF}. } indicates the difficulty of
+implementation. Flexible types~\cite{Leijen09} and Boxy
+types~\cite{Vytiniotis06} are attempts to simplify \MLF! or
+otherwise shield the programmer from its complexity; they inherit
+at least a part of its theoretical and practical hardness.
+
+\subsection{Approach} I believe polymorphism can be understood
+\emph{extensionally}, in terms of functions passing information
+unaltered from contravariant positions to covariant positions. If
+a type system is no more than an encoding of statements about the
+behavior of functions, then neither have programmers anything
+beyond the behavior of functions to worry about.
+
+\subsection{Contribution and results}
+
+I hope to eventually obtain a type system that is easy to use and
+trivial to implement, where each type has a clear, intuitive
+meaning. Such a type system will make first-class polymorphism
+available for programmers who want to get things done quickly,
+with as little distraction as possible.
+
+For now, I have put together a type system according to
+extensional intuition. An implementation guide using typing rules
+would fit in one page. Anyone should be able to implement it in a
+week, so long as they have some experience in unification-based
+type inference for simply typed lambda calculus. I proved type
+safety via the syntactic approach~\cite{Wright94}, by progress
+and preservation, and tested the ease of use in a case study of
+B\"ohm-Berarducci encoding of lists. The case study consists of
+type signatures in System~F syntax, and term definitions in
+lambda calculus with optional argument type annotations. The case
+study requires only one annotation in System~F syntax to
+typecheck. Type errors due to programmer oversight are caught.
+
+It remains to find a precise extensional meaning for the type
+system. In addition to case studies, it would be nice to
+\emph{prove} the ease of use. For instance, each System~F term
+might be well-typed if we erase type abstractions and type
+applications (This is the case for System~F terms of depth at
+most 5, with variables at depth 1). Or there might be some way to
+determine when an argument needs annotation; most polymorphic
+arguments in the case study do not.
 
 \input{bib.tex}\end{document}
