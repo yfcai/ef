@@ -1,15 +1,6 @@
 \documentclass{amsart}
 \usepackage[foot]{amsaddr}
-\usepackage{bcprules,url}
-
-\title
-{Impredicative Polymorphism\break
-for Shakespearean Monkeys}
-\author{Yufei Cai}
-\address{{\rm
-Philipps-Universit\"at Marburg\\
-\url{cai@mathematik.uni-marburg.de}\\
-05D06 Mehrzweckgeb\"aude, Hans-Meerwein Str., 35039 Marburg, Germany}}
+\usepackage{bcprules,url,verbatim,multicol,caption,fullpage}
 
 \let\phi=\varphi % default phi looks like empty set
 \allowdisplaybreaks
@@ -19,9 +10,22 @@ Philipps-Universit\"at Marburg\\
 \newtheorem{corollary}[subsection]{Corollary}
 
 \input{macros.tex}
-\begin{document}
+\begin{document}\thispagestyle{empty}
+
+% 'ware that blank page
+%\newgeometry{left=1.5cm,right=1.5cm}
+
+
+\def\CT0{$\text{CT}_0$}
+\def\DoCap{\captionsetup{justification=raggedright,margin=0pt}}
 
 \def\OK{\\[5pt]}
+
+\def\LeftWidth{0.5\textwidth}
+\def\RightWidth{0.5\textwidth}
+
+{
+\begin{minipage}{\LeftWidth}
 \begin{tabular}{ll}
 Name & Yufei Cai\OK
 Affiliation & Philipps-Universit\"at Marburg\OK
@@ -32,127 +36,292 @@ Address & 05D06 Mehrzweckgeb\"aude,\\
 Advisor & Prof.\ Dr.\ Klaus Ostermann \OK
 ACM number & 9866679 \OK
 Category & Graduate student \OK
-Research title & A simple impredicative type system
+Research title & An extensional viewpoint\\ &of polymorphism
 \end{tabular}
+
+\vspace{2.3cm}
+\small
+\begin{verbatim}
+{-# LANGUAGE RankNTypes,
+    ScopedTypeVariables #-}
+import Prelude hiding (sum)
+
+type List a =
+  forall b. b -> (a -> b -> b) -> b
+
+nil :: List a
+nil = const
+
+cons :: a -> List a -> List a
+cons x xs = \z s -> s x (xs z s)
+
+type MatchList a =
+  forall c. c -> (a -> List a -> c) -> c
+
+matchList :: List a -> MatchList a
+matchList xs =
+  xs const
+     (\x (ys :: MatchList a) z s ->
+       s x (ys nil cons))
+
+sum :: List Int -> Int
+sum xs = matchList xs 0 (\x xs -> x + sum xs)
+
+downFrom :: Int -> List Int
+downFrom 0 = nil
+downFrom n = cons n (downFrom (n - 1))
+
+main = putStrLn (show (sum (downFrom 100)))
+\end{verbatim}
+
+\begingroup
+\DoCap
+\captionof{figure}{B\"ohm-Berarducci encoding of lists\\
+in ill-typed Haskell. The compiler complains about the definition
+of \texttt{matchList}.}
+\label{figure1}
+\endgroup
 
 \bigbreak
 
+
+
+
+\vfil
+\end{minipage}
+\begin{minipage}{\RightWidth}
+\renewenvironment{syntax}{\[\begin{array}{rrlr}}{\end{array}\]}
+\def\Separate{\vspace{0.4cm}}
+
+\small
+\begin{syntax}
+t&::=& c \Or x \Or t~t \Or \Abs x t
+&\mbox{term}\\
+&|& \Abs {x : \tau} t
+\OK
+\tau &::=& \iota \Or \alpha \Or \tau \R \tau 
+\Or \All\alpha\tau&\mbox{type}\\
+&|&\tau\Given C&\mbox{(internal use only)}
+\OK
+C&::=&\emptyset \Or \tau\Sub\tau,C&\mbox{constraints}
+\end{syntax}
+
+\Separate
+
+\infrule[CT-Con]
+{}
+{\Gamma\vdash c : \tau_c \Given \emptyset}
+
+\infrule[CT-Var]
+{x:\tau\in\Gamma}
+{\Gamma\vdash x : \tau \Given \emptyset}
+
+\infrule[CT-App]
+{
+\Gamma\vdash s : \sigma \Given C_1
+\andalso
+\Gamma\vdash t : \tau \Given C_2}
+{\Gamma\vdash s~t : \beta \Given
+\sigma\Sub\alpha\R\beta,\tau\Sub\alpha,C_1\cup C_2}
+
+\infrule[CT-Abs]
+{
+\begin{array}{c}
+\{\alpha_1,\ldots,\alpha_n\}
+=
+\FTV(\sigma,\tau,C)-\FTV(\Gamma)
+\\
+\alpha \notin \FTV(\Gamma)
+\andalso
+\Gamma,x:\alpha \vdash t : \tau \Given C
+\end{array}}
+{\Gamma\vdash (\Abs {x} t) :
+(\All{\alpha_1\cdots\alpha_n}\alpha\R\tau\Given C) \Given C}
+
+\infrule[CT-Hint]
+{
+\begin{array}{c}
+\{\alpha_1,\ldots,\alpha_n\}
+=
+\FTV(\sigma,\tau,C)-\FTV(\Gamma)
+\\
+\Gamma,x:\sigma \vdash t : \tau \Given C
+\end{array}}
+{\Gamma\vdash (\Abs {x:\sigma} t) :
+(\All{\alpha_1\cdots\alpha_n}\sigma\R\tau\Given C) \Given C}
+
+\Separate
+
+\begin{syntax}
+A,E &::=&\emptyset \Or \alpha,A &\qquad\qquad\mbox{lists of type variables}
+\end{syntax}
+
+\infrule[S-vacuous]
+{}
+{A;E\vdash\emptyset}
+
+\infrule[S-Refl]
+{
+A;E\vdash C
+}
+{A;E \vdash \tau\Sub\tau,C}
+
+\infrule[S-Arrow]
+{A;E\vdash\tau_0\Sub\sigma_0,\sigma_1\Sub\tau_1,C}
+{A;E\vdash\sigma_0\R\sigma_1\Sub\tau_0\R\tau_1,C}
+
+\infrule[S-LI]
+{
+\begin{array}{cc}
+\tau\notin A\\
+\alpha\text{ is only free in $\sigma$}
+&\andalso
+\alpha,A;E\vdash\sigma\Sub\tau,C
+\end{array}
+}
+{A;E\vdash(\All\alpha\sigma)\Sub\tau,C}
+
+\infrule[S-RI]
+{
+\begin{array}{cc}
+\sigma\notin A\\
+\alpha\text{ is only free in $\tau$}
+&\andalso
+A;\alpha,E\vdash\sigma\Sub\tau,C
+\end{array}
+}
+{A;E\vdash\sigma\Sub(\All\alpha\tau),C}
+
+\infrule[S-Loner]
+{
+\alpha\text{ fresh}
+\andalso
+A;E\vdash
+\{ \sigma_i\Sub\tau_j \Or 1 \le i \le m, 1 \le j \le n \}
+\cup C
+}{
+\alpha,A;E \vdash
+\sigma_1\Sub\alpha,\ldots,\sigma_m\Sub\alpha,
+\alpha\Sub\tau_1,\ldots,\alpha\Sub\tau_n,C
+}
+
+
+\begingroup
+\DoCap
+\captionof{figure}{Syntax and typing rules of \CT0}
+\label{figure2}
+\endgroup
+\end{minipage}
+}
+
+\vfil
+\break
+
+%\restoregeometry
+
+\def\Fig#1{Figure~\ref{figure#1}}
+\def\fig#1{figure~\ref{figure#1}}
+
+\normalsize
+
 \subsection{Problem statement}
 
-The problem is, first-class polymorphism does not have enough
-presence in everyday computing.
+We want to capture the expressive power of System~F in a
+practical programming language.
+In System~F,
+\begin{enumerate}
+\item we can write polymorphic functions, and
+\item we can take functions definable via (1) or (2) as arguments.
+\end{enumerate}
+Call this feature ``first-class polymorphism''. It is a powerful
+abstraction mechanism, essential in unrestricted use of design
+patterns like scrap-your-boilerplate~\cite{Laemmel03} and capable
+of encoding algebraic datatypes~\cite{Boehm85}. \Fig1 shows the
+encoding of lists. The synonym~\texttt{List} expands to a type of
+polymorphic functions. The synonym \texttt{MatchList} encodes
+pattern-matching on lists, and expands to a type of polymorphic
+functions whose second argument is a function whose second
+argument is a polymorphic function.
 
-First-class polymorphism is a wonderful feature for statically
-typed functional languages. It refers to the ability to not only
-define polymorphic functions, but also take them as arguments and
-use them polymorphically in the body of any definition. With
-first-class polymorphism, a library function can sort arrays of
-different things with a user-defined sorting algorithm. Less
-mundane applications include B\"ohm-Berarducci encoding of
-algebraic data types~\cite{Boehm85}, extensible
-effects~\cite{Kiselyov13}, scrap-your-boilerplate
-pattern~\cite{Laemmel03}, ST monad~\cite{Launchbury94}, and
-foldable higher-order abstract syntax~\cite{Washburn03}. Those
-applications were discovered despite this age's far-from-perfect
-support for first-class polymorphism. One may wonder how much
-more would be found expressible if it were effortless to use.
+\Fig1 is ill-typed in Haskell. However, if we insert enough type
+casts (\texttt{unsafeCoerce}) into the definition of
+\texttt{matchList}, it will compile, and the resulting executable
+prints \texttt{5050} as expected. In fact, this program can never
+encounter runtime type errors. A type system is desirable if it
+accepts \fig1 without further ado, and rejects all programs
+concealing runtime type errors.
 
-A type system with first-class polymorphism would sooner become
-practical if it were easy to use and easy to implement.
-Perspicuous safety and utility proofs could help as well. Such a
-type system is my goal.
+\subsection{Background} Researchers recognized the importance of
+first-class polymorphism and spent much effort toward making it
+practical. Many systems were proposed that offer the expressive
+power of System~F with less notational overhead. They can be
+\emph{predicative} or \emph{impredicative}.
 
-\subsection{Background}
+Like F, a \emph{predicative} system is based on instantiating
+type variables with type arguments. But if a type argument is not
+polymorphic (i.~e., it is a \emph{monotype}), then it can be
+inferred. Practical use cases tend to contain polymorphic type
+arguments; the user must supply those in some way. Haskell's
+Rank-N-Types is a representative~\cite{Jones07}. (The reader may
+try annotating \fig1 until Rank-N-Types accepts it without
+\texttt{unsafeCoerce}.)
 
-System~F~\cite{Reynolds74} is the first type system to support
-first-class polymorphism. In System~F, types of function
-arguments are fully annotated. Polymorphism is expressed through
-universally quantified types. The user must specialize
-polymorphic functions via type arguments before applying them to
-other terms. Researchers noticed the heavy notational overhead of
-System~F from the very beginning and sought ways of avoiding it,
-until type inference was proven
-undecidable~\cite{Schubert98,Wells96}. The burden of type
-annotation is both quantitative and qualitative. The types
-$\All\alpha\All\beta\alpha\R\beta\R\alpha$ and
-$\All\beta\All\alpha\alpha\R\beta\R\alpha$ express essentially
-identical behavior, but users have to distinguish between them to
-put type arguments in the right order. Correct usage of a library
-function requires more than keeping its input/output behavior in
-mind.
+An \emph{impredicative} system will infer a type argument even if
+it contains quantifiers. Since inferring all type abstractions
+and type applications is undecidable for F~\cite{Schubert98}, an
+impredicative system can choose to not infer everything, or
+accept more programs than System~F does. FPH~\cite{Vytiniotis08}
+is an example of the former. \MLF!~\cite{LeBotlan03,RemyMLF} and
+HML~\cite{Leijen09} are examples of the latter; they extend F
+types with bounded quantification, where the quantified variable
+is constrained against an arbitrary type. \MLF! rejects \fig1 but
+accepts it after removing \emph{all} type annotations and
+signatures---it interprets F types somewhat differently. I do not
+know whether HML accepts \fig1, because its prototype has
+technical problems processing \texttt{matchList}. \MLF! and HML
+are harder to implement than our system \CT0, shown in \fig2.
 
-Rank-N-Types~\cite{Jones07} adds first-class polymorphism to
-languages similar to Haskell~\cite{Marlow10} or
-ML~\cite{Milner97}. At the heart of Rank-N-Types is an algorithm
-capable of reconstructing all unquantified type arguments in a
-System~F term. It is an intellectual continuation of
-Algorithm~W~\cite{Milner78} in the tradition of \emph{predicative
-polymorphism}, where the instantiations of type variables are
-restricted so as to circumvent undecidability. Rank-N-Types
-eliminates a significant portion of notational overhead and is
-usable in
-practice~\cite{Kiselyov13,Laemmel03,Launchbury94,Washburn03}.
-However, use cases tend to require quantified type arguments,
-which the user must in some way provide. The programmer's mental
-model remains complex. One has to think about type applications
-to decide where an annotation may be necessary. Other predicative
-systems have the same drawback: They reduce manual labor without
-reducing mental effort.
+\subsection{Approach}
 
-\MLF!~\cite{LeBotlan03,RemyMLF} is an impredicative type system.
-It requires annotation only on a subset of polymorphic arguments.
-System~F is easily embedded into \MLF!. The theoretic
-investigation of related systems is incredibly
-thorough~\cite{RemyMLF}. \MLF! has every potential for ease of
-use. That it is not a household name yet, we may blame on the
-complexity of the underlying theory and of the type inference
-algorithm. In \MLF!, a quantified type variable can be subject to
-a rigid or flexible constraint against any other type. It can be
-hard to discern the input/output behavior of a function given its
-type. The 4 years between the initial publication of \MLF! and
-the first prototype\footnote{ Boris Yakobowski developed the
-first prototype of \MLF! and published it on 8 April
-2008~\cite{RemyMLF}. } indicates the difficulty of
-implementation. Flexible types~\cite{Leijen09} and Boxy
-types~\cite{Vytiniotis06} are attempts to simplify \MLF! or
-otherwise shield the programmer from its complexity; they inherit
-at least a part of its theoretical and practical hardness.
+To my knowledge, all existing systems are \emph{intentional}: A
+type is a syntactic object or a collection of syntactic objects.
+Instantiation of type variables is an act of substitution.
 
-\subsection{Approach} I believe polymorphism can be understood
-\emph{extensionally}, in terms of functions passing information
-unaltered from contravariant positions to covariant positions. If
-a type system is no more than an encoding of statements about the
-behavior of functions, then neither have programmers anything
-beyond the behavior of functions to worry about.
+The effort toward practical first-class polymorphism may benefit
+from an \emph{extensional} viewpoint: Functions are understood in
+terms of their behavior, as argument-result pairs. Polymorphism
+arises when a function passes information unaltered from
+contravariant positions to covariant positions. Types encode
+statements about the behavior of functions; they contain demands
+for polymorphism and promises of it. This view leads to the
+design of constrained type system version 0 (\CT0), especially of
+the rule \textsc{S-Loner} (\fig2).
 
-\subsection{Contribution and results}
+\subsection{Results and future work}
 
-I hope to eventually obtain a type system that is easy to use and
-trivial to implement, where each type has a clear, intuitive
-meaning. Such a type system will make first-class polymorphism
-available for programmers who want to get things done quickly,
-with as little distraction as possible.
+\CT0 accepts \fig1 (in lambda calculus syntax) and rejects all
+programs with runtime type errors. We tested \CT0 on well-typed F
+terms of depth $\le5$ with type abstractions and type
+applications erased; all were accepted.
 
-For now, I have put together a type system according to
-extensional intuition. An implementation guide using typing rules
-would fit in one page. Anyone should be able to implement it in a
-week, so long as they have some experience in unification-based
-type inference for simply typed lambda calculus. I proved type
-safety via the syntactic approach~\cite{Wright94}, by progress
-and preservation, and tested the ease of use in a case study of
-B\"ohm-Berarducci encoding of lists. The case study consists of
-type signatures in System~F syntax, and term definitions in
-lambda calculus with optional argument type annotations. The case
-study requires only one annotation in System~F syntax to
-typecheck. Type errors due to programmer oversight are caught.
+\CT0 is easy to implement. To check whether a term $t$ has the
+closed type $\tau$:
+\begin{enumerate}
+\item Descend into $t$ and use CT-rules to obtain a constrained
+type $(\sigma\Given C)$.
+\item Let $A$ be the set of type variables free in $\sigma$ or
+$C$. Attempt to construct a derivation of
+$(A;\emptyset\vdash\sigma\Sub\tau,C)$ by applying S-rules
+backwards greedily and exhaustively. If it succeeds, then $t$ has
+type $\tau$.
+\end{enumerate}
 
-It remains to find a precise extensional meaning for the type
-system. In addition to case studies, it would be nice to
-\emph{prove} the ease of use. For instance, each System~F term
-might be well-typed if we erase type abstractions and type
-applications (This is the case for System~F terms of depth at
-most 5, with variables at depth 1). Or there might be some way to
-determine when an argument needs annotation; most polymorphic
-arguments in the case study do not.
+For future work, I hope to formalize the extensional intuition
+behind \CT0. It would give us another tool to reason about
+polymorphism. It might also answer questions about the practical
+viability of \CT0, such as whether all System~F terms are
+well-typed in \CT0 after erasure, and when exactly should an
+argument be annotated.
 
+\newpage\normalsize
 \input{bib.tex}\end{document}
