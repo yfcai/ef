@@ -103,10 +103,16 @@ sum = λns : _0_. ns 0 +
 list1-5 : List ℤ
 list1-5 = ana-ℤ 5
 
-head nil
+.head nil
 
-tail nil
+.tail nil
 
-sum (cons 1 (cons 2 (cons 3 (cons 4 (cons 5 nil)))))
+.sum (cons 1 (cons 2 (cons 3 (cons 4 (cons 5 nil)))))
 
-sum (map (* 2) list1-5)
+.sum (map (* 2) list1-5)
+
+
+(λxs : _0_.
+  xs const
+     (λx : _1_. λys : MatchList α. λz : _3_. λf : _4_. f x (ys nil cons)))
+  : ∀α. List α → MatchList α
