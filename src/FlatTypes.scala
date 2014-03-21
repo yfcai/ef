@@ -17,6 +17,7 @@ trait FlatTypes
 
   type Dependency = collection.immutable.HashMap[String, Set[String]]
   type Source = Map[String, Src]
+  type Sequence = List[Seq[String]]
 
   case class Src(origin: Tree, antagonist: Tree)
   def emptyDependency: Dependency = collection.immutable.HashMap.empty
@@ -184,11 +185,22 @@ trait FlatTypes
       })
     }
 
+    case class Broken(
+      accomodating: List[String],
+      exigent: List[String],
+      constraints: List[Tree],
+      source: Source,
+      sequence: Sequence
+    ) {
+      def prepend(constraint: Tree): Broken =
+        copy(constraints = constraint :: constraints)
+    }
+
     def breakBinders(
       prefix: List[String],
       css: List[Tree],
       avoid0: Set[String]
-    ): (List[String], List[String], List[Tree], Source) = {
+    ): Broken = {
       val fst :: rest = css
       val σ ⊑ τ = fst
       val (p, σ0) = σ.unbindAll(avoid0, Universal, Existential)
@@ -201,6 +213,9 @@ trait FlatTypes
       val qu = q.withFilter(_.tag == Universal  ).map(_.x)
       val qe = q.withFilter(_.tag == Existential).map(_.x)
 
+      // ensure that no existentials exist
+      assert(pe.isEmpty && qe.isEmpty)
+
       // add things to prefix and stuff
       val accomodating = pu ++ qe
       val exigent      = pe ++ qu
@@ -210,12 +225,18 @@ trait FlatTypes
         (p.map(_.x -> Src(σ0, τ0))(collection.breakOut): Source) ++
         (q.map(_.x -> Src(τ0, σ0)))
 
-      val (all, ex, cs, src1) = breakUp(
+      val Broken(all, ex, cs, src1, seq1) = breakUp(
         prefix ++ accomodating,
         σ0 ⊑ τ0 :: rest,
         avoid2)
 
-      (accomodating ++ all, exigent ++ ex, cs, src0 ++ src1)
+      Broken(
+        accomodating ++ all,
+        exigent ++ ex,
+        cs,
+        src0 ++ src1,
+        qu :: pu :: seq1
+      )
     }
 
     // precondition: prefix ⊆ avoid
@@ -224,7 +245,7 @@ trait FlatTypes
       prefix: List[String],
       constraints: List[Tree],
       avoid: Set[String]
-    ): (List[String], List[String], List[Tree], Source) = constraints match {
+    ): Broken = constraints match {
       // deal with function types
       case (c @ (σ0 → σ1) ⊑ (τ0 → τ1)) :: rest =>
         breakUp(prefix, τ0 ⊑ σ0 :: σ1 ⊑ τ1 :: rest, avoid)
@@ -238,13 +259,11 @@ trait FlatTypes
       // (these are the key to typing matchList correctly! why?!)
       case (fst @ æ(α) ⊑ τ) :: rest
           if (prefix contains α) && æ(α) != τ =>
-        val (all, ex, cs, src) = breakUp(prefix, rest, avoid)
-        (all, ex, fst :: cs, src)
+        breakUp(prefix, rest, avoid) prepend fst
 
       case (fst @ τ ⊑ æ(α)) :: rest
           if (prefix contains α) && æ(α) != τ =>
-        val (all, ex, cs, src) = breakUp(prefix, rest, avoid)
-        (all, ex, fst :: cs, src)
+        breakUp(prefix, rest, avoid) prepend fst
 
       // unbind quantifiers, in some order.
       case cs @ σ ⊑ τ :: rest
@@ -257,11 +276,10 @@ trait FlatTypes
 
       // unbreakable, e. g., ℤ  ⊑  α → β
       case fst :: rest =>
-        val (all, ex, cs, src) = breakUp(prefix, rest, avoid)
-        (all, ex, fst :: cs, src)
+        breakUp(prefix, rest, avoid) prepend fst
 
       case Nil =>
-        (Nil, Nil, Nil, Map.empty)
+        Broken(Nil, Nil, Nil, Map.empty, Nil)
     }
 
     // partition constraints with respect to a loner
@@ -294,6 +312,17 @@ trait FlatTypes
             acc
       }
 
+    // partial solution
+    case class PSol(
+      all: List[String],
+      ex: List[String],
+      solved: List[Coll],
+      unsolved: List[Tree],
+      source: Source,
+      dependency: Dependency,
+      sequence: Sequence
+    )
+
     // solve constraints up to loners
     // @return (all, ex, all-solved-variables, unsolved-constraints)
     def solve(
@@ -301,15 +330,13 @@ trait FlatTypes
       ex0: List[String],
       cs0: List[Tree],
       avoid: Set[String] // should be free variables of that term
-    ): (List[String], List[String], List[Coll], List[Tree],
-        Source, Dependency) = {
-
+    ): PSol = {
       // debug session
       if (debugFlag)
         debug(all0, ex0, cs0)
 
       // 1. break up constraints
-      val (all1, ex1, cs1, src1) =
+      val Broken(all1, ex1, cs1, src1, seq1) =
         breakUp(all0, cs0, avoid ++ all0 ++ ex0)
 
       // 2. find loner
@@ -330,6 +357,7 @@ trait FlatTypes
             for {
               tau <- lhs ++ rhs
               exigent <- tau.freeNames
+              // track dependencies
               if ex2 contains exigent
             }
             yield (exigent, Set(loner))
@@ -337,30 +365,44 @@ trait FlatTypes
 
           val newCs = for { σ <- lhs ; τ <- rhs } yield σ ⊑ τ
 
-          val (all, ex, solved, unsolved, src3, dep3) =
+          val PSol(all, ex, solved, unsolved, src3, dep3, seq3) =
             solve(all2, ex2, newCs ++ rest, avoid)
-          (all, ex,
+          PSol(all, ex,
             Coll(loner, lhs, rhs) :: solved,
             unsolved,
             src1 ++ src3,
-            dep1.merged(dep3)((p, q) => (p._1, p._2 ++ q._2)))
+            dep1.merged(dep3)((p, q) => (p._1, p._2 ++ q._2)),
+            seq1 ++ seq3
+          )
 
         // 3-2. no loner exists any more
         // put remaining constraints aside for later use
         case None =>
-          (all2, ex2, Nil, cs1, src1, emptyDependency)
+          PSol(all2, ex2, Nil, cs1, src1, emptyDependency, Nil)
       }
     }
 
     case class Solution(
-      all      : List[String],
-      ex       : List[String],
-      rep      : Tree,
-      coll     : List[Coll],
-      origin   : Map[String, Tree],
-      source   : Source,
-      dependency: Dependency
-    )
+      all        : List[String],
+      ex         : List[String],
+      rep        : Tree,
+      coll       : List[Coll],
+      origin     : Map[String, Tree],
+      source     : Source,
+      dependency : Dependency,
+      sequence   : Sequence
+    ) {
+      // alpha's batch is before beta's,
+      // or alpha & beta occur in the same batch.
+      def preceq(alpha: String, beta: String): Boolean = batch(alpha) <= batch(beta)
+
+      // the batch of quantified type variables containing alpha
+      def batch(alpha: String): Int = {
+        val i = sequence.indexWhere(_ contains alpha)
+        assert(i >= 0) // if i < 0, then alpha is outside the sequence (shouldn't happen)
+        i
+      }
+    }
 
     def solve(term: Tree): Solution = {
       val CType(rep, cs, origin) =
@@ -371,7 +413,7 @@ trait FlatTypes
       val all0 = getPrefix(term) ++
         origin.keys // or equivalently: cs.map(_.freeNames).reduce(_ ++ _)
 
-      val (all, ex, coll, rest, src, dep) =
+      val PSol(all, ex, coll, rest, src, dep, seq) =
         solve(all0, Nil, cs, term.freeNames)
       val unsolvable = rest.filter(c => {
         val lhs ⊑ rhs = c
@@ -390,7 +432,7 @@ trait FlatTypes
               |
               |loner = ${getLoner(all, unsolvable)}
               |""".stripMargin)
-      Solution(all, ex, rep, coll, origin, src, dep)
+      Solution(all, ex, rep, coll, origin, src, dep, seq)
     }
 
     lazy val Γ = Γ0 ++ module.sig addTypes module.syn.keySet
@@ -426,7 +468,7 @@ trait FlatTypes
     }
 
     def show(solution: Solution) {
-      val Solution(all, ex, rep, coll, origin, src, dep) = solution
+      val Solution(all, ex, rep, coll, origin, src, dep, seq) = solution
       println()
       if (! all.isEmpty) println(s"∀${all.mkString(" ")}")
       if (!  ex.isEmpty) println(s"∃${ ex.mkString(" ")}")
@@ -460,10 +502,24 @@ trait FlatTypes
     }
 
     def wellTyped(t: Tree): Boolean =
-      try { val s = solve(t) ; true }
+      try { val s = solve(t) ; isSane(s) }
       catch { case Insoluble(_) => false }
 
     def illTyped(t: Tree) = ! wellTyped(t)
+
+    def isSane(s: Solution): Boolean = {
+      for {
+        (e, as) <- s.dependency
+        a <- as
+        if ! s.preceq(e, a)
+      } {
+        println(s"reverse dependency: $e determines $a")
+        println(s"$e occurs in batch ${s batch e}")
+        println(s"$a occurs in batch ${s batch a}")
+        return false
+      }
+      true
+    }
   }
 }
 

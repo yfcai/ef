@@ -1,5 +1,8 @@
 . PRELUDE
 
+compose : ∀α β γ. (β → γ) → (α → β) → (α → γ)
+compose = λg : _0_. λf : _1_. λx : _2_. g (f x)
+
 . ill-typed with the signature
 .   auto : ∀α. α → α
 . even as we do not annotate the argument type.
@@ -18,10 +21,6 @@ flip = λf : _0_. λy : _1_. λx : _2_. f x y
 
 id : ∀ι. ι → ι
 id = λx : _0_. x
-
-compose : ∀β γ. (β → γ) → ∀α. (α → β) → (α → γ)
-compose = λg : _0_. λf : _1_. λx : _2_. g (f x)
-
 
 . CONJUNCTION
 
