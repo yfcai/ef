@@ -49,4 +49,8 @@ trait Flags {
 
   // do not insert polymorphism marker everywhere
   def manualFlag: Boolean = flag("manual")
+
+  // do not duplicate constraints
+  def nodupeFlag: Boolean = ! dupeFlag
+  def dupeFlag: Boolean = flag("dupe")
 }

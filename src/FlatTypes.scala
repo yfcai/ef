@@ -124,7 +124,8 @@ trait FlatTypes
               val newRep = if (cs.isEmpty) rep else ConstrainedType(rep, cs)
               CType(
                 ∀(degreesOfFreedom, newRep),
-                cs, origin)
+                if (nodupeFlag) Nil else cs,
+                origin)
             }
           }
           else {
@@ -169,7 +170,8 @@ trait FlatTypes
             val newRep = if (cs.isEmpty) rep else ConstrainedType(rep, cs)
             CType(
               ∀(degreesOfFreedom, newRep),
-              cs, org)
+              if (nodupeFlag) Nil else cs,
+              org)
           }
       }
 

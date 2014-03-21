@@ -30,6 +30,9 @@ object Main extends ARGV0 with Calculi {
               |
               | -debug    step through constraint solver on type error
               |
+              | -dupe     duplicate constraints at (possibly implicit)
+              |           polymorphism markers
+              |
               | -loop     run designated command repeatedly useful for
               |           useful for profiling
               |
