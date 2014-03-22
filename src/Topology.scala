@@ -44,4 +44,19 @@ trait Topology {
     }
     Right(result)
   }
+
+  // get all the descendants of a node in a DAG, including the source
+  def descendants[T](source: T, graph: Map[T, Set[T]]): Set[T] = {
+    val next = graph.withDefault(_ => Nil)(source)
+    if (next.isEmpty)
+      Set(source)
+    else {
+      val strict = next.map(x => descendants(x, graph)).reduce(_ ++ _)
+      strict + source
+    }
+  }
+
+  // get all the descendants excluding the source
+  def strictDescendants[T](source: T, graph: Map[T, Set[T]]): Set[T] =
+    descendants(source, graph) - source
 }

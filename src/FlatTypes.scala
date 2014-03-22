@@ -18,6 +18,7 @@ trait FlatTypes
   type Dependency = collection.immutable.HashMap[String, Set[String]]
   type Source = Map[String, Src]
   type Sequence = List[Seq[String]]
+  type Forbidden = Map[String, List[String]]
 
   case class Src(origin: Tree, antagonist: Tree)
   def emptyDependency: Dependency = collection.immutable.HashMap.empty
@@ -190,10 +191,15 @@ trait FlatTypes
       exigent: List[String],
       constraints: List[Tree],
       source: Source,
-      sequence: Sequence
+      sequence: Sequence,
+      forbidden: Forbidden
     ) {
       def prepend(constraint: Tree): Broken =
         copy(constraints = constraint :: constraints)
+    }
+
+    object Broken {
+      val empty: Broken = Broken(Nil, Nil, Nil, Map.empty, Nil, Map.empty)
     }
 
     def breakBinders(
@@ -208,24 +214,23 @@ trait FlatTypes
       val (q, τ0) = τ.unbindAll(avoid1, Universal, Existential)
       val avoid2 = avoid1 ++ q.map(_.x)
 
-      val pu = p.withFilter(_.tag == Universal  ).map(_.x)
-      val pe = p.withFilter(_.tag == Existential).map(_.x)
-      val qu = q.withFilter(_.tag == Universal  ).map(_.x)
-      val qe = q.withFilter(_.tag == Existential).map(_.x)
+      val pu = p.withFilter(_.tag == Universal).map(_.x)
+      val qu = q.withFilter(_.tag == Universal).map(_.x)
 
       // ensure that no existentials exist
-      assert(pe.isEmpty && qe.isEmpty)
+      assert(pu.length == p.length && qu.length == q.length)
 
       // add things to prefix and stuff
-      val accomodating = pu ++ qe
-      val exigent      = pe ++ qu
+      // (remember that pe and qe are empty)
+      val accomodating = pu
+      val exigent      = qu
 
       // track origins and antagonists
       val src0: Source =
         (p.map(_.x -> Src(σ0, τ0))(collection.breakOut): Source) ++
         (q.map(_.x -> Src(τ0, σ0)))
 
-      val Broken(all, ex, cs, src1, seq1) = breakUp(
+      val Broken(all, ex, cs, src1, seq1, fbd1) = breakUp(
         prefix ++ accomodating,
         σ0 ⊑ τ0 :: rest,
         avoid2)
@@ -235,7 +240,8 @@ trait FlatTypes
         exigent ++ ex,
         cs,
         src0 ++ src1,
-        qu :: pu :: seq1
+        qu :: pu :: seq1,
+        fbd1 ++ qu.map(_ -> prefix)
       )
     }
 
@@ -279,7 +285,7 @@ trait FlatTypes
         breakUp(prefix, rest, avoid) prepend fst
 
       case Nil =>
-        Broken(Nil, Nil, Nil, Map.empty, Nil)
+        Broken.empty
     }
 
     // partition constraints with respect to a loner
@@ -320,7 +326,8 @@ trait FlatTypes
       unsolved: List[Tree],
       source: Source,
       dependency: Dependency,
-      sequence: Sequence
+      sequence: Sequence,
+      forbidden: Forbidden
     )
 
     // solve constraints up to loners
@@ -336,7 +343,7 @@ trait FlatTypes
         debug(all0, ex0, cs0)
 
       // 1. break up constraints
-      val Broken(all1, ex1, cs1, src1, seq1) =
+      val Broken(all1, ex1, cs1, src1, seq1, fbd1) =
         breakUp(all0, cs0, avoid ++ all0 ++ ex0)
 
       // 2. find loner
@@ -357,28 +364,29 @@ trait FlatTypes
             for {
               tau <- lhs ++ rhs
               exigent <- tau.freeNames
-              // track dependencies
-              if ex2 contains exigent
+              // track dependencies from both the exigent and the accomodating
+              // if ex2 contains exigent
             }
             yield (exigent, Set(loner))
           )
 
           val newCs = for { σ <- lhs ; τ <- rhs } yield σ ⊑ τ
 
-          val PSol(all, ex, solved, unsolved, src3, dep3, seq3) =
+          val PSol(all, ex, solved, unsolved, src3, dep3, seq3, fbd3) =
             solve(all2, ex2, newCs ++ rest, avoid)
           PSol(all, ex,
             Coll(loner, lhs, rhs) :: solved,
             unsolved,
             src1 ++ src3,
             dep1.merged(dep3)((p, q) => (p._1, p._2 ++ q._2)),
-            seq1 ++ seq3
+            seq1 ++ seq3,
+            fbd1 ++ fbd3
           )
 
         // 3-2. no loner exists any more
         // put remaining constraints aside for later use
         case None =>
-          PSol(all2, ex2, Nil, cs1, src1, emptyDependency, Nil)
+          PSol(all2, ex2, Nil, cs1, src1, emptyDependency, Nil, fbd1)
       }
     }
 
@@ -390,7 +398,8 @@ trait FlatTypes
       origin     : Map[String, Tree],
       source     : Source,
       dependency : Dependency,
-      sequence   : Sequence
+      sequence   : Sequence,
+      forbidden  : Forbidden
     ) {
       // alpha's batch is before beta's,
       // or alpha & beta occur in the same batch.
@@ -413,7 +422,7 @@ trait FlatTypes
       val all0 = getPrefix(term) ++
         origin.keys // or equivalently: cs.map(_.freeNames).reduce(_ ++ _)
 
-      val PSol(all, ex, coll, rest, src, dep, seq) =
+      val PSol(all, ex, coll, rest, src, dep, seq, fbd) =
         solve(all0, Nil, cs, term.freeNames)
       val unsolvable = rest.filter(c => {
         val lhs ⊑ rhs = c
@@ -432,7 +441,7 @@ trait FlatTypes
               |
               |loner = ${getLoner(all, unsolvable)}
               |""".stripMargin)
-      Solution(all, ex, rep, coll, origin, src, dep, seq)
+      Solution(all, ex, rep, coll, origin, src, dep, seq, fbd)
     }
 
     lazy val Γ = Γ0 ++ module.sig addTypes module.syn.keySet
@@ -468,7 +477,7 @@ trait FlatTypes
     }
 
     def show(solution: Solution) {
-      val Solution(all, ex, rep, coll, origin, src, dep, seq) = solution
+      val Solution(all, ex, rep, coll, origin, src, dep, seq, fbd) = solution
       println()
       if (! all.isEmpty) println(s"∀${all.mkString(" ")}")
       if (!  ex.isEmpty) println(s"∃${ ex.mkString(" ")}")
@@ -508,16 +517,19 @@ trait FlatTypes
     def illTyped(t: Tree) = ! wellTyped(t)
 
     def isSane(s: Solution): Boolean = {
+      /*
+      // reverse dependency: β determines _1_₀
+      // ill typed definition: cons
       for {
-        (e, as) <- s.dependency
-        a <- as
-        if ! s.preceq(e, a)
+        e <- s.ex
+        a <- strictDescendants(e, s.dependency)
+        f = s.forbidden.withDefault(_ => Nil)(e)
+        if f contains a
       } {
         println(s"reverse dependency: $e determines $a")
-        println(s"$e occurs in batch ${s batch e}")
-        println(s"$a occurs in batch ${s batch a}")
         return false
       }
+      */
       true
     }
   }
