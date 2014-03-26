@@ -364,8 +364,8 @@ trait FlatTypes
             for {
               tau <- lhs ++ rhs
               exigent <- tau.freeNames
-              // track dependencies from both the exigent and the accomodating
-              // if ex2 contains exigent
+              // track dependencies only of the exigent
+              if ex2 contains exigent
             }
             yield (exigent, Set(loner))
           )
@@ -517,19 +517,25 @@ trait FlatTypes
     def illTyped(t: Tree) = ! wellTyped(t)
 
     def isSane(s: Solution): Boolean = {
-      /*
-      // reverse dependency: β determines _1_₀
-      // ill typed definition: cons
       for {
         e <- s.ex
-        a <- strictDescendants(e, s.dependency)
-        f = s.forbidden.withDefault(_ => Nil)(e)
+
+        // test if there is no dependent accomodating variable
+        // present by the time an exigent variable is involved in an S-RI.
+        a <- s.dependency(e)
+
+        // alternatively, we may trace transitive descendants.
+        // the universals ain't so loopless right now,
+        // so if we include them in the dependency tracker,
+        // they mess things up.
+        // a <- strictDescendants(e, s.dependency)
+
+        f = s.forbidden(e)
         if f contains a
       } {
         println(s"reverse dependency: $e determines $a")
         return false
       }
-      */
       true
     }
   }
