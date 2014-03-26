@@ -36,7 +36,7 @@ object Main extends ARGV0 with Calculi {
               | -loop     run designated command repeatedly useful for
               |           useful for profiling
               |
-              | -manual   disable automatic insertion of \polymorphic.
+              | -manual   disable automatic insertion of \\polymorphic.
               |           tag, require manual insertion, may speed up
               |           type checking by a few seconds
               |
