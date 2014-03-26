@@ -1,0 +1,32 @@
+. testing whether things are ill-typed
+
+. swapping universal and existential quantifiers
+
+. ill-typed with the signature
+.   auto : ∀α. α → α
+. even as we do not annotate the argument type.
+. auto : (∀ω. ω → ω) → (∀ω. ω → ω)
+. auto = λx : _0_. x x
+
+. Ω is always ill-typed.
+. (causes type checker to loop in 07c0444570d9de33f58ccbbfa8d5b7a93762693e)
+. Ω : ∃i. i
+. Ω = (λx : _0_. x x) (λx : _1_. x x)
+
+. swapping universal and existential quantifiers
+. extract-all is well-typed
+. extract-ex is ill-typed due to dependency requirement
+. which means that the dependency requirement is very real,
+. and it does reject programs that are otherwise well-typed.
+
+type All-in-ex = (∀β. (∀α. α → α) → β → β) → ℤ
+type Ex-in-all = ∀γ. (∀δ. (γ → γ) → δ → δ) → ℤ
+
+all-in-ex : All-in-ex
+ex-in-all : Ex-in-all
+
+extract-all : Ex-in-all
+extract-all = all-in-ex
+
+extract-ex : All-in-ex
+extract-ex = ex-in-all
