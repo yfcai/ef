@@ -10,8 +10,10 @@
 
 . Ω is always ill-typed.
 . (causes type checker to loop in 07c0444570d9de33f58ccbbfa8d5b7a93762693e)
-. Ω : ∃i. i
+. Ω : ℤ
 . Ω = (λx : _0_. x x) (λx : _1_. x x)
+. this alternative is ill-typed
+. Ω = (λx : (∀ω. ω → ω). x x) (λx : (∀ω. ω → ω). x x)
 
 . swapping universal and existential quantifiers
 . extract-all is well-typed
