@@ -47,8 +47,11 @@ trait Flags {
   def I_hate_unicode =
     ! unicodeFlag & (I_am_Windows | asciiFlag)
 
-  // do not insert polymorphism marker everywhere
-  def manualFlag: Boolean = flag("manual")
+  // do not insert polymorphism markers everywhere
+  def manualFlag: Boolean = ! polyFlag
+
+  // insert polymorphism markers everywhere
+  def polyFlag: Boolean = flag("poly")
 
   // do not duplicate constraints
   def nodupeFlag: Boolean = ! dupeFlag

@@ -36,9 +36,8 @@ object Main extends ARGV0 with Calculi {
               | -loop     run designated command repeatedly useful for
               |           useful for profiling
               |
-              | -manual   disable automatic insertion of \\polymorphic.
-              |           tag, require manual insertion, may speed up
-              |           type checking by a few seconds
+              | -poly     enable automatic insertion of polymorphism
+              |           marker
               |
               | -recurse  permits recursion (currently puts type
               |           checker in an infinite loop)
