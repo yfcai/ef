@@ -1,8 +1,9 @@
 object Experiments extends Flags {
   val onTrial: Experiment =
-    DepthFirstSearchExperiment
+    AllFreeNamesExperiment
 
   val experiments = List[Experiment](
+    AllFreeNamesExperiment,
     DepthFirstSearchExperiment,
     AbsLocationExperiment,
     TypeApplicationExperiment,
@@ -1112,6 +1113,29 @@ object Experiments extends Flags {
          |000000110110111
          |01234
          |carry
+         |""".stripMargin
+  }
+
+  object AllFreeNamesExperiment extends Experiment with FlatTypes {
+    val terms = List(
+      "λx : α → β. x",
+      "(λx : α. x x) (λx : α. x x)",
+      "λx : ∀α. α. x",
+      "(λx : x. x) (λx : y. x)",
+      "Λ. λx : α. x"
+    )
+
+    def run: String = {
+      terms.map(Term.apply).foreach((puts _) compose allFreeNamesInAnnotations)
+      dump
+    }
+
+    override def expected =
+      """|Set(α, β)
+         |Set(α)
+         |Set()
+         |Set(x, y)
+         |Set(α)
          |""".stripMargin
   }
 }

@@ -84,10 +84,10 @@ tail : ∀α. List α → List α
 tail = Λ. λxs : _0_. matchList xs ??? (flip const)
 
 ana-ℤ : ℤ → List ℤ
-ana-ℤ = λn : _0_. iterate n nil cons
+ana-ℤ = λn : ℤ. iterate n nil cons
 
 sum : List ℤ → ℤ
-sum = λns : _0_. ns 0 +
+sum = λns : List ℤ. ns 0 +
 
 list1-5 : List ℤ
 list1-5 = ana-ℤ 5

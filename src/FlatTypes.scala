@@ -4,6 +4,28 @@ trait FlatTypes
        with MinimalQuantification
        with ConstrainedTypes
 {
+  // if ill-typed, throw tantrum.
+  def typeCheck(m: Module):
+      Either[Problem, Seq[(Option[String], Tree, Tree, Token)]] = {
+    val typing = new FlatTyping(m)
+    import m._
+    import typing._
+    dfn.foreach {
+      case (x, xdef) =>
+        if (illTyped(Ascr(xdef, sig(x))))
+          sys error s"ill typed definition: $x"
+    }
+    Right(naked.map {
+      case (t, tok :: _) =>
+        if (illTyped(t))
+          sys error s"${tok.fileLine} ill typed naked expression"
+        (None, t, YHWH, tok)
+
+      case _ =>
+        sys error "an unanticipated catastrophe"
+    })
+  }
+
   override lazy val termOps: List[Operator] =
     List(
       PolymorphismMarker,
@@ -17,16 +39,24 @@ trait FlatTypes
 
   type Dependency = collection.immutable.HashMap[String, Set[String]]
   type Source = Map[String, Src]
-  type Sequence = List[Seq[String]]
+  type Bounds = List[(String, Bds)]
   type Forbidden = Map[String, List[String]] // maps exigents to things that can't depend on them
 
   case class Src(origin: Tree, antagonist: Tree)
+
+  case class Bds(lower: List[Tree], upper: List[Tree]) {
+    lazy val fv: Set[String] =
+      lower.foldRight(Set.empty[String])(_.freeNames ++ _) ++
+      upper.foldRight(Set.empty[String])(_.freeNames ++ _)
+  }
+
   def emptyDependency: Dependency = collection.immutable.HashMap.empty
+  def emptyBounds: Bounds = Nil
 
   // absoluteFlag: if set, insert polymorphism markers everywhere
   def absoluteFlag: Boolean = ! manualFlag
 
-  // polymorphism marker: for performance.
+  // polymorphism marker
   case object PolymorphismMarker extends Operator {
     def genus = Term
     def symbol = Seq("Λ", """\polymorphic""")
@@ -51,26 +81,24 @@ trait FlatTypes
     }
   }
 
-  // if ill-typed, throw tantrum.
-  def typeCheck(m: Module):
-      Either[Problem, Seq[(Option[String], Tree, Tree, Token)]] = {
-    val typing = new FlatTyping(m)
-    import m._
-    import typing._
-    dfn.foreach {
-      case (x, xdef) =>
-        if (illTyped(Ascr(xdef, sig(x))))
-          sys error s"ill typed definition: $x"
-    }
-    Right(naked.map {
-      case (t, tok :: _) =>
-        if (illTyped(t))
-          sys error s"${tok.fileLine} ill typed naked expression"
-        (None, t, YHWH, tok)
+  // get all type variables in annotations of AnnotatedAbstraction
+  // INCLUDING global names
+  def allFreeNamesInAnnotations(term: Tree): Set[String] = term match {
+    //case ⊹(PolymorphismMarker, _*) =>
+    //  Set.empty
+    //
+    // do not skip subterms under polymorphism markers.
+    // if constraint generator does things correctly,
+    // then names that should not be bound are not free already.
 
-      case _ =>
-        sys error "an unanticipated catastrophe"
-    })
+    case λ(x, sigma, body) =>
+      sigma.freeNames ++ allFreeNamesInAnnotations(body)
+
+    case ⊹(tag, children @ _*) =>
+      children.foldRight(Set.empty[String])((t, s) => allFreeNamesInAnnotations(t) ++ s)
+
+    case ∙(_, _) =>
+      Set.empty
   }
 
   val YHWH = Type("∃i. i")
@@ -149,20 +177,15 @@ trait FlatTypes
         CType(τ, ⊑(rep, τ) :: cs, org)
 
       // on polymorphism marker,
-      // put everything inside representative,
-      // including things generated so far.
-      // we don't care what alpha is, so long it is something.
-      // it makes sense to do this at every abstraction,
-      // but it is costly,
-      // so we do it once for each marked place.
+      // solve all constraints generated so far,
+      // then put solution in a constrained type.
+      // this should prevent nontermination on omega.
       case ⊹(PolymorphismMarker, t) =>
         val ct = collect(t, gamma, abc)
         if (absoluteFlag)
           ct
         else {
           val CType(rep, cs, org) = ct
-          // No smart-Alex pruning of constraints here.
-          // Each type abstraction doubles the number of constraints.
           val degreesOfFreedom =
             (cs.foldRight(rep.freeNames)(_.freeNames ++ _) -- gamma.types).toSeq
           val newRep = if (cs.isEmpty) rep else ConstrainedType(rep, cs)
@@ -170,12 +193,10 @@ trait FlatTypes
             ∀(degreesOfFreedom, newRep),
             if (nodupeFlag) Nil else cs,
             org)
+          //??? // TODO: fix me!
         }
     }
 
-    // ideas for improvement
-    // 1. rule out dependency-violating loners
-    // 2. start from the end, go to the beginning
     def getLoner(prefix: List[String], constraints: List[Tree], forbidden: Forbidden):
         Option[String] = {
       val live = prefix.filter({ α =>
@@ -211,7 +232,6 @@ trait FlatTypes
       exigent: List[String],
       constraints: List[Tree],
       source: Source,
-      sequence: Sequence,
       forbidden: Forbidden
     ) {
       def prepend(constraint: Tree): Broken =
@@ -222,7 +242,7 @@ trait FlatTypes
     }
 
     object Broken {
-      val empty: Broken = Broken(Nil, Nil, Nil, Map.empty, Nil, Map.empty)
+      val empty: Broken = Broken(Nil, Nil, Nil, Map.empty, Map.empty)
     }
 
     def breakBinders(
@@ -255,7 +275,7 @@ trait FlatTypes
         (p.map(_.x -> Src(σ, τ))(collection.breakOut): Source) ++
         (q.map(_.x -> Src(τ, σ)))
 
-      val Broken(all, ex, cs, src1, seq1, fbd1) = breakUp(
+      val Broken(all, ex, cs, src1, fbd1) = breakUp(
         prefix ++ accomodating,
         σ0 ⊑ τ0 :: rest,
         avoid2,
@@ -267,7 +287,6 @@ trait FlatTypes
         exigent ++ ex,
         cs,
         src1,
-        qu :: pu :: seq1,
         if (prefix.isEmpty) fbd1 else fbd1 ++ qu.map(_ -> prefix)
       )
     }
@@ -370,7 +389,7 @@ trait FlatTypes
       unsolved: List[Tree],
       source: Source,
       dependency: Dependency,
-      sequence: Sequence,
+      bounds: Bounds,
       forbidden: Forbidden
     )
 
@@ -392,7 +411,7 @@ trait FlatTypes
       val cs0 = cs00.filterNot { case σ ⊑ τ => σ α_equiv τ }
 
       // 1. break up constraints
-      val Broken(all1, ex1, cs1, src1, seq1, fbd1) =
+      val Broken(all1, ex1, cs1, src1, fbd1) =
         breakUp(all0, cs0, avoid ++ all0 ++ ex0, source)
 
       // 2. find loner
@@ -422,21 +441,21 @@ trait FlatTypes
 
           val newCs = for { σ <- lhs ; τ <- rhs } yield σ ⊑ τ
 
-          val PSol(all, ex, solved, unsolved, src3, dep3, seq3, fbd3) =
+          val PSol(all, ex, solved, unsolved, src3, dep3, bds3, fbd3) =
             solve(all2, ex2, newCs ++ rest, avoid, src1, fbd2)
           PSol(all, ex,
             Coll(loner, lhs, rhs) :: solved,
             unsolved,
             src3,
             dep1.merged(dep3)((p, q) => (p._1, p._2 ++ q._2)),
-            seq1 ++ seq3,
+            (loner, Bds(lhs, rhs)) :: bds3,
             fbd1 ++ fbd3
           )
 
         // 3-2. no loner exists any more
         // put remaining constraints aside for later use
         case None =>
-          PSol(all2, ex2, Nil, cs1, src1, emptyDependency, Nil, fbd1)
+          PSol(all2, ex2, Nil, cs1, src1, emptyDependency, emptyBounds, fbd1)
       }
     }
 
@@ -448,20 +467,9 @@ trait FlatTypes
       origin     : Map[String, Tree],
       source     : Source,
       dependency : Dependency,
-      sequence   : Sequence,
+      bounds     : Bounds,
       forbidden  : Forbidden
-    ) {
-      // alpha's batch is before beta's,
-      // or alpha & beta occur in the same batch.
-      def preceq(alpha: String, beta: String): Boolean = batch(alpha) <= batch(beta)
-
-      // the batch of quantified type variables containing alpha
-      def batch(alpha: String): Int = {
-        val i = sequence.indexWhere(_ contains alpha)
-        assert(i >= 0) // if i < 0, then alpha is outside the sequence (shouldn't happen)
-        i
-      }
-    }
+    )
 
     def solve(term: Tree): Solution = {
       val CType(rep, cs, origin) =
@@ -469,10 +477,13 @@ trait FlatTypes
 
       // collect unquantified type variables & type variables
       // generated during constraint collection
-      val all0 = cs.map(_.freeNames).foldRight(Set.empty[String])(_ ++ _).
-        filterNot(Γ0 hasType _).toList
+      val appearsInAnnotations = allFreeNamesInAnnotations(term)
 
-      val PSol(all, ex, coll, rest, src, dep, seq, fbd) =
+      val all0: List[String] =
+        cs.map(_.freeNames).foldRight(Set.empty[String])(_ ++ _).
+        filter(a => ! (Γ0.hasType(a) || appearsInAnnotations(a))).toList
+
+      val PSol(all, ex, coll, rest, src, dep, bds, fbd) =
         solve(all0, Nil, cs, term.freeNames, Map.empty, Map.empty)
       val unsolvable = rest.filter(c => {
         val lhs ⊑ rhs = c
@@ -491,7 +502,7 @@ trait FlatTypes
               |
               |loner = ${getLoner(all, unsolvable, fbd)}
               |""".stripMargin)
-      Solution(all, ex, rep, coll, origin, src, dep, seq, fbd)
+      Solution(all, ex, rep, coll, origin, src, dep, bds, fbd)
     }
 
     lazy val Γ = Γ0 ++ module.sig addTypes module.syn.keySet
@@ -541,7 +552,7 @@ trait FlatTypes
     }
 
     def show(solution: Solution) {
-      val Solution(all, ex, rep, coll, origin, src, dep, seq, fbd) = solution
+      val Solution(all, ex, rep, coll, origin, src, dep, bds, fbd) = solution
       println()
       if (! all.isEmpty) println(s"∀${all.mkString(" ")}")
       if (!  ex.isEmpty) println(s"∃${ ex.mkString(" ")}")
