@@ -18,7 +18,7 @@ trait FlatTypes
   type Dependency = collection.immutable.HashMap[String, Set[String]]
   type Source = Map[String, Src]
   type Sequence = List[Seq[String]]
-  type Forbidden = Map[String, List[String]]
+  type Forbidden = Map[String, List[String]] // maps exigents to things that can't depend on them
 
   case class Src(origin: Tree, antagonist: Tree)
   def emptyDependency: Dependency = collection.immutable.HashMap.empty
@@ -67,6 +67,7 @@ trait FlatTypes
         if (illTyped(t))
           sys error s"${tok.fileLine} ill typed naked expression"
         (None, t, YHWH, tok)
+
       case _ =>
         sys error "an unanticipated catastrophe"
     })
@@ -175,7 +176,7 @@ trait FlatTypes
     // ideas for improvement
     // 1. rule out dependency-violating loners
     // 2. start from the end, go to the beginning
-    def getLoner(prefix: List[String], constraints: List[Tree]):
+    def getLoner(prefix: List[String], constraints: List[Tree], forbidden: Forbidden):
         Option[String] = {
       val live = prefix.filter({ α =>
         constraints.find(_.freeNames contains α) != None
@@ -183,12 +184,27 @@ trait FlatTypes
       // prefer elder loners
       live.reverse.find({ α =>
         constraints.map({
-          case lhs ⊑ æ(β) if α == β => ! lhs.freeNames.contains(α)
-          case æ(β) ⊑ rhs if α == β => ! rhs.freeNames.contains(α)
-          case constraint => ! constraint.freeNames.contains(α)
+          case lhs ⊑ æ(β) if α == β =>
+            ! lhs.freeNames.contains(α) && permissible(lhs.freeNames, α, forbidden)
+
+          case æ(β) ⊑ rhs if α == β =>
+            ! rhs.freeNames.contains(α) && permissible(rhs.freeNames, α, forbidden)
+
+          case constraint =>
+            ! constraint.freeNames.contains(α)
         }).min
       })
     }
+
+    /** @param dependency names in the bounds of an accomodating variable
+      * @param accomodating the loner
+      * @param forbidden mapping each exigent to variables quantified before it
+      * @return whether the dependency is permissible
+      */
+    def permissible(dependency: Set[String], accomodating: String, forbidden: Forbidden): Boolean =
+      None == dependency.find( exigent =>
+        forbidden.andThen(_ contains accomodating).applyOrElse[String, Boolean](exigent, _ => false)
+      )
 
     case class Broken(
       accomodating: List[String],
@@ -252,7 +268,7 @@ trait FlatTypes
         cs,
         src1,
         qu :: pu :: seq1,
-        fbd1 ++ qu.map(_ -> prefix)
+        if (prefix.isEmpty) fbd1 else fbd1 ++ qu.map(_ -> prefix)
       )
     }
 
@@ -363,11 +379,12 @@ trait FlatTypes
       ex0: List[String],
       cs00: List[Tree],
       avoid: Set[String], // should be free variables of that term
-      source: Source
+      source: Source,
+      forbidden: Forbidden
     ): PSol = {
       // debug session
       if (debugFlag)
-        debug(all0, ex0, cs00, source)
+        debug(all0, ex0, cs00, source, forbidden)
 
       // 0. eliminate duplicates
       val cs0 = cs00.filterNot { case σ ⊑ τ => σ α_equiv τ }
@@ -379,7 +396,8 @@ trait FlatTypes
       // 2. find loner
       val all2 = all1 ++ all0
       val ex2 = ex1 ++ ex0
-      getLoner(all2, cs1) match {
+      val fbd2 = forbidden ++ fbd1
+      getLoner(all2, cs1, fbd2) match {
 
         // 3-1. loner found.
         // procure LHS & RHS of loner.
@@ -403,7 +421,7 @@ trait FlatTypes
           val newCs = for { σ <- lhs ; τ <- rhs } yield σ ⊑ τ
 
           val PSol(all, ex, solved, unsolved, src3, dep3, seq3, fbd3) =
-            solve(all2, ex2, newCs ++ rest, avoid, src1)
+            solve(all2, ex2, newCs ++ rest, avoid, src1, fbd2)
           PSol(all, ex,
             Coll(loner, lhs, rhs) :: solved,
             unsolved,
@@ -453,7 +471,7 @@ trait FlatTypes
         filterNot(Γ0 hasType _).toList
 
       val PSol(all, ex, coll, rest, src, dep, seq, fbd) =
-        solve(all0, Nil, cs, term.freeNames, Map.empty)
+        solve(all0, Nil, cs, term.freeNames, Map.empty, Map.empty)
       val unsolvable = rest.filter(c => {
         val lhs ⊑ rhs = c
         ! (lhs α_equiv rhs)
@@ -469,14 +487,14 @@ trait FlatTypes
               |
               |${unsolvable.map(c => s"  ${c.unparse}").mkString("\n")}
               |
-              |loner = ${getLoner(all, unsolvable)}
+              |loner = ${getLoner(all, unsolvable, fbd)}
               |""".stripMargin)
       Solution(all, ex, rep, coll, origin, src, dep, seq, fbd)
     }
 
     lazy val Γ = Γ0 ++ module.sig addTypes module.syn.keySet
 
-    def debug(all: List[String], ex: List[String], cs: List[Tree], source: Source) {
+    def debug(all: List[String], ex: List[String], cs: List[Tree], source: Source, forbidden: Forbidden) {
       println()
       if (! all.isEmpty) {
         println(s"∀ ${all.mkString(" ")}")
@@ -491,10 +509,12 @@ trait FlatTypes
 
       // print source of free vars
       val free = cs.foldRight(Set.empty[String])(_.freeNames ++ _)
-      source.foreach {
-        case (k, Src(origin, _)) =>
-          if (free contains k)
-            println(s"  $k from ${origin.unparse}")
+      free.foreach {
+        case a if forbidden contains a =>
+          println(s"  $a after ${forbidden(a).mkString(" ")}")
+
+        case _ =>
+          ()
       }
       println()
 
@@ -552,6 +572,8 @@ trait FlatTypes
       }
     }
 
+    // calls isSane to check for quantifier ordering violation
+    // just in case
     def wellTyped(t: Tree): Boolean =
       try { val s = solve(t) ; isSane(s) }
       catch { case Insoluble(_) => false }
@@ -572,8 +594,7 @@ trait FlatTypes
         // they mess things up.
         // a <- strictDescendants(e, s.dependency)
 
-        f = s.forbidden(e)
-        if f contains a
+        if s.forbidden.andThen(_ contains a).applyOrElse[String, Boolean](e, _ => false)
       } {
         println(s"reverse dependency: $e determines $a")
         return false

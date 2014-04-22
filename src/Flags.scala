@@ -17,7 +17,7 @@ trait Flags {
   def loopFlag = flag("loop")
 
   // debug: step through constraint resolution on type error
-  private[this] def debug = "debug"
+  private[this] def debug = "step" // can't be debug, coz that triggers scala debugger
   def debugFlag: Boolean = flag(debug)
   def debugFlag_=(set: Boolean) = setFlag(debug, set)
 

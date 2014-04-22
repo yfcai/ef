@@ -28,7 +28,7 @@ object Main extends ARGV0 with Calculi {
               |
               | -ascii    do not print unicode
               |
-              | -debug    step through constraint solver on type error
+              | -step     step through constraint solver on type error
               |
               | -dupe     duplicate constraints at (possibly implicit)
               |           polymorphism markers
