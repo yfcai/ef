@@ -1,29 +1,29 @@
 . PRELUDE
 
 const : ∀ β γ. β -> γ -> β
-const = Λ. λx : _0_. λy : _1_. x
+const = Λ. λx : β. λy : γ. x
 
 flip : ∀α β γ. (α → β → γ) → (β → α → γ)
-flip = Λ. λf : _0_. λy : _1_. λx : _2_. f x y
+flip = Λ. λf : α → β → γ. λy : β. λx : α. f x y
 
 id : ∀ι. ι → ι
-id = Λ. λx : _0_. x
+id = Λ. λx : ι. x
 
 compose : ∀α β γ. (β → γ) → (α → β) → (α → γ)
-compose = Λ. λg : _0_. λf : _1_. λx : _2_. g (f x)
+compose = Λ. λg : β → γ. λf : α → β. λx : α. g (f x)
 
 . CONJUNCTION
 
 type Pair α β = ∀γ. (α → β → γ) → γ
 
 pair : ∀α β. α → β → Pair α β
-pair = Λ. λx : _0_. λy : _1_. Λ. λf : _2_. f x y
+pair = Λ. λx : α. λy : β. Λ. λf : α → β → γ. f x y
 
 proj₁ : ∀α β. Pair α β → α
-proj₁ = Λ. λp : _0_. p const
+proj₁ = Λ. λp : Pair α β. p const
 
 proj₂ : ∀α β. Pair α β → β
-proj₂ = Λ. λp : _0_. p (flip const)
+proj₂ = Λ. λp : Pair α β. p (flip const)
 
 
 . DISJUNCTION
@@ -31,10 +31,10 @@ proj₂ = Λ. λp : _0_. p (flip const)
 type Either α β = ∀γ. (α → γ) → (β → γ) → γ
 
 inj₁ : ∀α β. α → Either α β
-inj₁ = Λ. λx : _0_. Λ. λf : _1_. λg : _2_. f x
+inj₁ = Λ. λx : α. Λ. λf : α → γ. λg : β → γ. f x
 
 inj₂ : ∀α β. β → Either α β
-inj₂ = Λ. λy : _0_. Λ. λf : _1_. λg : _2_. g y
+inj₂ = Λ. λy : β. Λ. λf : α → γ. λg : β → γ. g y
 
 . a disjunction is its own elimination form
 
@@ -48,40 +48,40 @@ nil : ∀α. List α
 nil = const
 
 cons : ∀α. α → List α → List α
-cons = Λ. λx : _0_. λxs : _1_. Λ. λz : _2_. λf : _3_. (f x (xs z f))
+cons = Λ. λx : α. λxs : List α. Λ. λz : β. λf : α → β → β. (f x (xs z f))
 
 . BӦHM-BERADUCCI ENCODING FOR PATTERN MATCHING ON LISTS
 
 type MatchList η = ∀ξ. ξ → (η → List η → ξ) → ξ
 
 matchList : ∀α. List α → MatchList α
-matchList = Λ. λxs : _0_.
+matchList = Λ. λxs : List α.
   xs const
-     (λx : _1_. λys : MatchList α. Λ. λz : _3_. λf : _4_. f x (ys nil cons))
+     (λx : α. λys : MatchList α. Λ. λz : ξ. λf : α → List α → ξ. f x (ys nil cons))
 
 . Even without annotations,
 . the following bodies are ill-typed:
 .   xs nil cons
 .   xs nil f
 map : ∀α β. (α → β) → List α → List β
-map = Λ. λf : _0_. λxs : _1_. xs nil (compose cons f)
+map = Λ. λf : α → β. λxs : List α. xs nil (compose cons f)
 
 concat : ∀α. List α → List α → List α
-concat = Λ. λxs : _0_. λys : _1_. xs ys cons
+concat = Λ. λxs : List α. λys : List α. xs ys cons
 
 concatMap : ∀α β. (α → List β) → List α → List β
-concatMap = Λ. λf : _0_. λxs : _1_. xs nil (compose concat f)
+concatMap = Λ. λf : α → List β. λxs : List α. xs nil (compose concat f)
 
 filter : ∀α. (α → Bool) → List α → List α
-filter = Λ. λp : _0_. λxs : _1_. xs nil (λx : _3_. if p x then cons x else id)
+filter = Λ. λp : α → Bool. λxs : List α. xs nil (λx : α. if p x then cons x else id)
 
 . USAGE
 
 head : ∀α. List α → α
-head = Λ. λxs : _0_. xs ??? const
+head = Λ. λxs : List α. xs ??? const
 
 tail : ∀α. List α → List α
-tail = Λ. λxs : _0_. matchList xs ??? (flip const)
+tail = Λ. λxs : List α. matchList xs ??? (flip const)
 
 ana-ℤ : ℤ → List ℤ
 ana-ℤ = λn : ℤ. iterate n nil cons

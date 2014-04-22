@@ -37,25 +37,6 @@ trait FlatTypes
       ParenthesizedTerm,
       FreeVar)
 
-  type Dependency = collection.immutable.HashMap[String, Set[String]]
-  type Source = Map[String, Src]
-  type Bounds = List[(String, Bds)]
-  type Forbidden = Map[String, List[String]] // maps exigents to things that can't depend on them
-
-  case class Src(origin: Tree, antagonist: Tree)
-
-  case class Bds(lower: List[Tree], upper: List[Tree]) {
-    lazy val fv: Set[String] =
-      lower.foldRight(Set.empty[String])(_.freeNames ++ _) ++
-      upper.foldRight(Set.empty[String])(_.freeNames ++ _)
-  }
-
-  def emptyDependency: Dependency = collection.immutable.HashMap.empty
-  def emptyBounds: Bounds = Nil
-
-  // absoluteFlag: if set, insert polymorphism markers everywhere
-  def absoluteFlag: Boolean = ! manualFlag
-
   // polymorphism marker
   case object PolymorphismMarker extends Operator {
     def genus = Term
@@ -81,6 +62,43 @@ trait FlatTypes
     }
   }
 
+  type Dependency = collection.immutable.HashMap[String, Set[String]]
+  type Source = Map[String, Src]
+  type Bounds = List[(String, Bds)]
+  type Forbidden = Map[String, List[String]] // maps exigents to things that can't depend on them
+
+  case class Src(origin: Tree, antagonist: Tree)
+
+  case class Bds(lower: List[Tree], upper: List[Tree]) {
+    lazy val fv: Set[String] =
+      lower.foldRight(Set.empty[String])(_.freeNames ++ _) ++
+      upper.foldRight(Set.empty[String])(_.freeNames ++ _)
+  }
+
+  /** @param source set of type variables we care about
+    * @param bounds instantiations of all accomodating variables
+    * @return instantiations we care about
+    *
+    * precondition: bounds is sorted in reverse dependency order
+    * (is satisfied if each use S-Loner prepends the loner's instantiation)
+    */
+  def trace(source: Set[String], bounds: Bounds): Bounds = bounds match {
+    case (a, bds) :: tail if source contains a =>
+      (a, bds) :: trace(source ++ bds.fv, tail)
+
+    case _ :: tail =>
+      trace(source, tail)
+
+    case Nil =>
+      Nil
+  }
+
+  def emptyDependency: Dependency = collection.immutable.HashMap.empty
+  def emptyBounds: Bounds = Nil
+
+  // absoluteFlag: if set, insert polymorphism markers everywhere
+  def absoluteFlag: Boolean = ! manualFlag
+
   // get all type variables in annotations of AnnotatedAbstraction
   // INCLUDING global names
   def allFreeNamesInAnnotations(term: Tree): Set[String] = term match {
@@ -90,6 +108,20 @@ trait FlatTypes
     // do not skip subterms under polymorphism markers.
     // if constraint generator does things correctly,
     // then names that should not be bound are not free already.
+
+    case λ(x, sigma, body) =>
+      sigma.freeNames ++ allFreeNamesInAnnotations(body)
+
+    case ⊹(tag, children @ _*) =>
+      children.foldRight(Set.empty[String])((t, s) => allFreeNamesInAnnotations(t) ++ s)
+
+    case ∙(_, _) =>
+      Set.empty
+  }
+
+def annotatedUntilNextPolyMarker(term: Tree): Set[String] = term match {
+    case ⊹(PolymorphismMarker, _*) =>
+      Set.empty
 
     case λ(x, sigma, body) =>
       sigma.freeNames ++ allFreeNamesInAnnotations(body)
@@ -119,16 +151,6 @@ trait FlatTypes
 
     // collected constraints
     case class Coll(name: String, lhs: List[Tree], rhs: List[Tree])
-
-    // get prefix by a preorder traversal
-    def getPrefix(term: Tree): List[String] = {
-      term.preorder.flatMap({
-        case æ(α) if ! Γ.hasType(α) =>
-          Some(α)
-        case _ =>
-          None
-      }).toList
-    }
 
     // ensure: representative is minimally quantified
     // initial value of name generator should be ABCSong
@@ -181,19 +203,50 @@ trait FlatTypes
       // then put solution in a constrained type.
       // this should prevent nontermination on omega.
       case ⊹(PolymorphismMarker, t) =>
-        val ct = collect(t, gamma, abc)
         if (absoluteFlag)
-          ct
+          collect(t, gamma, abc)
         else {
+          val newGamma = gamma addTypes annotatedUntilNextPolyMarker(t)
+          val ct = collect(t, newGamma, abc)
           val CType(rep, cs, org) = ct
-          val degreesOfFreedom =
-            (cs.foldRight(rep.freeNames)(_.freeNames ++ _) -- gamma.types).toSeq
-          val newRep = if (cs.isEmpty) rep else ConstrainedType(rep, cs)
-          CType(
-            ∀(degreesOfFreedom, newRep),
-            if (nodupeFlag) Nil else cs,
-            org)
-          //??? // TODO: fix me!
+          val (accomodating, exigent, free) = getPrefix(t, ct)
+          val psol =
+            solve(accomodating, exigent, cs,
+              t.freeNames,
+              Map.empty, Map.empty)
+          val soln = Solution(ct, psol)
+
+          // paranoidly check for circular insanity
+          // (if getLoner is correct, then soln should be sane)
+          if (! isSane(soln))
+            throw new Insoluble(s"irresolvable subterm: ${term.unparse}")
+
+          // trace relevant instantiations.
+          // all accomodating variables are traced except those
+          // eliminated by S-Refl (as opposed to S-Loner)
+          val instantiations = trace(rep.freeNames, soln.bounds)
+
+          // could be computed during tracing. chose not to, so that
+          // `trace` has a simpler interface
+          val relevantNames = instantiations.foldRight(rep.freeNames)(_._2.fv ++ _)
+
+          val finalAcc = soln.all.filter(relevantNames)
+          val finalExi = soln.ex.filter(relevantNames)
+
+          val resolvedConstraints: List[Tree] = instantiations.flatMap({
+            case (a, bds) =>
+              bds.lower.map(_ ⊑ æ(a)) ++ bds.upper.map(æ(a) ⊑ _)
+          })(collection.breakOut)
+
+          if (resolvedConstraints.isEmpty)
+            CType(∀(finalExi ++ finalAcc, rep),
+              Nil,
+              org)
+          else
+            CType(
+              ∀(finalExi ++ finalAcc, ConstrainedType(rep, resolvedConstraints)),
+              Nil,
+              org)
         }
     }
 
@@ -471,38 +524,54 @@ trait FlatTypes
       forbidden  : Forbidden
     )
 
+    object Solution {
+      def apply(ct: CType, psol: PSol): Solution = {
+        val CType(rep, cs, origin) = ct
+
+        val PSol(all, ex, coll, rest, src, dep, bds, fbd) = psol
+          val unsolvable = rest.filter(c => {
+            val lhs ⊑ rhs = c
+            ! (lhs α_equiv rhs)
+          })
+
+        // failure at constraint solving signaled by exception thrown
+        // when converting PSol to Solution.
+
+        if (! unsolvable.isEmpty)
+          throw Insoluble(
+            s"""|unsolvable constraints
+                |
+                |∀${all.mkString(" ")}.
+                |∃${ ex.mkString(" ")}.
+                |
+                |${unsolvable.map(c => s"  ${c.unparse}").mkString("\n")}
+                |
+                |loner = ${getLoner(all, unsolvable, fbd)}
+                |""".stripMargin)
+        Solution(all, ex, rep, coll, origin, src, dep, bds, fbd)
+      }
+    }
+
     def solve(term: Tree): Solution = {
-      val CType(rep, cs, origin) =
+      val ctype @ CType(rep, cs, origin) =
         collect(term, Γ, new ABCSong(term.freeNames))
 
       // collect unquantified type variables & type variables
       // generated during constraint collection
-      val appearsInAnnotations = allFreeNamesInAnnotations(term)
+      val (all0, ex0, free) = getPrefix(term, ctype)
 
-      val all0: List[String] =
-        cs.map(_.freeNames).foldRight(Set.empty[String])(_ ++ _).
-        filter(a => ! (Γ0.hasType(a) || appearsInAnnotations(a))).toList
+      Solution(ctype, solve(all0, ex0, cs, term.freeNames, Map.empty, Map.empty)) // TODO: need to avoid `free` here?
+    }
 
-      val PSol(all, ex, coll, rest, src, dep, bds, fbd) =
-        solve(all0, Nil, cs, term.freeNames, Map.empty, Map.empty)
-      val unsolvable = rest.filter(c => {
-        val lhs ⊑ rhs = c
-        ! (lhs α_equiv rhs)
-      })
-      if (! unsolvable.isEmpty)
-        throw Insoluble(
-          s"""|The term
-              |  ${term.unparse}
-              |generates unsolvable constraints
-              |
-              |∀${all.mkString(" ")}.
-              |∃${ ex.mkString(" ")}.
-              |
-              |${unsolvable.map(c => s"  ${c.unparse}").mkString("\n")}
-              |
-              |loner = ${getLoner(all, unsolvable, fbd)}
-              |""".stripMargin)
-      Solution(all, ex, rep, coll, origin, src, dep, bds, fbd)
+    // @param term the term from which constraints are generated
+    // @param cs the generated constraints CType(rep, cs, origin)
+    // @return (accomodating-type-variables, exigent-type-variables, free-type-variables-in-rep-and-cs)
+    def getPrefix(term: Tree, ct: CType): (List[String], List[String], Set[String]) = {
+      val CType(rep, cs, origin) = ct
+      val free = cs.map(_.freeNames).foldRight(rep.freeNames)(_ ++ _) -- Γ.types
+      val exigent = allFreeNamesInAnnotations(term).filter(free)
+      val accomodating = free -- exigent
+      (accomodating.toList, exigent.toList, free)
     }
 
     lazy val Γ = Γ0 ++ module.sig addTypes module.syn.keySet
@@ -596,6 +665,8 @@ trait FlatTypes
     def isSane(s: Solution): Boolean = {
       for {
         e <- s.ex
+
+        if s.dependency contains e
 
         // test if there is no dependent accomodating variable
         // present by the time an exigent variable is involved in an S-RI.

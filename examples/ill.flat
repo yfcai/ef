@@ -1,44 +1,19 @@
-. testing whether things are ill-typed
-
-type List α = ∀β. β → (α → β → β) → β
-
-nil : ∀α. List α
-cons : ∀α. α → List α → List α
-const : ∀ β γ. β -> γ -> β
-
-type MatchList η = ∀ξ. ξ → (η → List η → ξ) → ξ
-
-matchList : ∀α. List α → MatchList α
-.rant matchList = λxs : _0_.
-  xs const
-     (λx : _1_. λys : MatchList _2_. λz : _3_. λf : _4_. f x (ys nil cons))
-
-. swapping universal and existential quantifiers
-
 . ill-typed with the signature
 .   auto : ∀α. α → α
-. even as we do not annotate the argument type.
-auto : (∀ω. ω → ω) → (∀ω. ω → ω)
-auto = λx : _0_. x x
+         auto : (∀ω. ω → ω) → (∀ω. ω → ω)
+auto = λx : ∀α. α → α. x x
 
 . well-typed, rather trivial, self-application
 id : ∀ω. ω → ω
 id3 :  ∀β. β → β
 id3 = id id id
 
-. also causes nontermination, no matter what signature.
-. (can force non-polytype-instantiation by checking on argument loners,
-. that they never do a certain thing.)
+. Ω and Y are always ill-typed.
 Y : ∀α. (α → α) → α
 .Y = λf : α → α. (λx : _1_. f (x x)) (λy : _2_. f (y y))
-
-. Ω is always ill-typed.
-. 07c0444570d9de33f58ccbbfa8d5b7a93762693e loops forever,
-. 658af597bad9107351435e2b8797fe8da4405b53 rejects it.
 Ω : ℤ
 .Ω = (λx : _0_. x x) (λx : _1_. x x)
-. this alternative is ill-typed
-. Ω = (λx : (∀ω. ω → ω). x x) (λx : (∀ω. ω → ω). x x)
+.Ω = (λx : (∀ω. ω → ω). x x) (λx : (∀ω. ω → ω). x x)
 
 . swapping universal and existential quantifiers
 . extract-all is well-typed
