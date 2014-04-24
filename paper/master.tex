@@ -221,7 +221,39 @@ There are two proof goals.
 \item The limit of a Cauchy sequence of types is a type.
 \end{enumerate}
 
+Part (1). Let $T_1,T_2,\ldots$ be a Cauchy sequence of types.
+Knowing the standard result $\liminf T_n\subseteq\limsup T_n$,
+we need only show $\limsup T_n\subseteq\liminf T_n$.
 
+\def\Cauchy{\texttt{cauchy}}
+\def\Hasv{{\texttt{has\textunderscore}v}}
+
+Choose an arbitrary value
+\[
+v\in \limsup T_n = \bigcap_{n=1}^\infty\bigcup_{i = n}^\infty T_i.
+\]
+Let $\epsilon=2^{-\Rank(v)}>0$. There exists a natural number
+$\Cauchy$ such that for all $i,j\ge\Cauchy$, we have
+$d(T_i,T_j)<\epsilon$. Since $v$ is a member of the limit
+superior, there exists a natural number $\Hasv\ge\Cauchy$ such
+that $v\in T_\Hasv$. If we pick any $i\ge\Hasv$, then we have
+$v\in T_i$, because otherwise the contradiction
+\[
+d(T_\Hasv, T_i)\ge2^{-\Rank(v)}=\epsilon
+\]
+would arise. Thus
+\[
+v\in
+\bigcap_{i=\Hasv}^\infty T_i\subseteq
+\bigcup_{n=1}^\infty\bigcap_{i = n}^\infty T_i.
+=\liminf T_n.
+\]
+
+Part (2). We will verify that the limit
+\[
+T=\limsup T_n=\liminf T_n
+\]
+is closed downward and closed under directed supremum.
 \end{proof}
 
 \end{document}
