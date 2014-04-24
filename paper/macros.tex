@@ -9,7 +9,7 @@
 \makeatletter
 \renewcommand{\@secnumfont}{\bfseries}
 \makeatother
-\def\thesubsection{\arabic{subsection}}
+\def\thesubsection{\arabic{section}.\arabic{subsection}}
 
 \nc\Abs       {\DotExpr\lambda}
 \nc\Add       {\mathrm{add}}
@@ -47,8 +47,10 @@
 \nc\LHS       {\operatorname{LHS}}
 \nc\Or        {\ | \ }
 \nc\Pack      {\mathrm{pack}}
+\nc\Par       {\subsection}
 \nc\Piggy     {\mathrm{Piggy}}
 \nc\Prune     {\operatorname{prune}}
+\nc\Rank      {\mathrm{rank}}
 \nc\Recall    {\DotExpr\Xi} % looks like ∃
 \nc\Redo      {\operatorname{redo}}
 \nc\RHS       {\operatorname{RHS}}

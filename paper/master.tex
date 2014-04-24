@@ -1,6 +1,6 @@
 \documentclass{amsart}
 \usepackage[foot]{amsaddr}
-\usepackage{bcprules,url,verbatim,multicol,caption,fullpage}
+\usepackage{bcprules,url,verbatim,multicol}
 
 \let\phi=\varphi % default phi looks like empty set
 \allowdisplaybreaks
@@ -10,318 +10,218 @@
 \newtheorem{corollary}[subsection]{Corollary}
 
 \input{macros.tex}
-\begin{document}\thispagestyle{empty}
-
-% 'ware that blank page
-%\newgeometry{left=1.5cm,right=1.5cm}
-
 
 \def\CT0{$\text{CT}_0$}
-\def\DoCap{\captionsetup{justification=raggedright,margin=0pt}}
 
-\def\OK{\\[5pt]}
-
-\def\LeftWidth{0.5\textwidth}
-\def\RightWidth{0.5\textwidth}
-
-{
-\begin{minipage}{\LeftWidth}
-\begin{tabular}{ll}
-Name & Yufei Cai\OK
-Affiliation & Philipps-Universit\"at Marburg\OK
-Email & \url{cai@mathematik.uni-marburg.de} \OK
-Address & 05D06 Mehrzweckgeb\"aude,\\
-              & Hans-Meerwein Stra\ss e,\\
-              & 35039 Marburg, Germany \OK
-Advisor & Prof.\ Dr.\ Klaus Ostermann \OK
-ACM number & 9866679 \OK
-Category & Graduate student \OK
-Research title & An extensional viewpoint\\ &of polymorphism
-\end{tabular}
-
-\vspace{2.3cm}
-\small
-\begin{verbatim}
-{-# LANGUAGE RankNTypes,
-    ScopedTypeVariables #-}
-import Prelude hiding (sum)
-
-type List a =
-  forall b. b -> (a -> b -> b) -> b
-
-nil :: List a
-nil = const
-
-cons :: a -> List a -> List a
-cons x xs = \z s -> s x (xs z s)
-
-type MatchList a =
-  forall c. c -> (a -> List a -> c) -> c
-
-matchList :: List a -> MatchList a
-matchList xs =
-  xs const
-     (\x (ys :: MatchList a) z s ->
-       s x (ys nil cons))
-
-sum :: List Int -> Int
-sum xs = matchList xs 0 (\x xs -> x + sum xs)
-
-downFrom :: Int -> List Int
-downFrom 0 = nil
-downFrom n = cons n (downFrom (n - 1))
-
-main = putStrLn (show (sum (downFrom 100)))
-\end{verbatim}
-
-\begingroup
-\DoCap
-\captionof{figure}{B\"ohm-Berarducci encoding of lists\\
-in ill-typed Haskell. The compiler complains about the definition
-of \texttt{matchList}.}
-\label{figure1}
-\endgroup
-
-\bigbreak
-
-
-
-
-\vfil
-\end{minipage}
-\begin{minipage}{\RightWidth}
-\renewenvironment{syntax}{\[\begin{array}{rrlr}}{\end{array}\]}
-\def\Separate{\vspace{0.4cm}}
-
-\small
-\begin{syntax}
-t&::=& c \Or x \Or t~t \Or \Abs x t
-&\mbox{term}\\
-&|& \Abs {x : \tau} t
-\OK
-\tau &::=& \iota \Or \alpha \Or \tau \R \tau 
-\Or \All\alpha\tau&\mbox{type}\\
-&|&\tau\Given C&\mbox{(internal use only)}
-\OK
-C&::=&\emptyset \Or \tau\Sub\tau,C&\mbox{constraints}
-\end{syntax}
-
-\Separate
-
-\infrule[CT-Con]
-{}
-{\Gamma\vdash c : \tau_c \Given \emptyset}
-
-\infrule[CT-Var]
-{x:\tau\in\Gamma}
-{\Gamma\vdash x : \tau \Given \emptyset}
-
-\infrule[CT-App]
-{
-\Gamma\vdash s : \sigma \Given C_1
-\andalso
-\Gamma\vdash t : \tau \Given C_2}
-{\Gamma\vdash s~t : \beta \Given
-\sigma\Sub\alpha\R\beta,\tau\Sub\alpha,C_1\cup C_2}
-
-\infrule[CT-Abs]
-{
-\begin{array}{c}
-\{\alpha_1,\ldots,\alpha_n\}
-=
-\FTV(\sigma,\tau,C)-\FTV(\Gamma)
+\title[The MPS model of possibly negative algebraic data types]
+{The MacQueen-Plotkin-Sethi model of
 \\
-\alpha \notin \FTV(\Gamma)
-\andalso
-\Gamma,x:\alpha \vdash t : \tau \Given C
-\end{array}}
-{\Gamma\vdash (\Abs {x} t) :
-(\All{\alpha_1\cdots\alpha_n}\alpha\R\tau\Given C) \Given C}
+possibly negative algebraic data types}
 
-\infrule[CT-Hint]
-{
-\begin{array}{c}
-\{\alpha_1,\ldots,\alpha_n\}
-=
-\FTV(\sigma,\tau,C)-\FTV(\Gamma)
-\\
-\Gamma,x:\sigma \vdash t : \tau \Given C
-\end{array}}
-{\Gamma\vdash (\Abs {x:\sigma} t) :
-(\All{\alpha_1\cdots\alpha_n}\sigma\R\tau\Given C) \Given C}
+\begin{document}
 
-\Separate
+\maketitle
 
-\begin{syntax}
-A,E &::=&\emptyset \Or \alpha,A &\qquad\qquad\mbox{lists of type variables}
-\end{syntax}
+\section{Domain-wise, what is a type?}
 
-\infrule[S-vacuous]
-{}
-{A;E\vdash\emptyset}
+\Par{Value domain}
 
-\infrule[S-Refl]
-{
-A;E\vdash C
-}
-{A;E \vdash \tau\Sub\tau,C}
+$V$ is a set containing all functions definable in untyped lambda
+calculus. It is the solution of the following equation up to
+set-theoretic isomorphism:
+\begin{equation}\label{domain-eq}
+V \cong B + (V + V) + (V \times V) + (V \R V) + \{\bot, \top\}.
+\end{equation}
+Here, $B$ is any set of base values. In a practical programming
+language, its members are often truth values, integers and
+floating point numbers. The symbol $+$ denotes disjoint union,
+and $\times$ denotes cartesian product. They give rise to a
+\emph{definedness} partial order $\Sub$ under which $\bot$ is
+always the least element, $\top$ is always the greatest element,
+and members of $B$ are incomparable with one another. The
+definedness partial order $\Sub$ determines a Scott topology on
+$V$, and the function space $(V \R V)$ consists of the continuous
+functions of the Scott topology. We will talk about Scott
+topologies later. For now, it suffices to appreciate that $V$
+contains base values, function values and values of (not
+necessarily positive) algebraic data types.
 
-\infrule[S-Arrow]
-{A;E\vdash\tau_0\Sub\sigma_0,\sigma_1\Sub\tau_1,C}
-{A;E\vdash\sigma_0\R\sigma_1\Sub\tau_0\R\tau_1,C}
+There are a number of ways to construct $V$. We may argue for the
+isomorphism in equation~\eqref{domain-eq} in terms of compact
+elements of Scott-Ershov domains, or we may argue in terms of
+continuous lattices; it makes no difference when we discuss
+types. We will only use the Scott topology on $V$, which is
+required for the space of continuous functions $(V\R V)$ to be
+well-defined at all.
 
-\infrule[S-LI]
-{
-\begin{array}{cc}
-\tau\notin A\\
-\alpha\text{ is only free in $\sigma$}
-&\andalso
-\alpha,A;E\vdash\sigma\Sub\tau,C
-\end{array}
-}
-{A;E\vdash(\All\alpha\sigma)\Sub\tau,C}
+Previous works define an extra member $\Wrong$ of $V$ to stand
+for runtime type errors. We use the maximum element $\top$ for
+runtime type errors instead, so that $\Wrong$ does not have to be
+purposefully excluded from every type. In fact, our types are
+closed nonempty proper subsets of $V$ under its Scott topology.
 
-\infrule[S-RI]
-{
-\begin{array}{cc}
-\sigma\notin A\\
-\alpha\text{ is only free in $\tau$}
-&\andalso
-A;\alpha,E\vdash\sigma\Sub\tau,C
-\end{array}
-}
-{A;E\vdash\sigma\Sub(\All\alpha\tau),C}
+\Par{Scott topology} The solution to domain
+equation~\eqref{domain-eq} should impose a \emph{definedness}
+partial order $\Sub$ on $V$ satisfying the following properties.
+\begin{itemize}
+\item $\bot$ is the least element: $\bot\Sub v$ for all $v\in V$.
+\item $\top$ is the greatest element: $v\Sub\top$ for all $v\in
+V$.
+\item Base values are incomparable: If $u,v\in B$, then
+$u\not\Sub v$ and $v\not\Sub u$.
+\item (Should we mention that directed subsets are supposed to
+have least upper bounds? Will we even need directed closedness?
+Will downsets do?)
+\end{itemize}
+A topology of $V$ is any labeling of subsets of $V$ as
+\emph{open} such that
+\begin{itemize}
+\item $\emptyset$ and $V$ are open,
+\item the union of any family of open sets is open,
+\item the intersection of a finite number of open sets is open.
+\end{itemize}
+We mentioned that the function space $(V\R V)$ consists of the
+continuous functions according to the Scott topology. A function
+is continuous according to a topology if its preimage of an open
+set is an open set.
 
-\infrule[S-Loner]
-{
-\alpha\text{ fresh}
-\andalso
-A;E\vdash
-\{ \sigma_i\Sub\tau_j \Or 1 \le i \le m, 1 \le j \le n \}
-\cup C
-}{
-\alpha,A;E \vdash
-\sigma_1\Sub\alpha,\ldots,\sigma_m\Sub\alpha,
-\alpha\Sub\tau_1,\ldots,\alpha\Sub\tau_n,C
-}
+\begin{samepage}
+The Scott topology of $V$ labels a subset $S$ open if it
+satisfies the following conditions.
+\begin{itemize}
+\item $S$ is \emph{upward-closed}: If $u\in S$ and $u\Sub v$,
+then $v\in S$.
+\item $S$ is \emph{inaccessible by directed supremums}: If $A$ is
+a directed set disjoint from $S$, then the supremum of $A$ is
+outside $S$.
+\end{itemize}
+\end{samepage}
 
+A set is \emph{closed} if it is the complement of an open set.
 
-\begingroup
-\DoCap
-\captionof{figure}{Syntax and typing rules of \CT0}
-\label{figure2}
-\endgroup
-\end{minipage}
-}
+\begin{lemma}[Characterizing closed sets of Scott topology]
+A set $S\subseteq V$ is closed under Scott topology if and
+only if it satisfies the following conditions.
+\begin{itemize}
+\item $S$ is \emph{downward-closed}: If $v\Sub u$ and $u\in S$,
+then $v\in S$.
+\item $S$ is \emph{closed under directed supremums}: If
+$A$ is a directed subset of $S$, then the supremum of $A$ is a
+member of $S$.
+\end{itemize}
+\end{lemma}
 
-\vfil
-\break
+\begin{proof}
+$S$ is downward-closed if and only if its complement is
+upward-closed. $S$ is closed under directed supremums if and only
+if its complement is inaccessible by directed supremums.
+\end{proof}
 
-%\restoregeometry
+\Par{Types}
 
-\def\Fig#1{Figure~\ref{figure#1}}
-\def\fig#1{figure~\ref{figure#1}}
+A subset of $V$ is a \emph{type} if it is a proper closed set
+under the Scott topology. In other words, types are nonempty
+proper subsets of $V$ closed downward and under directed
+supremums. If $v\in T$, then we say that the value $v$
+\emph{inhabits} the type $T$, and that $v$ is an
+\emph{inhabitant} of $T$.
 
-\normalsize
+\begin{lemma}
+$\bot$ inhabits every type. $\top$ does not inhabit any type.
+\end{lemma}
 
-\subsection{Problem statement}
+\section{Recursively defined types}
 
-We want to capture the expressive power of System~F in a
-practical programming language.
-In System~F,
+\Par{Road map}
+
+Let us reproduce the result by MacQueen, Plotkin and Sethi that
+types can be defined by recursive equations. For example, the
+type of heterogeneous lists is defined by the equation
+\[
+\texttt{List} = \texttt{Unit} + (V \times \texttt{List}),
+\]
+which holds with set-theoretic identity. The argument has 3
+steps.
 \begin{enumerate}
-\item we can write polymorphic functions, and
-\item we can take functions definable via (1) or (2) as arguments.
-\end{enumerate}
-Call this feature ``first-class polymorphism''. It is a powerful
-abstraction mechanism, essential in unrestricted use of design
-patterns like scrap-your-boilerplate~\cite{Laemmel03} and capable
-of encoding algebraic datatypes~\cite{Boehm85}. \Fig1 shows the
-encoding of lists. The synonym~\texttt{List} expands to a type of
-polymorphic functions. The synonym \texttt{MatchList} encodes
-pattern-matching on lists, and expands to a type of polymorphic
-functions whose second argument is a function whose second
-argument is a polymorphic function.
-
-\Fig1 is ill-typed in Haskell. However, if we insert enough type
-casts (\texttt{unsafeCoerce}) into the definition of
-\texttt{matchList}, it will compile, and the resulting executable
-prints \texttt{5050} as expected. In fact, this program can never
-encounter runtime type errors. A type system is desirable if it
-accepts \fig1 without further ado, and rejects all programs
-concealing runtime type errors.
-
-\subsection{Background} Researchers recognized the importance of
-first-class polymorphism and spent much effort toward making it
-practical. Many systems were proposed that offer the expressive
-power of System~F with less notational overhead. They can be
-\emph{predicative} or \emph{impredicative}.
-
-Like F, a \emph{predicative} system is based on instantiating
-type variables with type arguments. But if a type argument is not
-polymorphic (i.~e., it is a \emph{monotype}), then it can be
-inferred. Practical use cases tend to contain polymorphic type
-arguments; the user must supply those in some way. Haskell's
-Rank-N-Types is a representative~\cite{Jones07}. (The reader may
-try annotating \fig1 until Rank-N-Types accepts it without
-\texttt{unsafeCoerce}.)
-
-An \emph{impredicative} system will infer a type argument even if
-it contains quantifiers. Since inferring all type abstractions
-and type applications is undecidable for F~\cite{Schubert98}, an
-impredicative system can choose to not infer everything, or
-accept more programs than System~F does. FPH~\cite{Vytiniotis08}
-is an example of the former. \MLF!~\cite{LeBotlan03,RemyMLF} and
-HML~\cite{Leijen09} are examples of the latter; they extend F
-types with bounded quantification, where the quantified variable
-is constrained against an arbitrary type. \MLF! rejects \fig1 but
-accepts it after removing \emph{all} type annotations and
-signatures---it interprets F types somewhat differently. I do not
-know whether HML accepts \fig1, because its prototype has
-technical problems processing \texttt{matchList}. \MLF! and HML
-are harder to implement than our system \CT0, shown in \fig2.
-
-\subsection{Approach}
-
-To my knowledge, all existing systems are \emph{intentional}: A
-type is a syntactic object or a collection of syntactic objects.
-Instantiation of type variables is an act of substitution.
-
-The effort toward practical first-class polymorphism may benefit
-from an \emph{extensional} viewpoint: Functions are understood in
-terms of their behavior, as argument-result pairs. Polymorphism
-arises when a function passes information unaltered from
-contravariant positions to covariant positions. Types encode
-statements about the behavior of functions; they contain demands
-for polymorphism and promises of it. This view leads to the
-design of constrained type system version 0 (\CT0), especially of
-the rule \textsc{S-Loner} (\fig2).
-
-\subsection{Results and future work}
-
-\CT0 accepts \fig1 (in lambda calculus syntax) and rejects all
-programs with runtime type errors. We tested \CT0 on well-typed F
-terms of depth $\le5$ with type abstractions and type
-applications erased; all were accepted.
-
-\CT0 is easy to implement. To check whether a term $t$ has the
-closed type $\tau$:
-\begin{enumerate}
-\item Descend into $t$ and use CT-rules to obtain a constrained
-type $(\sigma\Given C)$.
-\item Let $A$ be the set of type variables free in $\sigma$ or
-$C$. Attempt to construct a derivation of
-$(A;\emptyset\vdash\sigma\Sub\tau,C)$ by applying S-rules
-backwards greedily and exhaustively. If it succeeds, then $t$ has
-type $\tau$.
+\item Define the distance between every pair of types, and
+establish completeness of the resulting metric space in the sense
+that every Cauchy sequence of types converges to a type.
+\item Show that the product, sum and function type constructions
+are contractive in both arguments,
+\item Invoke the Banach fixed-point theorem on the nonempty
+complete metric space of types to show that every contraction
+mapping between types has a unique fixed point. By (2), a
+recursive type equation defines a unique type if its right hand
+side uses only the product, sum and function type constructions.
 \end{enumerate}
 
-For future work, I hope to formalize the extensional intuition
-behind \CT0. It would give us another tool to reason about
-polymorphism. It might also answer questions about the practical
-viability of \CT0, such as whether all System~F terms are
-well-typed in \CT0 after erasure, and when exactly should an
-argument be annotated.
+\Par{Converging sequences of sets}
+Let us recall the standard definition of convergence.
 
-\newpage\normalsize
-\input{bib.tex}\end{document}
+The \emph{limit superior} of an infinite sequence of sets
+$S_1,S_2,\ldots$ is
+\[
+\limsup_{n\rightarrow\infty}S_n =
+\bigcap_{n=1}^\infty\bigcup_{i = n}^\infty S_i.
+\]
+The \emph{limit inferior} is
+\[
+\liminf_{n\rightarrow\infty}S_n =
+\bigcup_{n=1}^\infty\bigcap_{i = n}^\infty S_i.
+\]
+If the limit superior and limit inferior are equal, then the
+sequence $S_1,S_2,\ldots$ \emph{converges}, and its \emph{limit}
+is
+\[
+S = \limsup_{n\rightarrow\infty}S_n = \liminf_{n\rightarrow\infty}S_n.
+\]
+
+\Par{Metric space of types}
+
+Let ``$\Rank$'' be an arbitrary function from $V$ to $\mathbb R$.
+The proximity of two types $S$, $T$ is the smallest rank of a
+value in the symmetric difference of $S$ and $T$. If $S=T$, then
+their proximity is $\infty$. The distance $d(S, T)$ between two
+types is inverse exponential in their proximity:
+\[
+d(S,T) =
+\left(\frac12\right)^{\mathrm{proximity}(S, T)}
+%\frac1{2 ^{\mathrm{proximity}(S, T)}} % looks worse
+ \]
+It is easy to verify that the distance function $d$ satisfies the
+requirements for forming a metric space over the set of types:
+It is nonnegative, evaluates to $0$ only on equal types, is
+commutative, and satisfies a stronger inequality than the
+triangle inequality:
+\[
+d(R,T)\le\max(d(R,S),d(S,T)).
+\]
+To see it, let $v$ be the value of minimum rank $r$ in the
+symmetric difference between $R$~and $T$, and suppose $v\in R-T$.
+Then $d(R, T)=2^{-r}$. If $v\in S$, then $v\in S-T$ and
+$d(S,T)\ge2^{-r}$. If $v\notin S$, then $d(R, S)\ge2^{-r}$.
+
+\Par{Cauchy sequences}
+
+An infinite sequence $T_1,T_2,\ldots$ of types is Cauchy if for
+every $\epsilon > 0$ there exists $n\in\mathbb N$ such that for
+all $i,j\ge n$, the distance between $T_i$~and $T_j$ is smaller
+than $\epsilon$.
+
+\begin{theorem}
+No matter which rank function is chosen, the metric space of
+types is complete in the sense that every Cauchy sequence of
+types converges to a type.
+\end{theorem}
+
+\begin{proof}
+There are two proof goals.
+\begin{enumerate}
+\item Every Cauchy sequence of types converges.
+\item The limit of a Cauchy sequence of types is a type.
+\end{enumerate}
+
+
+\end{proof}
+
+\end{document}
