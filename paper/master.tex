@@ -1,6 +1,6 @@
 \documentclass{amsart}
 \usepackage[foot]{amsaddr}
-\usepackage{bcprules,url,verbatim,multicol}
+\usepackage{bcprules,url,verbatim,multicol,enumerate}
 
 \let\phi=\varphi % default phi looks like empty set
 \allowdisplaybreaks
@@ -46,13 +46,13 @@ topologies later. For now, it suffices to appreciate that $V$
 contains base values, function values and values of (not
 necessarily positive) algebraic data types.
 
-There are a number of ways to construct $V$. We may argue for the
-isomorphism in equation~\eqref{domain-eq} in terms of compact
-elements of Scott-Ershov domains, or we may argue in terms of
-continuous lattices; it makes no difference when we discuss
-types. We will only use the Scott topology on $V$, which is
-required for the space of continuous functions $(V\R V)$ to be
-well-defined at all.
+There are a number of ways to construct a set $V$ satisfying
+equation~\eqref{domain-eq}. We use the construction producing a
+\emph{consistently complete algebraic cpo}. We will use the
+property of $V$ as a cpo in the definition of types, and use the
+algebraicity of $V$ to establish that recursive algebraic data
+types are well-defined. Consistent completeness is unused in our
+development.
 
 Previous works define an extra member $\Wrong$ of $V$ to stand
 for runtime type errors. We use the maximum element $\top$ for
@@ -60,18 +60,29 @@ runtime type errors instead, so that $\Wrong$ does not have to be
 purposefully excluded from every type. In fact, our types are
 closed nonempty proper subsets of $V$ under its Scott topology.
 
-\Par{Scott topology} The solution to domain
-equation~\eqref{domain-eq} should impose a \emph{definedness}
-partial order $\Sub$ on $V$ satisfying the following properties.
+\Par{Complete partial orders}
+
+Let $\sqsubseteq$ be a partial order over $V$. A subset of $V$ is
+\emph{directed} if every two members $x$, $y$ of $A$ has an upper
+bound $z$ in $A$ such that $z\sqsupseteq x$ and $z\sqsupseteq y$.
+The partially ordered set $V$ is a \emph{complete partial order},
+or \emph{cpo}, if every directed subset of $V$ has a supremum
+(i.~e., least upper bound) in $V$.
+
+Our chosen solution of equation~\eqref{domain-eq} is a cpo. We
+will henceforth use that fact without further qualification.
+
+\Par{Scott topology}
+
+The solution to domain equation~\eqref{domain-eq} should impose a
+\emph{definedness} partial order $\Sub$ on $V$ satisfying the
+following properties.
 \begin{itemize}
 \item $\bot$ is the least element: $\bot\Sub v$ for all $v\in V$.
 \item $\top$ is the greatest element: $v\Sub\top$ for all $v\in
 V$.
 \item Base values are incomparable: If $u,v\in B$, then
 $u\not\Sub v$ and $v\not\Sub u$.
-\item (Should we mention that directed subsets are supposed to
-have least upper bounds? Will we even need directed closedness?
-Will downsets do?)
 \end{itemize}
 A topology of $V$ is any labeling of subsets of $V$ as
 \emph{open} such that
@@ -82,8 +93,7 @@ A topology of $V$ is any labeling of subsets of $V$ as
 \end{itemize}
 We mentioned that the function space $(V\R V)$ consists of the
 continuous functions according to the Scott topology. A function
-is continuous according to a topology if its preimage of an open
-set is an open set.
+is continuous if its preimage of each open set is an open set.
 
 \begin{samepage}
 The Scott topology of $V$ labels a subset $S$ open if it
@@ -126,6 +136,9 @@ supremums. If $v\in T$, then we say that the value $v$
 \emph{inhabits} the type $T$, and that $v$ is an
 \emph{inhabitant} of $T$.
 
+We will use the property of types as closed sets to establish
+well-definedness of recursive algebraic data types.
+
 \begin{lemma}
 $\bot$ inhabits every type. $\top$ does not inhabit any type.
 \end{lemma}
@@ -142,7 +155,7 @@ type of heterogeneous lists is defined by the equation
 \]
 which holds with set-theoretic identity. The argument has 3
 steps.
-\begin{enumerate}
+\begin{enumerate}[(i)]
 \item Define the distance between every pair of types, and
 establish completeness of the resulting metric space in the sense
 that every Cauchy sequence of types converges to a type.
@@ -154,6 +167,60 @@ mapping between types has a unique fixed point. By (2), a
 recursive type equation defines a unique type if its right hand
 side uses only the product, sum and function type constructions.
 \end{enumerate}
+
+Step~(i) works for every distance function in a certain family.
+But step~(ii) works for only one particular distance function,
+whose definition depends crucially on the properties of $V$ as an
+algebraic cpo.
+
+\Par{Compact elements and algebraic cpos}
+
+An element $v\in V$ is \emph{compact} if for all directed set $A$
+such that $v\Sub\sup A$, there exists $u\in A$ such that $v\Sub
+u$.
+
+For any subset $S\subseteq V$, write $S_c$ for the set of compact
+elements in $S$. A cpo $V$ is \emph{algebraic} if every $v\in V$
+is the supremum of smaller compact elements:
+\[
+v=\sup \{u \in V_c \Or u \Sub v \}.
+\]
+Our chosen solution of equation~\eqref{domain-eq} is an algebraic
+cpo. We will use its algebraicity without ceremony from now on.
+
+\begin{lemma}
+Let $V$ be an algebraic cpo. A subset $S$ contains every compact
+element, or $S\supseteq V_c$, if and only if for every $v\in V$,
+\[
+v=\sup\{u\in S \Or u\Sub v\}.
+\]
+\end{lemma}
+
+\begin{proof}
+($\Rightarrow$) By algebraicity and because $V_c\subseteq S$,
+\[
+v=\sup\{u\in V_c \Or u \Sub v\} \Sub \sup\{u\in S \Or u \Sub v\}.
+\]
+Since $v$ is an upper bound of $\{u\in S \Or u \Sub v\}$, we also
+have
+\[
+v\Sup \sup\{u\in S \Or u \Sub v\}.
+\]
+The proof goal follows from antisymmetry of the definedness
+partial order $\Sub$.
+
+($\Leftarrow$) Choose arbitrary $v\in V_c$. We are to show $v\in
+S$. Let $A= \{u \in S \Or u \Sub v\}$. By assumption $v=\sup A$.
+Since $v$ is compact, there exists $u'\in A$ such that $v\Sub
+u'$. But we also have $u'\Sub v$ by definition of $A$, which
+implies $v=u'\in A\subseteq S$.
+\end{proof}
+
+\Par{Ranks}
+
+\begin{lemma}
+Every compact element has a rank.
+\end{lemma}
 
 \Par{Converging sequences of sets}
 Let us recall the standard definition of convergence.
@@ -253,7 +320,8 @@ Part (2). We will verify that the limit
 \[
 T=\limsup T_n=\liminf T_n
 \]
-is closed downward and closed under directed supremum.
+is a nonempty proper subset of $V$ closed downward and closed
+under directed supremum.
 \end{proof}
 
 \end{document}
