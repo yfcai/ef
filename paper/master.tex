@@ -22,7 +22,71 @@ possibly negative algebraic data types}
 
 \maketitle
 
-\section{Domain-wise, what is a type?}
+\section{Roadmap}
+
+\Par*{Problem}
+
+\begin{itemize}
+\item Why do you want to apply lambda models to type checking?
+\item
+Why do you want type systems that are sound by construction?
+\item
+Why do you want lots of variations in type systems?
+\item
+What is the advantage of a semantic-first approach to designing
+type systems?
+\end{itemize}
+
+Given a model, there is a guide to designing typing rules. Each
+one can be made a tautology of that model. Any type system formed
+by a collection of such tautologies is sound by construction. One
+can add typing rules without fear of destroying soundness.
+
+\Par*{Solution}
+\begin{enumerate}
+\item Fix a semantic domain for untyped lambda calculus.
+\item Define types as certain sets of the domain.
+\item Come up with a type system that checks whether the value
+denoted by a lambda term belong to some type. As long as every
+typing rule describes a tautology about types as sets in the
+semantic domain, the resulting system is sound by construction.
+\end{enumerate}
+
+\Par*{More problems}
+
+\begin{itemize}
+\item How do you reason about decidability of type checking?
+\end{itemize}
+
+This paper demonstrates one sound-by-construction type system
+based on the MPS model. It must answer these questions.
+\begin{enumerate}
+\item What is the MPS model?
+\item What are the tautological typing rules?
+\item How does it perform in practice?
+\end{enumerate}
+We can write (1) and (2) for now. Deal with (3) when the time comes.
+
+\section{What is a type?}
+
+MacQueen, Plotkin and Sethi proposed a notion of types as sets in
+a semantic domain of untyped lambda calculus. These types are
+rough descriptions of the behavior of their inhabitants. For
+example, if a function $f$ has type $\mathbb Z\R\mathbb Z$, then
+$f$ is guaranteed to map an integer to another integer. If $g$
+has type $\All\alpha \alpha\R\alpha$, then $g(x)$ inhabits every
+type where $x$ is an inhabitant. Under this scheme, a recursive
+type equation such as
+\[
+\mathit{List} = \{\mathit{nil}\} + (\mathbb Z \times \mathit{List})
+\]
+has a unique solution, and thereby defines a type.
+
+In the MacQueen-Plotkin-Sethi model, a type is a nonempty
+Scott-closed subset of the value domain $V$. The existence and
+uniqueness proof for solutions of recursive type equations
+depends crucially on the properties of Scott-closed sets.
+
 
 \Par{Value domain}
 
@@ -36,10 +100,10 @@ Here, $B$ is any set of base values. In a practical programming
 language, its members are often truth values, integers and
 floating point numbers. The symbol $+$ denotes disjoint union,
 and $\times$ denotes cartesian product. They give rise to a
-\emph{definedness} partial order $\Sub$ under which $\bot$ is
+\emph{approximation} partial order $\Sub$ under which $\bot$ is
 always the least element, $\top$ is always the greatest element,
 and members of $B$ are incomparable with one another. The
-definedness partial order $\Sub$ determines a Scott topology on
+approximation partial order $\Sub$ determines a Scott topology on
 $V$, and the function space $(V \R V)$ consists of the continuous
 functions of the Scott topology. We will talk about Scott
 topologies later. For now, it suffices to appreciate that $V$
@@ -75,7 +139,7 @@ will henceforth use that fact without further qualification.
 \Par{Scott topology}
 
 The solution to domain equation~\eqref{domain-eq} should impose a
-\emph{definedness} partial order $\Sub$ on $V$ satisfying the
+\emph{approximation} partial order $\Sub$ on $V$ satisfying the
 following properties.
 \begin{itemize}
 \item $\bot$ is the least element: $\bot\Sub v$ for all $v\in V$.
@@ -137,7 +201,7 @@ supremums. If $v\in T$, then we say that the value $v$
 \emph{inhabitant} of $T$.
 
 We will use the property of types as closed sets to establish
-well-definedness of recursive algebraic data types.
+well-approximation of recursive algebraic data types.
 
 \begin{lemma}
 $\bot$ inhabits every type. $\top$ does not inhabit any type.
@@ -206,7 +270,7 @@ have
 \[
 v\Sup \sup\{u\in S \Or u \Sub v\}.
 \]
-The proof goal follows from antisymmetry of the definedness
+The proof goal follows from antisymmetry of the approximation
 partial order $\Sub$.
 
 ($\Leftarrow$) Choose arbitrary $v\in V_c$. We are to show $v\in
@@ -216,7 +280,7 @@ u'$. But we also have $u'\Sub v$ by definition of $A$, which
 implies $v=u'\in A\subseteq S$.
 \end{proof}
 
-\Par{Ranks}
+\Par{Rank}
 
 \begin{lemma}
 Every compact element has a rank.
