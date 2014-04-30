@@ -22,6 +22,45 @@ possibly negative algebraic data types}
 
 \maketitle
 
+\section{Introduction}
+
+Bracha (Pluggable type systems) recommends making the type system
+of a language optional and independent of the language's runtime
+behavior. Doing so confers several benefits.
+\begin{enumerate}
+\item A useful program can be executed even if it has no type.
+\item Type systems can evolve faster than the language itself.
+\item Type inference can be made optional as well, so that the
+expressiveness of the type system is not bounded by the power of
+the inference algorithm.
+\end{enumerate}
+We demonstrate a technique to achieve all of the above and more:
+\begin{enumerate}\setcounter{enumi}3
+\item Several type systems can be used together. If each
+subsystem satisfies strong type soundness, then their composite
+enjoys strong type soundness as well; the composite type system
+would never erroneously accept programs with runtime type errors.
+\item Types defined in different subsystems can interact with
+each other. It is possible to call library functions defined
+in a different type system.
+\end{enumerate}
+The technique puts a slight restriction on what a type can be.
+Say a program $f$ approximates the program $g$ if $f$ terminates
+on fewer inputs than $g$ but otherwise behaves just like $g$.
+Every type $\tau$ must satisfy the following conditions:
+\begin{itemize}
+\item The program \texttt{1 + true} does not have type $\tau$.
+\item If $g$ has type $\tau$ and $f$ approximates $g$, then $f$
+has type $\tau$.
+\item If every program $f$ approximating $g$ has type $\tau$,
+then $g$ has type $\tau$.
+\end{itemize}
+The technique guarantees nothing about the type checker's
+performance. In particular, the type checker may not terminate.
+Writing a nonterminating type checker is as easy as writing a
+nonterminating program in Java.
+
+
 \section{Roadmap}
 
 \Par*{Problem}
