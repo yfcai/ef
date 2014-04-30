@@ -1,0 +1,63 @@
+Typemix: a framework for implementing modular, extensible type
+systems by Thomas Anthony Bergan
+
+Typemix is a domain specific language on top of the extensible
+compiler xoc. Its goal is modularity and ease of use. It makes no
+correctness guarantee.
+
+
+Pluggable type systems by Gilad Bracha
+
+Optional type systems have no effect on the dynamic semantics of
+the language. It provides most of the benefit of a mandatory type
+system without the costs of ???. Integration between multiple
+type systems needs research. Syntactic extension is another open
+problem. Type inference should be optional as well.
+
+* the drawbacks of mandatory type systems ain't spellt out so
+well. how about "bend code over backwards to type check"?
+
+* papers citing this one should be interesting.
+
+If type system has no effect on runtime behavior, then
+- will not prevent ill-typed programs from being run
+- type system can evolve faster
+
+MPS can deliver those, plus
+- mixing several sound type systems produces a sound type system
+- with the addition of sound foreign interface rules, terms
+  written in different type systems interoperate
+
+MPS limits types somewhat.
+Say a program g approximates f if g behaves just like f except it
+may fail to terminate on more inputs.
+- if f has type tau and g approximates f, then g must have type tau
+- if every program approximating f has type tau, then so does f.
+
+MPS makes no performance guarantee about type checking. In
+particular, type checking may not terminate.
+
+
+
+Modular and automated type-soundness verification for language
+extensions by Lorenzen and Erdweg
+
+This project (sound-ex) works toward reasonable error message
+reporting in extensible languages. A language extension should
+make sure that all errors are caught before desugaring, so that
+no error message is reported in terms of desugared code. The
+typing rule for a syntax extension must be derivable from the
+typing rules of the original system.
+
+A semantic model gives us unrestricted extensible soundness proof
+and good error message reporting at the same time. The
+"desugared" code is typeless; it generates no error message
+whatsoever.
+
+Cites pluggable type system [1] and implementations like
+JavaCOP [19] and Checker [21]
+
+
+Want to ask if anybody finds pluggable type systems justified.
+Neither Checker nor JavaCOP discuss it. TypePlug says static
+typing rejects too many programs.
