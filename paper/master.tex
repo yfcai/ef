@@ -22,7 +22,12 @@ possibly negative algebraic data types}
 
 \maketitle
 
-\section{Introduction}
+\def\thingsExpressibleInMpsModel{%
+subtyping, universal types, union and intersection types,
+recursive types, dependent types, and higher kinds%
+}
+
+\section{Pros and cons}
 
 Bracha (Pluggable type systems) recommends making the type system
 of a language optional and independent of the language's runtime
@@ -34,7 +39,9 @@ behavior. Doing so confers several benefits.
 expressiveness of the type system is not bounded by the power of
 the inference algorithm.
 \end{enumerate}
-We demonstrate a technique to achieve all of the above and more:
+We demonstrate the technique of denotational pluggable types for
+purely functional languages. It achieves all of the above and
+more:
 \begin{enumerate}\setcounter{enumi}3
 \item Several type systems can be used together. If each
 subsystem satisfies strong type soundness, then their composite
@@ -44,10 +51,14 @@ would never erroneously accept programs with runtime type errors.
 each other. It is possible to call library functions defined
 in a different type system.
 \end{enumerate}
-The technique puts a slight restriction on what a type can be.
-Say a program $f$ approximates the program $g$ if $f$ terminates
-on fewer inputs than $g$ but otherwise behaves just like $g$.
-Every type $\tau$ must satisfy the following conditions:
+The technique is applicable to a wide variety of type systems. It
+gives straightforward interpretations to \thingsExpressibleInMpsModel.
+
+The simplicity comes at a cost: There is a slight restriction on
+what a type can be. Say a program $f$ approximates the program
+$g$ if $f$ terminates on fewer inputs than $g$ but otherwise
+behaves just like $g$. Every type $\tau$ must satisfy the
+following conditions:
 \begin{itemize}
 \item The program \texttt{1 + true} does not have type $\tau$.
 \item If $g$ has type $\tau$ and $f$ approximates $g$, then $f$
@@ -55,56 +66,124 @@ has type $\tau$.
 \item If every program $f$ approximating $g$ has type $\tau$,
 then $g$ has type $\tau$.
 \end{itemize}
+In particular, types cannot separate terminating programs from
+nonterminating ones.
+
 The technique guarantees nothing about the type checker's
-performance. In particular, the type checker may not terminate.
-Writing a nonterminating type checker is as easy as writing a
-nonterminating program in Java.
+performance; it may even run forever. Writing a nonterminating
+type checker is as easy as writing a nonterminating program in
+Java.
+
+\section{Background}
+
+A runtime type error occurs when a value is used in an unintended
+way; examples include adding an integer and a truth value,
+dereferencing a non-pointer, and calling a non-function. A type
+system is \emph{sound} if no well-typed program encounters
+runtime type errors during execution. Soundness is one of the
+most important design goals of type systems.
+
+There are several methods to prove a type system sound. We will
+discuss two: the syntactic approach, and the domain-theoretic
+approach.
+
+\Par{The syntactic approach}
+
+It is the current standard framework for soundness proofs.
+\begin{enumerate}
+\item Capture the runtime behavior of the language in a
+small-step semantics such that terms with runtime type errors are
+\emph{stuck}: Neither are they values, nor can they reduce to
+other terms.
+\item Demonstrate \emph{progress}: A well-typed term is either a
+value or reduces to something else.
+\item Demonstrate \emph{preservation}: If a term has type $\tau$
+then it continues to have type $\tau$ after one reduction.
+\end{enumerate}
+Together, progress and preservation imply that well-typed terms
+never get stuck, and thus cannot experience runtime type errors.
+
+In most circumstances, we can ``append'' to a syntactic soundness
+proof to accommodate new runtime behaviors without modifying
+existing arguments. But we cannot take two systems proven sound
+by the syntactic approach, take the union of their typing rules,
+and expect soundness to hold for the result. The two syntactic
+soundness proofs gave us progress and preservation for terms
+typed purely with rules in one system; they say nothing about
+terms typed with a mixture of rules from both systems.
+
+\Par{The domain-theoretic approach}
+
+\begin{enumerate}
+\item Capture the runtime behavior of the language in a domain
+equation. Define types as certain sets of values in the semantic
+domain. Designate a special value $\Wrong$ for runtime type
+errors, and make sure it is not a member of any type.
+\item Construct an interpretation from terms to values in the
+semantic domain. Show that if a term $t$ has type $\tau$, then
+$t$ interprets to a member of $\tau$.
+\end{enumerate}
+Since no type contains $\Wrong$, well-typed programs do not
+denote $\Wrong$, and their evaluation may not encounter runtime
+type errors.
+
+A domain-theoretic soundness proof is not extensible with new
+runtime behaviors. Adding mutation to a purely functional
+language, for example, requires a completely new domain equation.
+The old arguments have to be rewritten, because their
+foundation---the old domain equation---has become obsolete.
+
+However, if we extend the type system without modifying the
+runtime behavior, then we can keep interpreting terms into the
+old semantic domain. If the new typing rules are sound on their
+own, then they already meet the expectation of the old soundness
+proof, namely that they assign type $\tau$ only to terms
+interpreting to a member of $\tau$. In this way, the old proof
+carries over even to terms typed with a mixture of old and new
+rules, and type soundness continues to hold.
+
+If types are pluggable, then the language's runtime behavior has
+to stay constant in all possible type systems. In this situation,
+a domain-theoretic type soundness proof is more extensible than a
+syntactic proof.
 
 
 \section{Roadmap}
 
-\Par*{Problem}
-
-\begin{itemize}
-\item Why do you want to apply lambda models to type checking?
-\item
-Why do you want type systems that are sound by construction?
-\item
-Why do you want lots of variations in type systems?
-\item
-What is the advantage of a semantic-first approach to designing
-type systems?
-\end{itemize}
-
-Given a model, there is a guide to designing typing rules. Each
-one can be made a tautology of that model. Any type system formed
-by a collection of such tautologies is sound by construction. One
-can add typing rules without fear of destroying soundness.
-
-\Par*{Solution}
+To achieve safely pluggable types, we exploit the extensibility
+of domain-theoretic type soundness proofs when the runtime system
+never changes. These are the steps:
 \begin{enumerate}
-\item Fix a semantic domain for untyped lambda calculus.
-\item Define types as certain sets of the domain.
-\item Come up with a type system that checks whether the value
-denoted by a lambda term belong to some type. As long as every
-typing rule describes a tautology about types as sets in the
-semantic domain, the resulting system is sound by construction.
+\item Choose a semantic domain. For purely functional languages,
+a domain for untyped lambda calculus suffices.
+\item Choose a theory of types for the semantic domain. We employ
+the ideal model by MacQueen, Plotkin and Sethi. It can easily
+express \thingsExpressibleInMpsModel.
+\item Develop type systems such that each typing rule corresponds
+to a true statement in the theory of types. This property tends
+to be a part of the usual domain-theoretic soundness proof; it
+often incurs no effort beyond what is required to write the
+soundness proof in the first place.
 \end{enumerate}
+Thus typing rules become lemmas, typing judgements become
+statements, and terms with type annotations become proofs. Typing
+terms with a mixture of type systems is no more than writing
+proofs with a larger collection of lemmas.
 
-\Par*{More problems}
+The next section discusses domains and the MacQueen-Plotkin-Sethi
+model of types on a high level. We will only disclose the
+technical details absolutely essential for understanding
+pluggable types.
 
-\begin{itemize}
-\item How do you reason about decidability of type checking?
-\end{itemize}
+The section after that describes CT1, a pluggable type system
+that supports unboxed impredicative polymorphism.
 
-This paper demonstrates one sound-by-construction type system
-based on the MPS model. It must answer these questions.
-\begin{enumerate}
-\item What is the MPS model?
-\item What are the tautological typing rules?
-\item How does it perform in practice?
-\end{enumerate}
-We can write (1) and (2) for now. Deal with (3) when the time comes.
+The section after that describes how to make System~F pluggable.
+Using System~F and CT1 together, we make the inference of type
+arguments optional.
+
+The section after that adds subtyping and whatever else comes to
+my mind.
 
 \section{What is a type?}
 
