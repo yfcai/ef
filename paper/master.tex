@@ -43,7 +43,14 @@ recursive types, dependent types, and higher kinds%
 
 \indent$\Abs x x$ & \indent identity function on $V$\\
 
-\indent$(\Abs x x~x)~(\Abs x x~x)$ & \indent$\bot$ \\
+\indent$\Abs f (\Abs x f~(x~x))~(\Abs x f~(x~x))$
+&\indent
+\begin{minipage}[t]{\miniwidth}\raggedright
+the function mapping each $f\in V\R V$ to its least
+fixed point, and each $v\notin V\R V$ to~$\Wrong$
+\end{minipage}
+\vspace{1ex}
+\\
 
 
 \hline Type string & Type \\
@@ -74,9 +81,9 @@ If $\rho(x)\in\B N_\bot$, then $\rho(x)\in\B N_\bot$
 
 \indent
 \begin{minipage}[t]{\miniwidth}
-$\alpha ; \beta\in[\texttt{Bot},\alpha]\VSub$
-\\\null\hspace{2em}
-$\beta\le\beta\R\alpha$
+$\alpha ; \beta\in[\texttt{Bot},\alpha]\VSub
+% $\\\null\hspace{2em}$
+\beta\le\beta\R\alpha$
 \end{minipage}
 &
 \indent
@@ -85,8 +92,8 @@ For all $T_\alpha\in\Type$,\\
 for all $T_\beta\in\Type$ with
 $\{\bot\}\subseteq T_\beta\subseteq T_\alpha$,
 we have
-$T_\beta\subseteq\{f\in V\R V \Or f(T_\beta)\subseteq\B N_\bot\}$
-(This is false.)
+$T_\beta\subseteq\{f\in V\R V \Or f(T_\beta)\subseteq\B T_\alpha\}$
+(It is a false statement.)
 \end{minipage}
 \vspace{1ex}
 \\
