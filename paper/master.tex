@@ -27,6 +27,92 @@ subtyping, universal types, union and intersection types,
 recursive types, dependent types, and higher kinds%
 }
 
+\vfill
+
+\[
+\def\miniwidth{0.4\textwidth}
+\renewcommand\arraystretch{1.5}
+\begin{tabular}{ll}
+\hline Syntactic object \hspace{1cm}\null& Semantic object \\
+
+
+\hline Term & Value \\
+
+
+\indent\texttt{plus 3 5} & \indent the number $8$ \\
+
+\indent$\Abs x x$ & \indent identity function on $V$\\
+
+\indent$(\Abs x x~x)~(\Abs x x~x)$ & \indent$\bot$ \\
+
+
+\hline Type string & Type \\
+
+
+\indent\texttt{Nat} & \indent$\B N_\bot = \{\bot,0,1,2,\ldots\}$ \\
+
+\indent\texttt{Int} & \indent$\B Z_\bot = \{\bot, 0, 1, -1, 2, -2, \ldots\}$\\
+
+\indent$\texttt{Nat}\R\texttt{Int}$ & \indent$\{f\in V\R V \Or f(\B N_\bot)\subseteq \B Z_\bot\}$ \\
+
+\indent$\All\alpha\alpha\R\alpha$ & \indent$\bigcap_{T\in\Type}\{f\in V\R V \Or f(T) \subseteq T\}$ \\
+
+\indent \texttt{Bot} & \indent $\{\bot\}$ \\
+
+\indent \texttt{Top} & \indent $V-\{\Wrong\}$ \\
+
+
+\hline Typing judgement & Statement \\
+
+
+\indent\texttt{plus 3 5} : \texttt{Nat} & \indent$8\in\B N_\bot$ \\
+
+\indent $x:\texttt{Nat}\VST x:\texttt{Nat}$ & \indent
+\begin{minipage}[t]{\miniwidth}
+If $\rho(x)\in\B N_\bot$, then $\rho(x)\in\B N_\bot$
+\end{minipage}\\
+
+\indent
+\begin{minipage}[t]{\miniwidth}
+$\alpha ; \beta\in[\texttt{Bot},\alpha]\VSub$
+\\\null\hspace{2em}
+$\beta\le\beta\R\alpha$
+\end{minipage}
+&
+\indent
+\begin{minipage}[t]{\miniwidth}\raggedright
+For all $T_\alpha\in\Type$,\\
+for all $T_\beta\in\Type$ with
+$\{\bot\}\subseteq T_\beta\subseteq T_\alpha$,
+we have
+$T_\beta\subseteq\{f\in V\R V \Or f(T_\beta)\subseteq\B N_\bot\}$
+(This is false.)
+\end{minipage}
+\vspace{1ex}
+\\
+
+
+\hline Typing derivation rule & Theorem \\
+
+
+\begin{minipage}[t]{\miniwidth}\raggedright
+\[\frac{
+s:\texttt{Nat}\R\texttt{Int}\qquad
+t:\texttt{Nat}
+}{s~t:\texttt{Int}}\]
+\end{minipage}
+&
+\begin{minipage}[t]{\miniwidth}\raggedright
+If the term $s$ denotes $f\in\{g\Or g(\B N_\bot)\subseteq \B
+Z_\bot\}$ and\\
+$t$ denotes $v\in \B N_\bot$, then the denotation $f(v)$ of
+the application $s~t$ belongs to $\B Z_\bot$
+\end{minipage}
+\end{tabular}
+\]
+
+\vfill
+
 \section{Pros and cons}
 
 Bracha (Pluggable type systems) recommends making the type system
@@ -175,6 +261,9 @@ model of types on a high level. We will only disclose the
 technical details absolutely essential for understanding
 pluggable types.
 
+The section after that describes pluggable simply typed lambda
+calculus as a warm-up example.
+
 The section after that describes CT1, a pluggable type system
 that supports unboxed impredicative polymorphism.
 
@@ -184,6 +273,35 @@ arguments optional.
 
 The section after that adds subtyping and whatever else comes to
 my mind.
+
+
+\section{MacQueen-Plotkin-Sethi model of types}
+
+Outline
+\begin{enumerate}
+\item domain equation
+\item interpretation of untyped lambda calc into the domain
+\item reflexive transitive antisymmetric ordering $\Sub$
+\item topology, continuous functions, compact elements
+\item rank of elements; every compact element has a finite rank
+\item types
+\item proximity between types
+\item contractive, nonexpansive
+\item type constructors: finite union, arbitrary intersection, recursive
+\end{enumerate}
+
+
+
+\section{Warm-up example: simply typed lambda calculus}
+
+
+
+
+\section{Constrained type system version 1}
+
+
+\appendix
+% nitty gritty details
 
 \section{What is a type?}
 
