@@ -18,18 +18,28 @@
 \\
 possibly negative algebraic data types}
 
-\begin{document}
-
-\maketitle
 
 \def\thingsExpressibleInMpsModel{%
 subtyping, universal types, union and intersection types,
 recursive types, dependent types, and higher kinds%
 }
 
-\vfill
 
-\[
+\begin{document}
+
+\begin{samepage}
+
+\maketitle
+
+\newskip\shrunken
+\shrunken=-0.5cm plus 20cm minus 20cm
+
+\begin{table}[h]
+\caption{Correspondence between syntactic and semantic objects}
+\label{corres}
+\end{table}
+\vskip\shrunken
+% ...
 \def\miniwidth{0.4\textwidth}
 \renewcommand\arraystretch{1.5}
 \begin{tabular}{ll}
@@ -53,7 +63,7 @@ fixed point, and each $v\notin V\R V$ to~$\Wrong$
 \\
 
 
-\hline Type string & Type \\
+\hline Type expression & Type \\
 
 
 \indent\texttt{Nat} & \indent$\B N_\bot = \{\bot,0,1,2,\ldots\}$ \\
@@ -69,7 +79,7 @@ fixed point, and each $v\notin V\R V$ to~$\Wrong$
 \indent \texttt{Top} & \indent $V-\{\Wrong\}$ \\
 
 
-\hline Typing judgement & Statement \\
+\hline Judgement & Statement \\
 
 
 \indent\texttt{plus 3 5} : \texttt{Nat} & \indent$8\in\B N_\bot$ \\
@@ -109,16 +119,17 @@ t:\texttt{Nat}
 }{s~t:\texttt{Int}}\]
 \end{minipage}
 &
+\indent
 \begin{minipage}[t]{\miniwidth}\raggedright
 If the term $s$ denotes $f\in\{g\Or g(\B N_\bot)\subseteq \B
 Z_\bot\}$ and\\
 $t$ denotes $v\in \B N_\bot$, then the denotation $f(v)$ of
 the application $s~t$ belongs to $\B Z_\bot$
 \end{minipage}
+\vspace{1ex}
 \end{tabular}
-\]
 
-\vfill
+\end{samepage}
 
 \section{Pros and cons}
 
@@ -209,7 +220,8 @@ terms typed with a mixture of rules from both systems.
 
 \begin{enumerate}
 \item Capture the runtime behavior of the language in a domain
-equation. Define types as certain sets of values in the semantic
+equation.
+\item Define types as certain sets of values in the semantic
 domain. Designate a special value $\Wrong$ for runtime type
 errors, and make sure it is not a member of any type.
 \item Construct an interpretation from terms to values in the
@@ -258,15 +270,17 @@ to be a part of the usual domain-theoretic soundness proof; it
 often incurs no effort beyond what is required to write the
 soundness proof in the first place.
 \end{enumerate}
-Thus typing rules become lemmas, typing judgements become
-statements, and terms with type annotations become proofs. Typing
-terms with a mixture of type systems is no more than writing
-proofs with a larger collection of lemmas.
+Thus typing rules become lemmas, judgements become statements,
+and terms with type annotations become proofs. Typing terms with
+a mixture of type systems is no more than writing proofs with a
+larger collection of lemmas.
 
 The next section discusses domains and the MacQueen-Plotkin-Sethi
 model of types on a high level. We will only disclose the
 technical details absolutely essential for understanding
 pluggable types.
+
+The section after that describes the plugin architecture.
 
 The section after that describes pluggable simply typed lambda
 calculus as a warm-up example.
@@ -294,17 +308,89 @@ Outline
 \item types
 \item proximity between types
 \item contractive, nonexpansive
-\item type constructors: finite union, arbitrary intersection, recursive
+\item type constructors: finite union, arbitrary intersection,
+recursive
+\item btw, existence of unique fixed point means that initial
+algebras are final coalgebras whose object is the fixed point and
+whose morphism is id. which means lists \emph{are} streams, period.
 \end{enumerate}
+
+
+\section{Architecture (what's a more folksy title?)}
+
+We have learnt the notion of types, the nature of function types,
+and the construction of recursive types. This section describes,
+at a high level, how we use such knowledge to make type systems
+pluggable.
+
+
+\begin{enumerate}
+\item Untyped $\lambda$ is a powerful runtime system, enjoys
+natural and local encoding of many features. Untyped $\lambda$ is
+our core language.
+
+\item Pluggable type systems may declare extensions to term
+syntax, but the runtime understands none of them. Each syntax
+extension must be able to erase to an untyped lambda term, and so
+it may be considered an optional type annotation.
+
+\item Syntax of types is left open for type system plugins. Care
+must be taken in introducing a new type expression that it
+interprets to an actual type, not just some value set. Useful
+type constructors are: finite union, arbitrary intersection,
+arbitrary supremum, function type, recursive type. Useful encoded
+types are: records, variants, existential types.
+
+\item Type system plugins produce judgements. One may regard
+judgements as abbreviations of well-formed formulas in
+Zermelo-Fraenkel set theory with the axiom of choice. Judgements
+include, but are not limited to, typing judgements $t:\tau$ for
+closed terms $t$ and closed type expressions $\tau$, which
+expands to ``the value denoted by $t$ is a member of the type
+denoted by $\tau$''.
+
+\item A typing rule consists of zero or more antecedents, zero or
+more side conditions, and one conclusion. The antecedents are
+judgements, the side conditions are well-formed formulas, and the
+conclusion is a judgement. A typing rule interprets to the
+statement ``If all antecedents and side conditions are true, then
+the conclusion is true.'' A typing rule is sound if its
+interpretation is true.
+
+\item A typing derivation is a finite tree build from instances
+of typing rules in the manner of natural deduction, where all
+antecedents of each rule instance coincide with the conclusions
+of rule instances immediately above it, and all side conditions
+are true. If all typing rules involved are sound, then each rule
+instance corresponds to a true implication, and the typing
+derivation corresponds to a proof of the ultimate conclusion by
+repeated application of modus ponens.
+
+\item Each pluggable type system is a collection of typing rules.
+A type system is sound if all rules are sound. We mix type
+systems together by taking the union of their typing rules. Sound
+systems have sound rules and produce a sound mixture.
+\end{enumerate}
+
 
 
 
 \section{Warm-up example: simply typed lambda calculus}
 
+We're reading MPS's interpretation section to get some ideas
+about how to write this section.
 
 
 
 \section{Constrained type system version 1}
+
+
+
+\section{Parametric types}
+
+Can refine ``up to termination'' relation in ``fast and loose
+reasoning'' to the binary consistency relation. Free theorems
+should hold. Parametric types are not universal types.
 
 
 \input{appendix.tex}
