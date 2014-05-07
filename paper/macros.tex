@@ -4,12 +4,13 @@
 \usepackage[cmtip,all]{xy}
 \newcommand{\nc}{\newcommand}
 \newcommand{\DotExpr}[2]{#1 #2.\ }
-\newenvironment{syntax}{\[\begin{array}{rrll}}{\end{array}\]}
+\newenvironment{syntax}{\[\begin{array}{rclr}}{\end{array}\]}
 
 \makeatletter
 \renewcommand{\@secnumfont}{\bfseries}
 \makeatother
 \def\thesubsection{\arabic{section}.\arabic{subsection}}
+\def\+={\text{+=}}
 
 \nc\Abs       {\DotExpr\lambda}
 \nc\Add       {\mathrm{add}}
@@ -45,6 +46,7 @@
 \nc\Indent    {\hspace{3em}}
 \nc\Inject    {\mathrm{inject}}
 \nc\Int       {\mathrm{Int}}
+\nc\JF        {J_{\rm F}}
 \nc\LHS       {\operatorname{LHS}}
 \nc\Mgsr      {\operatorname{mgsr}}
 \nc\MakeT[1]  {\ \framebox[1em]{\raisebox{0pt}[1.05ex][0ex]{$#1$}}\ }
@@ -75,7 +77,7 @@
 \nc\Undo      {\operatorname{undo}}
 \nc\Unify     {\operatorname{unify}}
 \nc\Up        {\mathord{\uparrow}}
-\nc\Update[2] {#1\text{ updated }#2}
+\nc\Update[1] {#1\text{ updated }}
 \nc\VST       {\vdash_{\textrm{ST}}}
 \nc\VSub      {\vdash_{\textrm S}}
 \nc\Wrong     {\textsc{wrong}}
