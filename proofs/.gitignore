@@ -1,6 +1,7 @@
-master.log
 master.aux
+master.log
 master.pdf
-master.toc
+master.rel
 master.synctex.gz
+master.toc
 texput.log
