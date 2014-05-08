@@ -447,14 +447,16 @@ in Girard (System~F of variable types: fifteen years later,
 
 \Par{Syntax extension}
 
+System~F requires annotated abstraction, type abstraction and
+type application. The interpretation of any term with these
+extensions is identical to the interpretation of its erasure.
+
 \begin{syntax}
 t &\+=& &\mbox{syntax extension} \\
 && \Abs{x:\sigma}t &\mbox{annotated abstraction}\\
 &|& \Tabs\alpha t &\mbox{type abstraction}\\
 &|& t~[\sigma] &\mbox{type application}\\
-\end{syntax}
-
-\Par{Erasure to untyped terms}
+\end{syntax}%
 
 \begin{align*}
 \Erase(\Abs{x:\sigma}t) & = \Abs x\Erase(t) \\
@@ -521,9 +523,8 @@ following statement.
 \begin{quotation}
 For every type environment $\Env$ defined on $\Delta$, for every
 term environment $\env$ compatible with $\Gamma$ under $\Env$,
-we have
 \[
-\Sem{\Erase(t)}~\env~\in~\Sem\sigma~\Env.
+\Sem{t}~\env~\in~\Sem\sigma~\Env.
 \]
 \end{quotation}~
 
@@ -533,6 +534,10 @@ we have
 \infrule[T-0]
 {\emptyset;\emptyset\vdash t:\sigma\andalso t,\sigma\text{ closed}}
 {t:\sigma}
+
+\infrule[T-Con]
+{v_c\in \Sem\sigma~\emptyset\andalso\sigma\text{ closed}}
+{\Gamma;\Delta\vdash c:\sigma}
 
 \infrule[T-Var]
 {x:\sigma\in\Gamma}
@@ -567,6 +572,10 @@ value $v_t$ and a type $T_\sigma$ under whatever environments.
 The antecedent says $v_t\in T_\sigma$; the conclusion says the
 same thing.
 
+\textsc{T-Con}: Since $c$ and $\sigma$ are both closed, their
+denotations do not depend on type or term environments. The
+conclusion is a consequence of the first side condition.
+
 \textsc{T-Var}: Let $\Env$ be an arbitrary type environment
 defined on $\Delta$. The side condition implies that no matter
 which term environment $\env$ compatible with $\Gamma$ is chosen,
@@ -574,13 +583,13 @@ the value $\env(x)$ must be a member of the type
 $\Sem\sigma~\Env$. The conclusion follows.
 
 \textsc{T-Abs}: Let $\Env$ be an arbitrary type environment
-defined on $\Delta$. Write $t_0=\Erase(t)$. By the antecedent,
-$t_0$ denotes a value in $\Sem{\sigma_2}~\Env$ under every
-environment $\env$ that is compatible with $\Gamma$ and maps $x$
-to a member of $\Sem{\sigma_1}~\Env$. It follows that the
-denotation of $\Abs xt_0$ under every environment compatible with
-$\Gamma$ is a function whose image of $\Sem{\sigma_1}~\Env$ is a
-subset of $\Sem{\sigma_2}~\Env$.
+defined on $\Delta$. By the antecedent, $t$ denotes a value in
+$\Sem{\sigma_2}~\Env$ under every environment $\env$ that is
+compatible with $\Gamma$ and maps $x$ to a member of
+$\Sem{\sigma_1}~\Env$. It follows that the denotation of $\Abs
+xt$ under every environment compatible with $\Gamma$ is a
+function whose image of $\Sem{\sigma_1}~\Env$ is a subset of
+$\Sem{\sigma_2}~\Env$.
 
 \textsc{T-App}: Let $\Env$ be an arbitrary type environment
 defined on $\Delta$. The antecedents say that under every
@@ -591,10 +600,7 @@ $f(v)\in\Sem{\sigma_3}~\Env$.
 
 \textsc{T-Tabs}: Let $\Env$ be an arbitrary type environment
 defined on $\Delta$. Let $\env$ be an arbitrary term environment
-compatible with $\Gamma$ under $\Env$. Let
-\[
-v=\Sem{\Erase(t)}~\env.
-\]
+compatible with $\Gamma$ under $\Env$. Let $v=\Sem{t}~\env$.
 For every type $T\in\Type$, the antecedent guarantees that
 \[
 v\in\Sem\sigma~(\Update\Env(\alpha\mapsto T)),
@@ -605,13 +611,27 @@ v\in\bigcap_{T\in\Type}\Sem\sigma~(\Update\Env(\alpha\mapsto T))
 =\Sem{\All\alpha\sigma}~\Env.
 \]
 
-\textsc{T-Tapp}: Something about
+\textsc{T-Tapp}: Let $\Env$ be an arbitrary type environment
+defined on $\Delta$. Let $\env$ be an arbitrary term environment
+compatible with $\Gamma$ under $\Env$. Write
+\begin{align*}
+T_1&=\Sem{\sigma_1}~\Env,\\
+v&=\Sem{t}~\env.
+\end{align*}
+By the antecedent,
 \[
-\Sem{\sigma_0[\alpha\mapsto\sigma_1]}~\Env
-=
-\Sem{\sigma_0}~(\Update\Env\alpha\mapsto\Sem{\sigma_1}~\Env)
+v\in
+\bigcap_{T\in\Type}\Sem{\sigma_0}~(\Update\Env(\alpha\mapsto T))
+\ \subseteq\ \Sem{\sigma_0}~(\Update\Env\alpha\mapsto T_1).
 \]
-
+By the correctness of capture-avoiding substitution,
+\[
+\Sem{\sigma_0}~(\Update\Env\alpha\mapsto T_1)
+=
+\Sem{\sigma_0[\alpha\mapsto\sigma_1]}~\Env,
+\]
+which gives us $v\in\Sem{\sigma_0[\alpha\mapsto\sigma_1]}~\Env$
+as desired.
 
 
 \section{Constrained type system version 1}
