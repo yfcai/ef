@@ -455,7 +455,7 @@ extensions is identical to the interpretation of its erasure.
 t &\+=& &\mbox{syntax extension} \\
 && \Abs{x:\sigma}t &\mbox{annotated abstraction}\\
 &|& \Tabs\alpha t &\mbox{type abstraction}\\
-&|& t~[\sigma] &\mbox{type application}\\
+&|& t~[\sigma] &\mbox{type application}
 \end{syntax}%
 
 \begin{align*}
@@ -545,7 +545,7 @@ term environment $\env$ compatible with $\Gamma$ under $\Env$,
 
 \infrule[T-Abs]
 {x:\sigma_1,\Gamma;\Delta\vdash t:\sigma_2
-\andalso x\notin\Gamma}
+\andalso x\notin\Gamma\andalso\FV(\sigma_1)\subseteq\Delta}
 {\Gamma;\Delta\vdash\Abs{x:\sigma}t : \sigma_1\R\sigma_2}
 
 \infrule[T-App]
@@ -583,13 +583,13 @@ the value $\env(x)$ must be a member of the type
 $\Sem\sigma~\Env$. The conclusion follows.
 
 \textsc{T-Abs}: Let $\Env$ be an arbitrary type environment
-defined on $\Delta$. By the antecedent, $t$ denotes a value in
-$\Sem{\sigma_2}~\Env$ under every environment $\env$ that is
-compatible with $\Gamma$ and maps $x$ to a member of
-$\Sem{\sigma_1}~\Env$. It follows that the denotation of $\Abs
-xt$ under every environment compatible with $\Gamma$ is a
-function whose image of $\Sem{\sigma_1}~\Env$ is a subset of
-$\Sem{\sigma_2}~\Env$.
+defined on $\Delta$. Since $\FV(\sigma_2)\subseteq\Delta$, the
+type $T_1=\Sem{\sigma_1}~\Env$ is well-defined. By the
+antecedent, $t$ denotes a value in $T_2$ under every environment
+$\env$ that is compatible with $\Gamma$ and maps $x$ to a member
+of $T_1$. It follows that the denotation of $\Abs xt$ under every
+environment compatible with $\Gamma$ is a function whose image of
+$T_1$ is a subset of $T_2$.
 
 \textsc{T-App}: Let $\Env$ be an arbitrary type environment
 defined on $\Delta$. The antecedents say that under every
@@ -636,10 +636,116 @@ as desired.
 
 \section{Constrained type system version 1}
 
+TODO: some short words about expressiveness and low cost of
+imperfection, unboxed polymorphism, impredicativity etc.
+
+\Par{Syntax extension}
+
+\begin{syntax}
+t &\+=& \Abs{x:\sigma}t &\mbox{annotated abstraction}\\
+&|& \Tabs\alpha t &\mbox{type abstraction}
+\end{syntax}%
+%
+\begin{align*}
+\Erase(\Abs{x:\sigma}t) & = \Abs x\Erase(t)\\
+\end{align*}
+
+\Par{Type expressions}
+
+CT1 requires the open types of System~F under the same
+interpretation. There is one additional type expression,
+interval-bounded universal type, to represent the solution of a
+set of constraints.
+
+\begin{syntax}
+\sigma &::=& &\mbox{open type expression}\\
+&& \iota &\mbox{base type}\\
+&|& \alpha &\mbox{type variable}\\
+&|& \sigma\R\sigma &\mbox{function type}\\
+&|& \All\alpha\sigma &\mbox{universal type}\\
+\\\\
+\sigma_\cup &::=& \sigma &\mbox{finite union type}\\
+&|& \sigma \cup \sigma_\cup\\
+\\\\
+\sigma_\cap &::=& \sigma &\mbox{finite intersection type}\\
+&|& \sigma \cap \sigma_\cap\\
+\\\\
+I &::=& [\sigma_\cup, \sigma_\cap] &\mbox{type interval}\\
+\\\\
+\sigma &\+=& \All{\alpha\in I}\sigma &\mbox{open type expression
+extended by}\\
+&& &\mbox{interval-bounded universal type}
+\end{syntax}%
+
+\Par{Interpretation of type expressions}
+
+Finite union and intersection type expressions have the same
+interpretation as open types. Recall that the union of two types
+is a type.
+\begin{align*}
+\Sem{\sigma\cup\sigma_\cup}~\Env &= (\Sem\sigma~\Env) \cup
+(\Sem{\sigma_\cup}~\Env)\\
+\Sem{\sigma\cap\sigma_\cap}~\Env &= (\Sem\sigma~\Env) \cap
+(\Sem{\sigma_\cap}~\Env)\\
+\end{align*}
+A type interval interprets to a set of types sandwiched between
+its lower and upper bounds. If the lower bound is not a subset of
+the upper bound, then the type interval interprets to the empty
+set.
+\begin{align*}
+\Sem{[\sigma_\cup,\sigma_\cap]}~\Env &= \{T\in\Type\Or
+\Sem{\sigma_\cup}~Env\ \subseteq\ T\ \subseteq\ \Sem{\sigma_\cap}~Env\}
+\end{align*}
+An interval-bounded universal type $\sigma$ interprets to the
+intersection of a family of types indexed by types in the
+interval.
+\begin{align*}
+\Sem{\All{\alpha\in I}\sigma}~\Env &=
+\begin{cases}
+\displaystyle\bigcap_{T\ \in\ \SemSlim I~\Env}
+\Sem\sigma~\Env&\text{if }\SemSlim I~\Env\neq\emptyset\\[2em]
+\mbox{undefined}&\text{if }\SemSlim I~\Env=\emptyset
+\end{cases}
+\end{align*}
+
+\Par{Judgements}
+
+CT1 produces two species of judgements. The S-judgements are
+about relative containment between types, and the CT-judgements
+are conditional statements about the membership of values in
+types. Typing contexts and lists of bound type variables are
+identical to those in System~F.
+
+\begin{syntax}
+\Gamma &::=&\emptyset& \mbox{typing context}\\
+&|& x:\sigma,\Gamma\\
+\\\\
+\Delta &::=&\emptyset& \mbox{bound type variables}\\
+&|& \alpha,\Delta\\
+\\\\
+E & ::= & \emptyset & \mbox{interval bounds}\\
+&|& \alpha\in I,E\\
+\\\\
+C & ::= & \emptyset & \mbox{subtype constraints}\\
+&|& \sigma\le\sigma,C\\
+\\\\
+\JS & ::= & \Delta;E\vdash C & \mbox{S-judgement}\\
+\\\\
+\JCT & ::= & \Gamma;\Delta\vdash t:\sigma\Given C
+&\mbox{CT-judgement}
+\end{syntax}
+
+\Par{Interpretation of S- and CT-judgements}
+
+(Beware: $\Delta$ also include auto-generated type variables in
+CT-judgements.)
+
 
 
 \section{Mixing F and CT1 for optional type arguments}
 
+Look at all those syntactic extensions. Isn't this an awesome
+opportunity for some solutions to the expression problem?
 
 
 \section{Parametric types}
