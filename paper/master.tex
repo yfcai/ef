@@ -1,6 +1,8 @@
 \documentclass{amsart}
 \usepackage[foot]{amsaddr}
 \usepackage{bcprules,url,verbatim,multicol,enumerate}
+\usepackage[utf8x]{inputenc}
+\usepackage[greek,english]{babel}
 
 \let\phi=\varphi % default phi looks like empty set
 \allowdisplaybreaks
@@ -545,7 +547,7 @@ term environment $\env$ compatible with $\Gamma$ under $\Env$,
 
 \infrule[T-Abs]
 {x:\sigma_1,\Gamma;\Delta\vdash t:\sigma_2
-\andalso x\notin\Gamma\andalso\FV(\sigma_1)\subseteq\Delta}
+\andalso x\notin\Gamma\andalso\FTV(\sigma_1)\subseteq\Delta}
 {\Gamma;\Delta\vdash\Abs{x:\sigma}t : \sigma_1\R\sigma_2}
 
 \infrule[T-App]
@@ -554,7 +556,7 @@ term environment $\env$ compatible with $\Gamma$ under $\Env$,
 {\Gamma;\Delta\vdash t_1~t_2:\sigma_3}
 
 \infrule[T-Tabs]
-{\Gamma;\alpha,\Delta\vdash t:\sigma\andalso\alpha\notin\Delta}
+{\Gamma;\alpha,\Delta\vdash t:\sigma\andalso\alpha\notin\Delta\cup\FTV(\Gamma)}
 {\Gamma;\Delta\vdash\Tabs\alpha t:\All\alpha\sigma}
 
 \infrule[T-Tapp]
@@ -583,7 +585,7 @@ the value $\env(x)$ must be a member of the type
 $\Sem\sigma~\Env$. The conclusion follows.
 
 \textsc{T-Abs}: Let $\Env$ be an arbitrary type environment
-defined on $\Delta$. Since $\FV(\sigma_2)\subseteq\Delta$, the
+defined on $\Delta$. Since $\FTV(\sigma_2)\subseteq\Delta$, the
 type $T_1=\Sem{\sigma_1}~\Env$ is well-defined. By the
 antecedent, $t$ denotes a value in $T_2$ under every environment
 $\env$ that is compatible with $\Gamma$ and maps $x$ to a member
@@ -636,8 +638,19 @@ as desired.
 
 \section{Constrained type system version 1}
 
-TODO: some short words about expressiveness and low cost of
-imperfection, unboxed polymorphism, impredicativity etc.
+To demonstrate what pluggable types are possible, we present a
+novel type system CT1 (Constrained Type System Version 1). It
+supports the impredicative universal types of System~F, but does
+not demand type arguments from the user. The metatheory of CT1 is
+far from mature. We do not know whether it can type all
+well-typed System~F terms with type applications erased, or
+whether it has a terminating type checking algorithm. Since CT1
+is pluggable, however, we can start reaping the benefit of CT1
+without waiting for metatheoretic development. If it so happened
+that CT1 could not handle certain useful programs, then we would
+simply import a new type system to deal with those, confident
+that any legacy code typed under CT1 will continue to enjoy
+strong type soundness.
 
 \Par{Syntax extension}
 
@@ -645,17 +658,17 @@ imperfection, unboxed polymorphism, impredicativity etc.
 t &\+=& \Abs{x:\sigma}t &\mbox{annotated abstraction}\\
 &|& \Tabs\alpha t &\mbox{type abstraction}
 \end{syntax}%
-%
+
 \begin{align*}
 \Erase(\Abs{x:\sigma}t) & = \Abs x\Erase(t)\\
+\Erase(\Tabs\alpha t) &= \Erase(t)
 \end{align*}
 
 \Par{Type expressions}
 
 CT1 requires the open types of System~F under the same
-interpretation. There is one additional type expression,
-interval-bounded universal type, to represent the solution of a
-set of constraints.
+interpretation. In addition, CT1 has interval-bounded universal
+types, which represents the solution of a set of constraints.
 
 \begin{syntax}
 \sigma &::=& &\mbox{open type expression}\\
@@ -664,29 +677,36 @@ set of constraints.
 &|& \sigma\R\sigma &\mbox{function type}\\
 &|& \All\alpha\sigma &\mbox{universal type}\\
 \\\\
-\sigma_\cup &::=& \sigma &\mbox{finite union type}\\
-&|& \sigma \cup \sigma_\cup\\
+\sigma_\cup &::=& &\mbox{finite union type}\\
+&|& \Bot &\mbox{union of 0 types}\\
+&|& \sigma \cup \sigma_\cup &\mbox{union of $n+1$ types}\\
 \\\\
-\sigma_\cap &::=& \sigma &\mbox{finite intersection type}\\
-&|& \sigma \cap \sigma_\cap\\
+\sigma_\cap &::=& &\mbox{finite intersection type}\\
+&|& \Top &\mbox{intersection of 0 types}\\
+&|& \sigma \cap \sigma_\cap &\mbox{intersection of $n+1$ types}\\
 \\\\
 I &::=& [\sigma_\cup, \sigma_\cap] &\mbox{type interval}\\
 \\\\
-\sigma &\+=& \All{\alpha\in I}\sigma &\mbox{open type expression
-extended by}\\
-&& &\mbox{interval-bounded universal type}
+\rho &::=& &\mbox{left type (%
+\begin{otherlanguage}{greek}αριστερά\end{otherlanguage}
+)}\\
+&|& \sigma &\mbox{open type}\\
+&|& \All{\alpha\in I}\rho &\mbox{interval-bounded universal type}
 \end{syntax}%
 
 \Par{Interpretation of type expressions}
+\label{interp-ct-types}
 
 Finite union and intersection type expressions have the same
 interpretation as open types. Recall that the union of two types
 is a type.
 \begin{align*}
+\Sem\Bot~\Env &=\{\bot\}\\
 \Sem{\sigma\cup\sigma_\cup}~\Env &= (\Sem\sigma~\Env) \cup
 (\Sem{\sigma_\cup}~\Env)\\
+\Sem\Top~\Env &=V-\{\Wrong\}\\
 \Sem{\sigma\cap\sigma_\cap}~\Env &= (\Sem\sigma~\Env) \cap
-(\Sem{\sigma_\cap}~\Env)\\
+(\Sem{\sigma_\cap}~\Env)
 \end{align*}
 A type interval interprets to a set of types sandwiched between
 its lower and upper bounds. If the lower bound is not a subset of
@@ -696,15 +716,15 @@ set.
 \Sem{[\sigma_\cup,\sigma_\cap]}~\Env &= \{T\in\Type\Or
 \Sem{\sigma_\cup}~Env\ \subseteq\ T\ \subseteq\ \Sem{\sigma_\cap}~Env\}
 \end{align*}
-An interval-bounded universal type $\sigma$ interprets to the
+An interval-bounded universal type $\rho$ interprets to the
 intersection of a family of types indexed by types in the
 interval.
 \begin{align*}
-\Sem{\All{\alpha\in I}\sigma}~\Env &=
+\Sem{\All{\alpha\in I}\rho}~\Env &=
 \begin{cases}
-\displaystyle\bigcap_{T\ \in\ \SemSlim I~\Env}
-\Sem\sigma~\Env&\text{if }\SemSlim I~\Env\neq\emptyset\\[2em]
-\mbox{undefined}&\text{if }\SemSlim I~\Env=\emptyset
+\displaystyle\bigcap_{T\in(\SemSlim I~\Env)}
+\Sem\rho~(\Update\Env\alpha\mapsto T)&\text{if}\quad\Sem I~\Env\neq\emptyset\\[2em]
+\mbox{undefined}&\text{if}\quad\Sem I~\Env=\emptyset
 \end{cases}
 \end{align*}
 
@@ -727,19 +747,169 @@ E & ::= & \emptyset & \mbox{interval bounds}\\
 &|& \alpha\in I,E\\
 \\\\
 C & ::= & \emptyset & \mbox{subtype constraints}\\
-&|& \sigma\le\sigma,C\\
-\\\\
-\JS & ::= & \Delta;E\vdash C & \mbox{S-judgement}\\
+&|& \rho\le\sigma,C\\
 \\\\
 \JCT & ::= & \Gamma;\Delta\vdash t:\sigma\Given C
-&\mbox{CT-judgement}
+&\mbox{CT-judgement}\\
+\\\\
+\JS & ::= & \Delta;E\vdash C & \mbox{S-judgement}
 \end{syntax}
 
-\Par{Interpretation of S- and CT-judgements}
+\Par{Interpretation of CT- and S-judgements}
 
-(Beware: $\Delta$ also include auto-generated type variables in
-CT-judgements.)
+Let $E=\beta_1\in I_1,\ldots,\beta_n\in I_n$ be an arbitrary list
+of interval bounds. A type environment $\Env$ is
+\emph{compatible} with $E$ if for all $1\le j\le n$ we have
+\[
+\Env(\beta_j)\ \in\ \Sem{I_j}~\Env.
+\]
+(See \S\ref{interp-ct-types} for the meaning $\Sem{I_j}~\Env$ of
+the type interval.)
 
+\begin{samepage}
+The CT-judgement $\Gamma;\Delta\vdash t:\sigma\Given C$
+abbreviates:
+\begin{quotation}
+Let $\Env$ be a type environment defined on $\Delta$. Let $\env$
+be a term environment compatible with $\Gamma$ under $\Env$.
+%
+If we have
+\[
+\Sem{\rho_i}~\Env\ \subseteq\ \Sem{\sigma_i}~\Env
+\]
+for every $\rho_i\le\sigma_i\in C$, then
+\[
+\Sem t~\env\ \in\ \Sem\sigma~\Env.
+\]
+\end{quotation}
+\end{samepage}
+
+The S-judgement $\Delta;E\vdash C$ abbreviates:
+\begin{quotation}
+There exist type environments defined on $\Delta$ and compatible
+with~$E$. If $\Env$ is one such type environment and
+$\rho\le\sigma\in C$, then
+\[
+\Sem{\rho}~\Env\ \subseteq\ \Sem{\sigma}~\Env.
+\]
+\end{quotation}
+
+\Par{Constrained typing rules of CT1}~
+
+% handle top-level sigs by type ascription in next section
+% no need for sub0 here
+\infrule[CT-0]
+{\emptyset;\emptyset\vdash t:\sigma\Given\emptyset\andalso
+t,\sigma\text{ closed}}
+{t:\sigma}
+
+\infrule[CT-Var]
+{x:\sigma\in\Gamma}
+{\Gamma;\Delta\vdash x:\sigma\Given\emptyset}
+
+\infrule[CT-Abs]
+{x:\sigma_1,\Gamma;\Delta\vdash t:\sigma_2\Given C
+\andalso x\notin\Gamma\andalso\FTV(\sigma_1)\subseteq\Delta}
+{\Gamma;\Delta\vdash\Abs{x:\sigma}t\Given C : \sigma_1\R\sigma_2}
+
+\infrule[CT-App]
+{\Gamma;\Delta\vdash t_1:\sigma_1\Given C_1
+\andalso\Gamma;\Delta\vdash t_2:\sigma_2\Given C_2
+\andalso\alpha,\beta\notin\Delta
+}
+{\Gamma;\alpha,\beta,\Delta\vdash t_1~t_2:\beta
+\Given\sigma_1\le\alpha\R\beta,\sigma_2\le\alpha,C_1\cup C_2
+}
+
+\infrule[CT-Tabs]
+{
+\begin{array}[b]{r@{\;}l}
+\alpha,\Delta;\beta_1\in I_1,\ldots,\beta_n\in I_n&\vdash C\\
+\Gamma;\alpha,\beta_1,\ldots,\beta_n,\Delta&\vdash
+t:\sigma\Given C
+\end{array}
+\andalso
+\alpha,\beta_1,\ldots,\beta_n\notin\Delta\cup\FTV(\Gamma)
+}
+{\Gamma;\Delta\vdash\Tabs\alpha t :
+\All\alpha\All{\beta_1\in I_1}\cdots\All{\beta_n\in I_n}\sigma
+\Given\emptyset}
+
+\Par{Soundness of constrained typing rules of CT1}
+
+\Par{Subtyping rules of CT1}~
+
+\infrule[S-Vacuous]
+{}
+{\Delta;\emptyset\vdash\emptyset}
+
+\infrule[S-Refl]
+{\Delta;E\vdash C}
+{\Delta;E\vdash\sigma\le\sigma,C}
+
+\infrule[S-Arrow]
+{\Delta;E\vdash \sigma_2\le\sigma_0,\sigma_1\le\sigma_3,C}
+{\Delta;E\vdash \sigma_0\R\sigma_1\le\sigma_2\R\sigma_3,C}
+
+\infrule[S-Union]
+{\Delta;E\vdash \sigma_1\le\sigma_3,\sigma_2\le\sigma_3,C}
+{\Delta;E\vdash \sigma_1\cup\sigma_2\le\sigma_3,C}
+
+\infrule[S-Intersect]
+{\Delta;E\vdash \sigma_1\le\sigma_2,\sigma_1\le\sigma_3,C}
+{\Delta;E\vdash \sigma_1\le\sigma_2\cap\sigma_3,C}
+
+\infrule[S-L0]
+{
+\Delta;\alpha\in I,E\vdash \sigma_1\le\sigma_2,C
+\andalso
+\text{$\alpha$ is only free in $\sigma_1$}
+}
+{\Delta;E\vdash(\All\alpha\sigma_1)\le\sigma_2,C}
+
+\infrule[S-L1]
+{
+\Delta;\alpha\in I,E\vdash \sigma_1\le\sigma_2,C
+\andalso
+\text{$\alpha$ is only free in $\sigma_1$}
+}
+{\Delta;E\vdash(\All{\alpha\in I}\sigma_1)\le\sigma_2,C}
+
+\infrule[S-R]
+{
+\alpha,\Delta;E\vdash\sigma_1\le\sigma_2,C
+\andalso
+\text{$\alpha$ is only free in $\sigma_2$}
+}
+{\Delta;E\vdash\sigma_1\le(\All\alpha\sigma_2),C}
+
+
+\infrule[S-Loner]
+{
+\begin{array}[b]{r@{\;}l}
+\Delta;E&\vdash
+\{\sigma_i\le\sigma_j\Or-m\le i\le-1\text{ and }1\le j\le n\}\cup C
+\\
+I&=[\sigma_{-m}\cup\cdots\cup\sigma_{-1},\sigma_1\cap\cdots\cap\sigma_n]
+\end{array}
+\andalso
+\text{$\alpha$ fresh}
+}
+{\Delta;\alpha\in I,
+E\vdash
+\sigma_{-m}\le\alpha,\ldots,\sigma_{-1}\le\alpha,
+\alpha\le\sigma_2,\ldots,\alpha\le\sigma_n,C
+}
+
+
+\Par{Soundness of subtyping rules of CT1}
+
+
+\Par{Discussion}
+
+The framework of CT- and S-judgements leave a lot of design
+space. S-L0 can be strengthened, etc. May add/modify rules
+retroactively.
 
 
 \section{Mixing F and CT1 for optional type arguments}
