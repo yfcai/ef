@@ -478,9 +478,18 @@ t &\+=& &\mbox{syntax extension} \\
 
 \Par{Interpretation of open types}
 
-A type environment $\Env$ is a partial function mapping type
-variables to types. An open type denotes a partial function
-mapping type environments to types.
+A type environment $\Env$ is a \emph{total}%
+%
+\footnote{%
+If we allowed type environments to be undefined on some type
+variables, then many typing judgements would have to begin with
+``for every type environment defined on all relevant free type
+variables.''
+%
+} %
+function mapping type variables to types.
+An open type denotes a partial function mapping type environments
+to types.
 
 \begin{align*}
 \Sem\iota~\Env &= T_\iota \subseteq B\hspace{2cm}\mbox{designated base type}\\
@@ -493,8 +502,8 @@ mapping type environments to types.
 
 If an open type expression $\sigma$ has no free type variable,
 then we say $\sigma$ is \emph{closed} and denotes the
-type~$\Sem\sigma~\emptyset$, where $\emptyset$ is the type
-environment defined nowhere.
+type~$\Sem\sigma~\Env_\bot$, where $\Env_\bot$ is the type
+environment mapping every type variable to $\{\bot\}$.
 
 
 \Par{Judgements}
@@ -504,27 +513,31 @@ environment defined nowhere.
 && \emptyset &\mbox{empty context}\\
 &|& x:\sigma,\Gamma &\mbox{term variable binding}\\
 \\\\
-\Delta &::=&& \mbox{bound type variables}\\
-&& \emptyset &\mbox{empty set}\\
-&|& \alpha,\Delta &\mbox{type variable binding}
-\\\\
 \JF &::=
-&\Gamma;\Delta\vdash t:\sigma
+&\Gamma\vdash t:\sigma
 & \mbox{F-judgement}
 \end{syntax}
 
 
 \Par{Interpretion of F-judgements}
 
-A term environment $\env$ is \emph{compatible} with a typing
-context $\Gamma$ under the type environment $\Env$ if for each
-$x:\sigma\in\Gamma$ we have $\env(x)\in(\Sem\sigma~\Env)$.
+Write
+\[
+\Sem\Gamma~\Env =
+\{
+\env\Or
+\env(x)\in\Sem\sigma~\Env\text{ for all }
+x:\sigma\in\Gamma
+\}.
+\]
+If $\env\in\Sem\Gamma~\Env$, then we say that the term
+environment $\env$ is \emph{compatible} with the typing context
+$\Gamma$ under the type environment $\Env$.
 
-The F-judgement $\Gamma;\Delta\vdash t:\sigma$ abbreviates the
+The F-judgement $\Gamma\vdash t:\sigma$ abbreviates the
 following statement.
 \begin{quotation}
-For every type environment $\Env$ defined on $\Delta$, for every
-term environment $\env$ compatible with $\Gamma$ under $\Env$,
+For every type environment $\Env$ and every $\env\in\Sem\Gamma~\Env$,
 \[
 \Sem{t}~\env~\in~\Sem\sigma~\Env.
 \]
@@ -534,34 +547,34 @@ term environment $\env$ compatible with $\Gamma$ under $\Env$,
 \Par{Typing rules of Pluggable~F}~
 
 \infrule[T-0]
-{\emptyset;\emptyset\vdash t:\sigma\andalso t,\sigma\text{ closed}}
+{\emptyset\vdash t:\sigma\andalso t,\sigma\text{ closed}}
 {t:\sigma}
 
 \infrule[T-Con]
 {v_c\in \Sem\sigma~\emptyset\andalso\sigma\text{ closed}}
-{\Gamma;\Delta\vdash c:\sigma}
+{\Gamma\vdash c:\sigma}
 
 \infrule[T-Var]
 {x:\sigma\in\Gamma}
-{\Gamma;\Delta\vdash x:\sigma}
+{\Gamma\vdash x:\sigma}
 
 \infrule[T-Abs]
-{x:\sigma_1,\Gamma;\Delta\vdash t:\sigma_2
-\andalso x\notin\Gamma\andalso\FTV(\sigma_1)\subseteq\Delta}
-{\Gamma;\Delta\vdash\Abs{x:\sigma}t : \sigma_1\R\sigma_2}
+{x:\sigma_1,\Gamma\vdash t:\sigma_2
+\andalso x\notin\Gamma}
+{\Gamma\vdash\Abs{x:\sigma}t : \sigma_1\R\sigma_2}
 
 \infrule[T-App]
-{\Gamma;\Delta\vdash t_1:\sigma_2\R\sigma_3
-\andalso\Gamma;\Delta\vdash t_2:\sigma_2}
-{\Gamma;\Delta\vdash t_1~t_2:\sigma_3}
+{\Gamma\vdash t_1:\sigma_2\R\sigma_3
+\andalso\Gamma\vdash t_2:\sigma_2}
+{\Gamma\vdash t_1~t_2:\sigma_3}
 
 \infrule[T-Tabs]
-{\Gamma;\alpha,\Delta\vdash t:\sigma\andalso\alpha\notin\Delta\cup\FTV(\Gamma)}
-{\Gamma;\Delta\vdash\Tabs\alpha t:\All\alpha\sigma}
+{\Gamma\vdash t:\sigma\andalso\alpha\notin\FTV(\Gamma)}
+{\Gamma\vdash\Tabs\alpha t:\All\alpha\sigma}
 
 \infrule[T-Tapp]
-{\Gamma;\Delta\vdash t:\All\alpha\sigma_0}
-{\Gamma;\Delta\vdash t~[\sigma_1]:\sigma_0[\alpha\mapsto\sigma_1]}
+{\Gamma\vdash t:\All\alpha\sigma_0}
+{\Gamma\vdash t~[\sigma_1]:\sigma_0[\alpha\mapsto\sigma_1]}
 
 
 \Par{Soundness of Pluggable~F}
@@ -578,30 +591,26 @@ same thing.
 denotations do not depend on type or term environments. The
 conclusion is a consequence of the first side condition.
 
-\textsc{T-Var}: Let $\Env$ be an arbitrary type environment
-defined on $\Delta$. The side condition implies that no matter
-which term environment $\env$ compatible with $\Gamma$ is chosen,
-the value $\env(x)$ must be a member of the type
-$\Sem\sigma~\Env$. The conclusion follows.
+\textsc{T-Var}: The
+side condition implies that no matter which term environment
+$\env$ compatible with $\Gamma$ is chosen, the value $\env(x)$
+must be a member of the type $\Sem\sigma~\Env$. The conclusion
+follows.
 
-\textsc{T-Abs}: Let $\Env$ be an arbitrary type environment
-defined on $\Delta$. Since $\FTV(\sigma_2)\subseteq\Delta$, the
-type $T_1=\Sem{\sigma_1}~\Env$ is well-defined. By the
-antecedent, $t$ denotes a value in $T_2$ under every environment
-$\env$ that is compatible with $\Gamma$ and maps $x$ to a member
-of $T_1$. It follows that the denotation of $\Abs xt$ under every
-environment compatible with $\Gamma$ is a function whose image of
-$T_1$ is a subset of $T_2$.
+\textsc{T-Abs}: Write $T_1=\Sem{\sigma_1}~\Env$ and
+$T_2=\Sem{\sigma_2}~\Env$. By the antecedent, $t$ denotes a value
+in $T_2$ under every environment $\env$ that is compatible with
+$\Gamma$ and maps $x$ to a member of $T_1$. It follows that the
+denotation of $\Abs xt$ under every environment compatible with
+$\Gamma$ is a function whose image of $T_1$ is a subset of $T_2$.
 
-\textsc{T-App}: Let $\Env$ be an arbitrary type environment
-defined on $\Delta$. The antecedents say that under every
+\textsc{T-App}: The antecedents say that under every
 compatible environment, $t_1$ denotes a function $f$ whose image
 of $\Sem{\sigma_2}~\Env$ is a subset of $\Sem{\sigma_3}~\Env$,
 and $t_2$ denotes a value $v\in\Sem{\sigma_2}~\Env$. As desired,
 $f(v)\in\Sem{\sigma_3}~\Env$.
 
-\textsc{T-Tabs}: Let $\Env$ be an arbitrary type environment
-defined on $\Delta$. Let $\env$ be an arbitrary term environment
+\textsc{T-Tabs}: Let $\env$ be an arbitrary term environment
 compatible with $\Gamma$ under $\Env$. Let $v=\Sem{t}~\env$.
 For every type $T\in\Type$, the antecedent guarantees that
 \[
@@ -613,9 +622,8 @@ v\in\bigcap_{T\in\Type}\Sem\sigma~(\Update\Env(\alpha\mapsto T))
 =\Sem{\All\alpha\sigma}~\Env.
 \]
 
-\textsc{T-Tapp}: Let $\Env$ be an arbitrary type environment
-defined on $\Delta$. Let $\env$ be an arbitrary term environment
-compatible with $\Gamma$ under $\Env$. Write
+\textsc{T-Tapp}: Let $\env$ be a term environment compatible with
+$\Gamma$ under $\Env$. Write
 \begin{align*}
 T_1&=\Sem{\sigma_1}~\Env,\\
 v&=\Sem{t}~\env.
@@ -733,15 +741,11 @@ interval.
 CT1 produces two species of judgements. The S-judgements are
 about relative containment between types, and the CT-judgements
 are conditional statements about the membership of values in
-types. Typing contexts and lists of bound type variables are
-identical to those in System~F.
+types. Typing contexts are identical to those in System~F.
 
 \begin{syntax}
 \Gamma &::=&\emptyset& \mbox{typing context}\\
 &|& x:\sigma,\Gamma\\
-\\\\
-\Delta &::=&\emptyset& \mbox{bound type variables}\\
-&|& \alpha,\Delta\\
 \\\\
 E & ::= & \emptyset & \mbox{interval bounds}\\
 &|& \alpha\in I,E\\
@@ -749,10 +753,10 @@ E & ::= & \emptyset & \mbox{interval bounds}\\
 C & ::= & \emptyset & \mbox{subtype constraints}\\
 &|& \rho\le\sigma,C\\
 \\\\
-\JCT & ::= & \Gamma;\Delta\vdash t:\sigma\Given C
+\JCT & ::= & \Gamma\vdash t:\sigma\Given C
 &\mbox{CT-judgement}\\
 \\\\
-\JS & ::= & \Delta;E\vdash C & \mbox{S-judgement}
+\JS & ::= & E\vdash C & \mbox{S-judgement}
 \end{syntax}
 
 \Par{Interpretation of CT- and S-judgements}
@@ -764,74 +768,73 @@ of interval bounds. A type environment $\Env$ is
 \Env(\beta_j)\ \in\ \Sem{I_j}~\Env.
 \]
 (See \S\ref{interp-ct-types} for the meaning $\Sem{I_j}~\Env$ of
-the type interval.)
+the type interval. Note that $\Env$ appears on both sides of the
+equation.)
 
-\begin{samepage}
-The CT-judgement $\Gamma;\Delta\vdash t:\sigma\Given C$
+
+The CT-judgement $\Gamma\vdash t:\sigma\Given C$
 abbreviates:
 \begin{quotation}
-Let $\Env$ be a type environment defined on $\Delta$. Let $\env$
-be a term environment compatible with $\Gamma$ under $\Env$.
-%
-If we have
+For every type environment $\Env$ and every $\env\in\Sem\Gamma~\Env$,
+If
 \[
 \Sem{\rho_i}~\Env\ \subseteq\ \Sem{\sigma_i}~\Env
 \]
-for every $\rho_i\le\sigma_i\in C$, then
+for each $\rho_i\le\sigma_i\in C$, then
 \[
 \Sem t~\env\ \in\ \Sem\sigma~\Env.
 \]
 \end{quotation}
-\end{samepage}
 
-The S-judgement $\Delta;E\vdash C$ abbreviates:
+
+\begin{samepage}
+The S-judgement $E\vdash C$ abbreviates:
 \begin{quotation}
-There exist type environments defined on $\Delta$ and compatible
-with~$E$. If $\Env$ is one such type environment and
-$\rho\le\sigma\in C$, then
+There exist type environments compatible with~$E$. If $\Env$ is
+compatible with $E$, then for each $\rho\le\sigma\in C$ we have
 \[
 \Sem{\rho}~\Env\ \subseteq\ \Sem{\sigma}~\Env.
 \]
 \end{quotation}
+\end{samepage}
+
 
 \Par{Constrained typing rules of CT1}~
 
 % handle top-level sigs by type ascription in next section
 % no need for sub0 here
 \infrule[CT-0]
-{\emptyset;\emptyset\vdash t:\sigma\Given\emptyset\andalso
+{\emptyset\vdash t:\sigma\Given\emptyset\andalso
 t,\sigma\text{ closed}}
 {t:\sigma}
 
 \infrule[CT-Var]
 {x:\sigma\in\Gamma}
-{\Gamma;\Delta\vdash x:\sigma\Given\emptyset}
+{\Gamma\vdash x:\sigma\Given\emptyset}
 
 \infrule[CT-Abs]
-{x:\sigma_1,\Gamma;\Delta\vdash t:\sigma_2\Given C
-\andalso x\notin\Gamma\andalso\FTV(\sigma_1)\subseteq\Delta}
-{\Gamma;\Delta\vdash\Abs{x:\sigma}t\Given C : \sigma_1\R\sigma_2}
+{x:\sigma_1,\Gamma\vdash t:\sigma_2\Given C
+\andalso x\notin\Gamma}
+{\Gamma\vdash\Abs{x:\sigma}t\Given C : \sigma_1\R\sigma_2}
 
 \infrule[CT-App]
-{\Gamma;\Delta\vdash t_1:\sigma_1\Given C_1
-\andalso\Gamma;\Delta\vdash t_2:\sigma_2\Given C_2
-\andalso\alpha,\beta\notin\Delta
+{\Gamma\vdash t_1:\sigma_1\Given C_1
+\andalso\Gamma\vdash t_2:\sigma_2\Given C_2
+\andalso\alpha,\beta\text{ fresh}
 }
-{\Gamma;\alpha,\beta,\Delta\vdash t_1~t_2:\beta
+{\Gamma\vdash t_1~t_2:\beta
 \Given\sigma_1\le\alpha\R\beta,\sigma_2\le\alpha,C_1\cup C_2
 }
 
 \infrule[CT-Tabs]
 {
-\begin{array}[b]{r@{\;}l}
-\alpha,\Delta;\beta_1\in I_1,\ldots,\beta_n\in I_n&\vdash C\\
-\Gamma;\alpha,\beta_1,\ldots,\beta_n,\Delta&\vdash
-t:\sigma\Given C
-\end{array}
+\Gamma\vdash t:\sigma\Given C
 \andalso
-\alpha,\beta_1,\ldots,\beta_n\notin\Delta\cup\FTV(\Gamma)
+\beta_1\in I_1,\ldots,\beta_n\in I_n\vdash C
+\andalso
+\alpha,\beta_1,\ldots,\beta_n\notin\FTV(\Gamma)
 }
-{\Gamma;\Delta\vdash\Tabs\alpha t :
+{\Gamma\vdash\Tabs\alpha t :
 \All\alpha\All{\beta_1\in I_1}\cdots\All{\beta_n\in I_n}\sigma
 \Given\emptyset}
 
@@ -841,53 +844,54 @@ t:\sigma\Given C
 
 \infrule[S-Vacuous]
 {}
-{\Delta;\emptyset\vdash\emptyset}
+{\emptyset\vdash\emptyset}
 
 \infrule[S-Refl]
-{\Delta;E\vdash C}
-{\Delta;E\vdash\sigma\le\sigma,C}
+{E\vdash C}
+{E\vdash\sigma\le\sigma,C}
 
 \infrule[S-Arrow]
-{\Delta;E\vdash \sigma_2\le\sigma_0,\sigma_1\le\sigma_3,C}
-{\Delta;E\vdash \sigma_0\R\sigma_1\le\sigma_2\R\sigma_3,C}
+{E\vdash \sigma_2\le\sigma_0,\sigma_1\le\sigma_3,C}
+{E\vdash \sigma_0\R\sigma_1\le\sigma_2\R\sigma_3,C}
 
 \infrule[S-Union]
-{\Delta;E\vdash \sigma_1\le\sigma_3,\sigma_2\le\sigma_3,C}
-{\Delta;E\vdash \sigma_1\cup\sigma_2\le\sigma_3,C}
+{E\vdash \sigma_1\le\sigma_3,\sigma_2\le\sigma_3,C}
+{E\vdash \sigma_1\cup\sigma_2\le\sigma_3,C}
 
 \infrule[S-Intersect]
-{\Delta;E\vdash \sigma_1\le\sigma_2,\sigma_1\le\sigma_3,C}
-{\Delta;E\vdash \sigma_1\le\sigma_2\cap\sigma_3,C}
+{E\vdash \sigma_1\le\sigma_2,\sigma_1\le\sigma_3,C}
+{E\vdash \sigma_1\le\sigma_2\cap\sigma_3,C}
 
 \infrule[S-L0]
 {
-\Delta;\alpha\in I,E\vdash \sigma_1\le\sigma_2,C
+\alpha\in I,E\vdash \sigma_1\le\sigma_2,C
 \andalso
 \text{$\alpha$ is only free in $\sigma_1$}
 }
-{\Delta;E\vdash(\All\alpha\sigma_1)\le\sigma_2,C}
+{E\vdash(\All\alpha\sigma_1)\le\sigma_2,C}
 
-\infrule[S-L1]
+\infrule[S-L1:Fixme]
 {
-\Delta;\alpha\in I,E\vdash \sigma_1\le\sigma_2,C
+\alpha\in [\sigma_3\cup\sigma_4,\sigma_5\cap\sigma_6],E\vdash
+\sigma_1\le\sigma_2,C
 \andalso
 \text{$\alpha$ is only free in $\sigma_1$}
 }
-{\Delta;E\vdash(\All{\alpha\in I}\sigma_1)\le\sigma_2,C}
+{E\vdash(\All{\alpha\in [\sigma_3,\sigma_5]}\sigma_1)\le\sigma_2,C}
 
 \infrule[S-R]
 {
-\alpha,\Delta;E\vdash\sigma_1\le\sigma_2,C
+E\vdash\sigma_1\le\sigma_2,C
 \andalso
 \text{$\alpha$ is only free in $\sigma_2$}
 }
-{\Delta;E\vdash\sigma_1\le(\All\alpha\sigma_2),C}
+{E\vdash\sigma_1\le(\All\alpha\sigma_2),C}
 
 
 \infrule[S-Loner]
 {
 \begin{array}[b]{r@{\;}l}
-\Delta;E&\vdash
+E&\vdash
 \{\sigma_i\le\sigma_j\Or-m\le i\le-1\text{ and }1\le j\le n\}\cup C
 \\
 I&=[\sigma_{-m}\cup\cdots\cup\sigma_{-1},\sigma_1\cap\cdots\cap\sigma_n]
@@ -895,7 +899,7 @@ I&=[\sigma_{-m}\cup\cdots\cup\sigma_{-1},\sigma_1\cap\cdots\cap\sigma_n]
 \andalso
 \text{$\alpha$ fresh}
 }
-{\Delta;\alpha\in I,
+{\alpha\in I,
 E\vdash
 \sigma_{-m}\le\alpha,\ldots,\sigma_{-1}\le\alpha,
 \alpha\le\sigma_2,\ldots,\alpha\le\sigma_n,C
