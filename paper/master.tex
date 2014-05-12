@@ -511,7 +511,7 @@ environment mapping every type variable to $\{\bot\}$.
 \begin{syntax}
 \Gamma &::=&& \mbox{typing context}\\
 && \emptyset &\mbox{empty context}\\
-&|& x:\sigma,\Gamma &\mbox{term variable binding}\\
+&|&\Gamma,x:\sigma &\mbox{term variable binding}\\
 \\\\
 \JF &::=
 &\Gamma\vdash t:\sigma
@@ -559,7 +559,7 @@ For every type environment $\Env$ and every $\env\in\Sem\Gamma~\Env$,
 {\Gamma\vdash x:\sigma}
 
 \infrule[T-Abs]
-{x:\sigma_1,\Gamma\vdash t:\sigma_2
+{\Gamma,x:\sigma_1\vdash t:\sigma_2
 \andalso x\notin\Gamma}
 {\Gamma\vdash\Abs{x:\sigma}t : \sigma_1\R\sigma_2}
 
@@ -745,13 +745,13 @@ types. Typing contexts are identical to those in System~F.
 
 \begin{syntax}
 \Gamma &::=&\emptyset& \mbox{typing context}\\
-&|& x:\sigma,\Gamma\\
+&|&\Gamma,x:\sigma\\
 \\\\
-E & ::= & \emptyset & \mbox{interval bounds}\\
-&|& \alpha\in I,E\\
+E & ::= & \emptyset & \mbox{prefix of interval bounds}\\
+&|&E,\alpha\in I\\
 \\\\
 C & ::= & \emptyset & \mbox{subtype constraints}\\
-&|& \rho\le\sigma,C\\
+&|& C,\rho\le\sigma\\
 \\\\
 \JCT & ::= & \Gamma\vdash t:\sigma\Given C
 &\mbox{CT-judgement}\\
@@ -759,10 +759,24 @@ C & ::= & \emptyset & \mbox{subtype constraints}\\
 \JS & ::= & E\vdash C & \mbox{S-judgement}
 \end{syntax}
 
-\Par{Interpretation of CT- and S-judgements}
+\Par{Interpretation of CT-judgements}
+A type environment $\Env$ satisfies the list of constraints $C$
+if for each $\rho_i\le\sigma_i\in C$,
+\[
+\Sem{\rho_i}~\Env\ \subseteq\ \Sem{\sigma_i}~\Env
+\]
 
-Let $E=\beta_1\in I_1,\ldots,\beta_n\in I_n$ be an arbitrary list
-of interval bounds. A type environment $\Env$ is
+The CT-judgement $\Gamma\vdash t:\sigma\Given C$ abbreviates:
+\begin{quotation}
+For every $\Env$ satisfying $C$ and every
+$\env\in\Sem\Gamma~\Env$,
+\[
+\Sem t~\env\ \in\ \Sem\sigma~\Env.
+\]
+\end{quotation}
+
+Let $E=\beta_1\in I_1,\ldots,\beta_n\in I_n$ be an arbitrary
+prefix of interval bounds. A type environment $\Env$ is
 \emph{compatible} with $E$ if for all $1\le j\le n$ we have
 \[
 \Env(\beta_j)\ \in\ \Sem{I_j}~\Env.
@@ -771,30 +785,19 @@ of interval bounds. A type environment $\Env$ is
 the type interval. Note that $\Env$ appears on both sides of the
 equation.)
 
-
-The CT-judgement $\Gamma\vdash t:\sigma\Given C$
-abbreviates:
-\begin{quotation}
-For every type environment $\Env$ and every $\env\in\Sem\Gamma~\Env$,
-If
-\[
-\Sem{\rho_i}~\Env\ \subseteq\ \Sem{\sigma_i}~\Env
-\]
-for each $\rho_i\le\sigma_i\in C$, then
-\[
-\Sem t~\env\ \in\ \Sem\sigma~\Env.
-\]
-\end{quotation}
+Define \emph{well-formed prefixes} recursively thus:
+\begin{itemize}
+\item $\emptyset$ is well-formed.
+\item If $E$ is well-formed, $\alpha$ is a fresh type variable,
+and $\Sem I~\Env\neq\emptyset$ for every $\Env$ compatible with
+$E$, then $E,\alpha\in I$ is well-formed.
+\end{itemize}
 
 
 \begin{samepage}
 The S-judgement $E\vdash C$ abbreviates:
 \begin{quotation}
-There exist type environments compatible with~$E$. If $\Env$ is
-compatible with $E$, then for each $\rho\le\sigma\in C$ we have
-\[
-\Sem{\rho}~\Env\ \subseteq\ \Sem{\sigma}~\Env.
-\]
+$E$ is well-formed. Every $\Env$ compatible with $E$ satisfies $C$.
 \end{quotation}
 \end{samepage}
 
@@ -813,9 +816,9 @@ t,\sigma\text{ closed}}
 {\Gamma\vdash x:\sigma\Given\emptyset}
 
 \infrule[CT-Abs]
-{x:\sigma_1,\Gamma\vdash t:\sigma_2\Given C
+{\Gamma,x:\sigma_1\vdash t:\sigma_2\Given C
 \andalso x\notin\Gamma}
-{\Gamma\vdash\Abs{x:\sigma}t\Given C : \sigma_1\R\sigma_2}
+{\Gamma\vdash\Abs{x:\sigma}t : \sigma_1\R\sigma_2\Given C}
 
 \infrule[CT-App]
 {\Gamma\vdash t_1:\sigma_1\Given C_1
@@ -823,7 +826,7 @@ t,\sigma\text{ closed}}
 \andalso\alpha,\beta\text{ fresh}
 }
 {\Gamma\vdash t_1~t_2:\beta
-\Given\sigma_1\le\alpha\R\beta,\sigma_2\le\alpha,C_1\cup C_2
+\Given C_1\cup C_2,\sigma_1\le\alpha\R\beta,\sigma_2\le\alpha
 }
 
 \infrule[CT-Tabs]
@@ -840,6 +843,86 @@ t,\sigma\text{ closed}}
 
 \Par{Soundness of constrained typing rules of CT1}
 
+We outline the proof of each statement corresponding to a
+constrained typing rule of CT1.
+
+\textsc{CT-0}: Since $t$ and $\sigma$ are closed, they denote a
+value $v$ and a type $T$ under whatever environments. The
+antecedent states that $v\in T$ under a vacuously true condition,
+so we may conclude $v\in T$.
+
+\textsc{CT-Var}: The conclusion follows from the definition of
+environments compatible with $\Gamma$.
+
+\textsc{CT-Abs}: Let $\Env$ be a type environment satisfying $C$.
+If $\Env$ does not exist, then the conclusion is vacuously true.
+If $\Env$ exists, then let $\env$ be compatible with $\Gamma$
+under $\Env$. Write
+\begin{align*}
+T_1&=\Sem{\sigma_1}~\Env,\\
+T_2&=\Sem{\sigma_2}~\Env,\\
+f&=\Sem{\Abs x t}~\env.
+\end{align*}
+Choose arbitrary $v\in T_1$. Since $(\Update\env x\mapsto v)$ is
+compatible with $\Gamma,x:\sigma_1$, the antecedent yields
+$f(v)\in T_2$, and we may conclude $f\in T_1 \RT T_2$.
+
+\textsc{CT-App}: Let $\Env$ be a type environment satisfying
+$C_1\cup C_2,\sigma_1\le\alpha\R\beta,\sigma_2\le\alpha$. Choose
+arbitrary $\env\in\Sem\Gamma~\Env$. Write
+\begin{align*}
+T_1&=\Sem{\sigma_1}~\Env,&
+v_1&=\Sem{t_1}~\env,\\
+T_2&=\Sem{\sigma_2}~\Env,&
+v_2&=\Sem{t_2}~\env.
+\end{align*}
+Since $\Env$ satisfies $\sigma_1\le\alpha\R\beta$ and
+$\sigma_2\le\alpha$,
+\begin{align*}
+T_1&\subseteq \Env(\alpha)\RT\Env(\beta), &
+T_2&\subseteq \Env(\alpha).
+\end{align*}
+Since $\Env$ satisfies both $C_1$ and $C_2$, the antecedents give
+us
+\begin{align*}
+v_1&\in T_1 \subseteq \Env(\alpha)\RT\Env(\beta), &
+v_2&\in T_2 \subseteq \Env(\alpha),
+\end{align*}
+which allows us to conclude $v_1(v_2)\in\Env(\beta)$.
+
+\textsc{CT-Tabs}: The assumed S-judgement $\beta_1\in
+I_1,\ldots,\beta_n\in I_n\vdash C$ states two things: that
+\[
+E=\beta_1\in I_1,\ldots,\beta_n\in I_n
+\]
+is well-formed, and that every type environment compatible with
+$E$ satisfies $C$. By the antecedent
+\[
+\Gamma\vdash t:\sigma\Given C,
+\]
+we know that for each $\Env$ compatible with $E$ and each
+$\env\in\Sem\Gamma~\Env$,
+\[
+\Sem t~\env\in \Sem\sigma~\Env.
+\]
+Now consider an arbitrary type environment $\Env'$. Let
+\begin{align*}
+T&=\Sem{\All\alpha\All{\beta_1\in I_1}\cdots\All{\beta_n\in I_n}\sigma}~\Env'\\
+&=
+\bigcap_{T_\alpha\in\Type\quad}
+\bigcap_{T_1\in\Sem{I_1}~(\alpha\mapsto T_\alpha)}
+\cdots
+\bigcap_{T_n\in\Sem{I_n}~(\alpha\mapsto T_\alpha,\beta_1\mapsto T_1,\ldots)}
+\\
+&\hspace{1.5cm}
+\Sem\sigma~(\alpha\mapsto
+T_1,\beta_1\mapsto T_1,\ldots,\beta_n\mapsto T_n).
+\end{align*}
+
+TODO FIXME: define $\Env_n$ inductively and take apart the
+monstrosity above.
+
+
 \Par{Subtyping rules of CT1}~
 
 \infrule[S-Vacuous]
@@ -848,72 +931,64 @@ t,\sigma\text{ closed}}
 
 \infrule[S-Refl]
 {E\vdash C}
-{E\vdash\sigma\le\sigma,C}
+{E\vdash C,\sigma\le\sigma}
 
 \infrule[S-Arrow]
-{E\vdash \sigma_2\le\sigma_0,\sigma_1\le\sigma_3,C}
-{E\vdash \sigma_0\R\sigma_1\le\sigma_2\R\sigma_3,C}
+{E\vdash C, \sigma_2\le\sigma_0,\sigma_1\le\sigma_3}
+{E\vdash C, \sigma_0\R\sigma_1\le\sigma_2\R\sigma_3}
 
 \infrule[S-Union]
-{E\vdash \sigma_1\le\sigma_3,\sigma_2\le\sigma_3,C}
-{E\vdash \sigma_1\cup\sigma_2\le\sigma_3,C}
+{E\vdash C, \sigma_1\le\sigma_3,\sigma_2\le\sigma_3}
+{E\vdash C, \sigma_1\cup\sigma_2\le\sigma_3}
 
 \infrule[S-Intersect]
-{E\vdash \sigma_1\le\sigma_2,\sigma_1\le\sigma_3,C}
-{E\vdash \sigma_1\le\sigma_2\cap\sigma_3,C}
+{E\vdash C, \sigma_1\le\sigma_2,\sigma_1\le\sigma_3}
+{E\vdash C, \sigma_1\le\sigma_2\cap\sigma_3}
 
 \infrule[S-L0]
 {
-\alpha\in I,E\vdash \sigma_1\le\sigma_2,C
+E,\alpha\in I\vdash C, \sigma_1\le\sigma_2
 \andalso
-\text{$\alpha$ is only free in $\sigma_1$}
+\text{$\alpha$ occurs only in $\sigma_1$}
 }
-{E\vdash(\All\alpha\sigma_1)\le\sigma_2,C}
+{E\vdash C, (\All\alpha\sigma_1)\le\sigma_2}
 
-\infrule[S-L1:Fixme]
+\infrule[S-L1]
 {
-\alpha\in [\sigma_3\cup\sigma_4,\sigma_5\cap\sigma_6],E\vdash
-\sigma_1\le\sigma_2,C
+E,\alpha\in [\sigma_3\cup\sigma_4,\sigma_5\cap\sigma_6]\vdash
+C, \sigma_1\le\sigma_2
 \andalso
-\text{$\alpha$ is only free in $\sigma_1$}
+\text{$\alpha$ occurs only in $\sigma_1$}
 }
-{E\vdash(\All{\alpha\in [\sigma_3,\sigma_5]}\sigma_1)\le\sigma_2,C}
+{E\vdash C, (\All{\alpha\in [\sigma_3,\sigma_5]}\sigma_1)\le\sigma_2}
 
 \infrule[S-R]
 {
-E\vdash\sigma_1\le\sigma_2,C
+E\vdash C,\sigma_1\le\sigma_2
 \andalso
-\text{$\alpha$ is only free in $\sigma_2$}
+\text{$\alpha$ occurs only in $\sigma_2$}
 }
-{E\vdash\sigma_1\le(\All\alpha\sigma_2),C}
+{E\vdash C, \sigma_1\le(\All\alpha\sigma_2)}
 
 
 \infrule[S-Loner]
 {
 \begin{array}[b]{r@{\;}l}
-E&\vdash
-\{\sigma_i\le\sigma_j\Or-m\le i\le-1\text{ and }1\le j\le n\}\cup C
+E&\vdash C\cup
+\{\sigma_i\le\sigma_j\Or-m\le i\le-1\text{ and }1\le j\le n\}
 \\
 I&=[\sigma_{-m}\cup\cdots\cup\sigma_{-1},\sigma_1\cap\cdots\cap\sigma_n]
 \end{array}
 \andalso
 \text{$\alpha$ fresh}
 }
-{\alpha\in I,
-E\vdash
+{E,\alpha\in I\vdash C,
 \sigma_{-m}\le\alpha,\ldots,\sigma_{-1}\le\alpha,
-\alpha\le\sigma_2,\ldots,\alpha\le\sigma_n,C
+\alpha\le\sigma_2,\ldots,\alpha\le\sigma_n
 }
 
 
 \Par{Soundness of subtyping rules of CT1}
-
-
-\Par{Discussion}
-
-The framework of CT- and S-judgements leave a lot of design
-space. S-L0 can be strengthened, etc. May add/modify rules
-retroactively.
 
 
 \section{Mixing F and CT1 for optional type arguments}
