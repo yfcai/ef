@@ -136,7 +136,7 @@ $s~t$ denotes $f(v)\in Z_\bot$.
 \section{Pros and cons}
 
 Bracha (Pluggable type systems) recommends making the type system
-of a language optional and independent of the language's runtime
+of a language optional and unrelated to the language's runtime
 behavior. Doing so confers several benefits.
 \begin{enumerate}
 \item A useful program can be executed even if it has no type.
@@ -145,9 +145,8 @@ behavior. Doing so confers several benefits.
 expressiveness of the type system is not bounded by the power of
 the inference algorithm.
 \end{enumerate}
-We demonstrate the technique of denotational pluggable types for
-purely functional languages. It achieves all of the above and
-more:
+We demonstrate a technique of pluggable types for purely
+functional languages. It achieves all of the above and more:
 \begin{enumerate}\setcounter{enumi}3
 \item It is safe for type systems to work together. The composite
 of several sound subsystems will continue to reject programs with
@@ -467,6 +466,7 @@ t &\+=& &\mbox{syntax extension} \\
 \end{align*}
 
 \Par{Type expressions}
+\label{open-types}
 
 \begin{syntax}
 \sigma &::=& &\mbox{open type expression}\\
@@ -477,6 +477,7 @@ t &\+=& &\mbox{syntax extension} \\
 \end{syntax}%
 
 \Par{Interpretation of open types}
+\label{interp-open-types}
 
 A type environment $\Env$ is a \emph{total}%
 %
@@ -674,25 +675,26 @@ t &\+=& \Abs{x:\sigma}t &\mbox{annotated abstraction}\\
 
 \Par{Type expressions}
 
-CT1 requires the open types of System~F under the same
-interpretation. In addition, CT1 has interval-bounded universal
-types, which represents the solution of a set of constraints.
+CT1 divides type expressions into two camps. If I am a~value,
+left types stand for what I am, right types stand for what I
+aspire to be. Open type expressions (\S\ref{open-types}) are both
+left and right.
 
 \begin{syntax}
-\sigma &::=& &\mbox{open type expression}\\
+\rho &::=& &\mbox{left type expression}\\
 && \iota &\mbox{base type}\\
 &|& \alpha &\mbox{type variable}\\
-&|& \sigma\R\sigma &\mbox{function type}\\
-&|& \All\alpha\sigma &\mbox{universal type}\\
-\\\\
-\rho &::=& &\mbox{left type expression}\\
-&& \sigma & \mbox{open type}\\
+&|& \tau \R \rho &\mbox{left function type}\\
+&|& \All\alpha\rho &\mbox{left universal type}\\
 &|& \Bot & \mbox{smallest type}\\
 &|& \rho\cup\rho &\mbox{union of left types}\\
 &|& \All{\alpha\in I}\rho &\mbox{interval-bounded universal type}\\
 \\\\
 \tau &::=& &\mbox{right type expression}\\
-&& \sigma &\mbox{open type}\\
+&& \iota & \mbox{base type}\\
+&|& \alpha &\mbox{type variable}\\
+&|& \rho \R \tau &\mbox{right function type}\\
+&|& \All\alpha\tau &\mbox{right universal type}\\
 &|& \Top &\mbox{largest type}\\
 &|& \tau\cap\tau &\mbox{intersection of right types}\\
 \\\\
@@ -710,17 +712,26 @@ type.
 \Sem\Bot~\Env &=\{\bot\}\\
 \Sem{\rho_1\cup\rho_2}~\Env &= (\Sem{\rho_1}~\Env) \cup
 (\Sem{\rho_2}~\Env)\\
+%
 \Sem\Top~\Env &=V-\{\Wrong\}\\
 \Sem{\tau_1\cap\tau_2}~\Env &= (\Sem{\tau_1}~\Env) \cap
 (\Sem{\tau_2}~\Env)
 \end{align*}
+The interpretation of base types, left/right function types and
+left/right universal types are identical to the interpretation of
+base types, function types and universal types in open type
+expressions (\S\ref{interp-open-types}). Left and right type
+expressions can be regarded as extension-refinements of open type
+expressions, where the constructors $\R$~and $\forall$ retain
+their meanings.
+
 A type interval interprets to a set of types sandwiched between
 its lower and upper bounds. If the lower bound is not a subset of
 the upper bound, then the type interval interprets to the empty
-set:
+set.
 \begin{align*}
 \Sem{[\rho,\tau]}~\Env &= \{T\in\Type\Or
-\Sem{\rho}~Env\ \subseteq\ T\ \subseteq\ \Sem{\tau}~Env\}.
+\Sem{\rho}~Env\ \subseteq\ T\ \subseteq\ \Sem{\tau}~Env\}
 \end{align*}
 An interval-bounded universal type interprets to the intersection
 of a family of types indexed by members of the interval.
@@ -750,10 +761,11 @@ types. Typing contexts are identical to those in System~F.
 E & ::= & \emptyset & \mbox{prefix of interval bounds}\\
 &|&E,\alpha\in I\\
 \\\\
-C & ::= & \emptyset & \mbox{subtype constraints}\\
+C & ::= && \mbox{subtype constraints}\\
+&& \emptyset &\mbox{no constraint}\\
 &|& C,\rho\le\tau & \mbox{left type is subtype of right type}\\
 \\\\
-\JCT & ::= & \Gamma\vdash t:\sigma\Given C
+\JCT & ::= & \Gamma\vdash t:\rho\Given C
 &\mbox{CT-judgement}\\
 \\\\
 \JS & ::= & E\vdash C & \mbox{S-judgement}
@@ -761,17 +773,17 @@ C & ::= & \emptyset & \mbox{subtype constraints}\\
 
 \Par{Interpretation of CT-judgements}
 A type environment $\Env$ satisfies the list of constraints $C$
-if for each $\rho_i\le\sigma_i\in C$,
+if for each $\rho_i\le\tau_i\in C$,
 \[
-\Sem{\rho_i}~\Env\ \subseteq\ \Sem{\sigma_i}~\Env
+\Sem{\rho_i}~\Env\ \subseteq\ \Sem{\sigma_i}~\Env.
 \]
 
-The CT-judgement $\Gamma\vdash t:\sigma\Given C$ abbreviates:
+The CT-judgement $\Gamma\vdash t:\rho\Given C$ abbreviates:
 \begin{quotation}
 For every $\Env$ satisfying $C$ and every
 $\env\in\Sem\Gamma~\Env$,
 \[
-\Sem t~\env\ \in\ \Sem\sigma~\Env.
+\Sem t~\env\ \in\ \Sem\rho~\Env.
 \]
 \end{quotation}
 
@@ -781,16 +793,15 @@ prefix of interval bounds. A type environment $\Env$ is
 \[
 \Env(\beta_j)\ \in\ \Sem{I_j}~\Env.
 \]
-(See \S\ref{interp-ct-types} for the meaning $\Sem{I_j}~\Env$ of
-the type interval. Note that $\Env$ appears on both sides of the
-equation.)
+(See \S\ref{interp-ct-types} for the meaning $\Sem{I_j}~\Env$.
+Note that $\Env$ appears on both sides of the membership relation.)
 
 Define \emph{well-formed prefixes} recursively thus:
 \begin{itemize}
 \item $\emptyset$ is well-formed.
 \item If $E$ is well-formed, $\alpha$ is a fresh type variable,
 and $\Sem I~\Env\neq\emptyset$ for every $\Env$ compatible with
-$E$, then $E,\alpha\in I$ is well-formed.
+$E$, then $(E,\alpha\in I)$ is well-formed.
 \end{itemize}
 
 
@@ -807,38 +818,38 @@ $E$ is well-formed. Every $\Env$ compatible with $E$ satisfies $C$.
 % handle top-level sigs by type ascription in next section
 % no need for sub0 here
 \infrule[CT-0]
-{\emptyset\vdash t:\sigma\Given\emptyset\andalso
-t,\sigma\text{ closed}}
-{t:\sigma}
+{\emptyset\vdash t:\rho\Given\emptyset\andalso
+t,\rho\text{ closed}}
+{t:\rho}
 
 \infrule[CT-Var]
 {x:\sigma\in\Gamma}
 {\Gamma\vdash x:\sigma\Given\emptyset}
 
 \infrule[CT-Abs]
-{\Gamma,x:\sigma_1\vdash t:\sigma_2\Given C
+{\Gamma,x:\sigma\vdash t:\rho\Given C
 \andalso x\notin\Gamma}
-{\Gamma\vdash\Abs{x:\sigma}t : \sigma_1\R\sigma_2\Given C}
+{\Gamma\vdash\Abs{x:\sigma}t : \sigma\R\rho\Given C}
 
 \infrule[CT-App]
-{\Gamma\vdash t_1:\sigma_1\Given C_1
-\andalso\Gamma\vdash t_2:\sigma_2\Given C_2
+{\Gamma\vdash t_1:\rho_1\Given C_1
+\andalso\Gamma\vdash t_2:\rho_2\Given C_2
 \andalso\alpha,\beta\text{ fresh}
 }
 {\Gamma\vdash t_1~t_2:\beta
-\Given C_1\cup C_2,\sigma_1\le\alpha\R\beta,\sigma_2\le\alpha
+\Given C_1\cup C_2,\rho_1\le\alpha\R\beta,\rho_2\le\alpha
 }
 
 \infrule[CT-Tabs]
 {
-\Gamma\vdash t:\sigma\Given C
+\Gamma\vdash t:\rho\Given C
 \andalso
 \beta_1\in I_1,\ldots,\beta_n\in I_n\vdash C
 \andalso
 \alpha,\beta_1,\ldots,\beta_n\notin\FTV(\Gamma)
 }
 {\Gamma\vdash\Tabs\alpha t :
-\All\alpha\All{\beta_1\in I_1}\cdots\All{\beta_n\in I_n}\sigma
+\All\alpha\All{\beta_1\in I_1}\cdots\All{\beta_n\in I_n}\rho
 \Given\emptyset}
 
 \Par{Soundness of constrained typing rules of CT1}
@@ -852,32 +863,35 @@ antecedent states that $v\in T$ under a vacuously true condition,
 so we may conclude $v\in T$.
 
 \textsc{CT-Var}: The conclusion follows from the definition of
-environments compatible with $\Gamma$.
+$\Sem\Gamma~\Env$.
 
 \textsc{CT-Abs}: Let $\Env$ be a type environment satisfying $C$.
 If $\Env$ does not exist, then the conclusion is vacuously true.
 If $\Env$ exists, then let $\env$ be compatible with $\Gamma$
 under $\Env$. Write
 \begin{align*}
-T_1&=\Sem{\sigma_1}~\Env,\\
-T_2&=\Sem{\sigma_2}~\Env,\\
+T_\sigma&=\Sem{\sigma}~\Env,\\
+T_\rho&=\Sem{\rho}~\Env,\\
 f&=\Sem{\Abs x t}~\env.
 \end{align*}
-Choose arbitrary $v\in T_1$. Since $(\Update\env x\mapsto v)$ is
-compatible with $\Gamma,x:\sigma_1$, the antecedent yields
-$f(v)\in T_2$, and we may conclude $f\in T_1 \RT T_2$.
+Choose arbitrary $v\in T_\sigma$. Since
+\[
+(\Update\env x\mapsto v)\ \in\ \Sem{\Gamma,x:\sigma}~\Env,
+\]
+the antecedent implies $f(v)\in T_\rho$, and we may conclude
+$f\in T_\sigma \RT T_\rho$.
 
 \textsc{CT-App}: Let $\Env$ be a type environment satisfying
-$C_1\cup C_2,\sigma_1\le\alpha\R\beta,\sigma_2\le\alpha$. Choose
+$C_1\cup C_2,\rho_1\le\alpha\R\beta,\rho_2\le\alpha$. Choose
 arbitrary $\env\in\Sem\Gamma~\Env$. Write
 \begin{align*}
-T_1&=\Sem{\sigma_1}~\Env,&
+T_1&=\Sem{\rho_1}~\Env,&
 v_1&=\Sem{t_1}~\env,\\
-T_2&=\Sem{\sigma_2}~\Env,&
+T_2&=\Sem{\rho_2}~\Env,&
 v_2&=\Sem{t_2}~\env.
 \end{align*}
-Since $\Env$ satisfies $\sigma_1\le\alpha\R\beta$ and
-$\sigma_2\le\alpha$,
+Since $\Env$ satisfies $\rho_1\le\alpha\R\beta$ and
+$\rho_2\le\alpha$,
 \begin{align*}
 T_1&\subseteq \Env(\alpha)\RT\Env(\beta), &
 T_2&\subseteq \Env(\alpha).
@@ -888,7 +902,7 @@ us
 v_1&\in T_1 \subseteq \Env(\alpha)\RT\Env(\beta), &
 v_2&\in T_2 \subseteq \Env(\alpha),
 \end{align*}
-which allows us to conclude $v_1(v_2)\in\Env(\beta)$.
+which yield $v_1(v_2)\in\Env(\beta)$ as desired.
 
 \textsc{CT-Tabs}: The assumed S-judgement $\beta_1\in
 I_1,\ldots,\beta_n\in I_n\vdash C$ states two things: that
@@ -896,62 +910,53 @@ I_1,\ldots,\beta_n\in I_n\vdash C$ states two things: that
 E=\beta_1\in I_1,\ldots,\beta_n\in I_n
 \]
 is well-formed, and that every type environment compatible with
-$E$ satisfies $C$. By the antecedent
-\[
-\Gamma\vdash t:\sigma\Given C,
-\]
-we know that for each $\Env$ compatible with $E$ and each
-$\env\in\Sem\Gamma~\Env$,
-\[
-\Sem t~\env\in \Sem\sigma~\Env.
-\]
-Consider an arbitrary type environment $\Env_0$. Let
+$E$ satisfies $C$. Consider an arbitrary type environment
+$\Env$. Let
 \begin{align}
 \notag
-T&=\Sem{\All\alpha\All{\beta_1\in I_1}\cdots\All{\beta_n\in I_n}\sigma}~\Env_0\\
+T&=\Sem{\All\alpha\All{\beta_1\in I_1}\cdots\All{\beta_n\in I_n}\rho}~\Env\\
 &=
 \bigcap_{T_\alpha\in\Type\quad}
-\bigcap_{T_1\in\SemSlim{I_1}~(\alpha\mapsto T_\alpha)}
+\bigcap_{T_1\in\SemSlim{I_1}~(\Update\Env\alpha\mapsto T_\alpha)}
 \cdots
-\bigcap_{T_n\in\SemSlim{I_n}~(\alpha\mapsto
-T_\alpha,\beta_1\mapsto T_1,\ldots,
+\notag\\
+&\hspace{0.5cm}\cdots
+\bigcap_{T_n\in\SemSlim{I_n}~(\Update\Env
+\alpha\mapsto T_\alpha,\beta_1\mapsto T_1,\ldots,
 \beta_{n-1}\mapsto T_{n-1}
 )}
 \label{nested-monstrosity}
-\\
-&\hspace{1.5cm}
-\Sem\sigma~(\alpha\mapsto
-T_1,\beta_1\mapsto T_1,\ldots,\beta_n\mapsto T_n).
+\\[1em]
+&\hspace{2cm}
+\Sem\rho~(\Update\Env
+\alpha\mapsto T_1,\beta_1\mapsto T_1,\ldots,\beta_n\mapsto T_n).
 \notag
 \end{align}
 Note that $T$ is defined only because
 in~\eqref{nested-monstrosity}, all index sets of the form
 \[
-\Sem{I_j}~(\alpha\mapsto T_\alpha,\beta_1\mapsto T_1,\ldots,
+\Sem{I_j}~(\Update\Env\alpha\mapsto T_\alpha,\beta_1\mapsto T_1,\ldots,
 \beta_{j-1}\mapsto T_{j-1})
 \]
 are nonempty due to well-formedness of $E$. Choose arbitrary
-$\env_0 \in \Sem\Gamma~\Env_0$. We want to prove that $\Sem
-t~\env_0 \in T$. Pick one particular instantiation of
+$\env \in \Sem\Gamma~\Env$. We want to prove that $\Sem
+t~\env \in T$. Pick one particular instantiation of
 $T_\alpha,T_1,\ldots,T_n$ in equation~\eqref{nested-monstrosity}.
 Let
 \[
-\Env_1=\Update{\Env_0}\alpha\mapsto T_\alpha,\beta_1\mapsto T_1,
-\ldots,\beta_n\mapsto T_n.
+\Env'=(\Update{\Env}\alpha\mapsto T_\alpha,\beta_1\mapsto T_1,
+\ldots,\beta_n\mapsto T_n).
 \]
-Since $T_\alpha,T_1,\ldots,T_n$ are taken from the index sets of
-\eqref{nested-monstrosity}, $\Env_1$ is compatible with $E$ and
-satisfies $C$. Since
+$\Env'$ is compatible with $E$ and satisfies $C$. Since
 $\alpha,\beta_1,\ldots,\beta_n\notin\FTV(\Gamma)$,
 \[
-\Sem\Gamma~\Env_1=\Sem\Gamma~\Env_0\ni\env_0.
+\Sem\Gamma~\Env'=\Sem\Gamma~\Env\ni\env.
 \]
-By the antecedent $\Gamma\vdash t:\sigma\Given C$,
+By the antecedent $(\Gamma\vdash t:\rho\Given C)$,
 \[
-\Sem t~\env_0\in\Sem\sigma~\Env_1.
+\Sem t~\env\in\Sem\rho~\Env'.
 \]
-Since $T_\alpha,T_1,\ldots,T_n$ are arbitrary, the proof goal
-follows.
+Since $T_\alpha,T_1,\ldots,T_n$ are arbitrary, $\Sem t~\env\in T$.
 
 
 \Par{Subtyping rules of CT1}~
