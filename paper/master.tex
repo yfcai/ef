@@ -905,22 +905,53 @@ $\env\in\Sem\Gamma~\Env$,
 \[
 \Sem t~\env\in \Sem\sigma~\Env.
 \]
-Now consider an arbitrary type environment $\Env'$. Let
-\begin{align*}
-T&=\Sem{\All\alpha\All{\beta_1\in I_1}\cdots\All{\beta_n\in I_n}\sigma}~\Env'\\
+Consider an arbitrary type environment $\Env_0$. Let
+\begin{align}
+\notag
+T&=\Sem{\All\alpha\All{\beta_1\in I_1}\cdots\All{\beta_n\in I_n}\sigma}~\Env_0\\
 &=
 \bigcap_{T_\alpha\in\Type\quad}
-\bigcap_{T_1\in\Sem{I_1}~(\alpha\mapsto T_\alpha)}
+\bigcap_{T_1\in\SemSlim{I_1}~(\alpha\mapsto T_\alpha)}
 \cdots
-\bigcap_{T_n\in\Sem{I_n}~(\alpha\mapsto T_\alpha,\beta_1\mapsto T_1,\ldots)}
+\bigcap_{T_n\in\SemSlim{I_n}~(\alpha\mapsto
+T_\alpha,\beta_1\mapsto T_1,\ldots,
+\beta_{n-1}\mapsto T_{n-1}
+)}
+\label{nested-monstrosity}
 \\
 &\hspace{1.5cm}
 \Sem\sigma~(\alpha\mapsto
 T_1,\beta_1\mapsto T_1,\ldots,\beta_n\mapsto T_n).
-\end{align*}
-
-TODO FIXME: define $\Env_n$ inductively and take apart the
-monstrosity above.
+\notag
+\end{align}
+Note that $T$ is well-defined only because
+in~\eqref{nested-monstrosity}, all index sets of the form
+\[
+\Sem{I_j}~(\alpha\mapsto T_\alpha,\beta_1\mapsto T_1,\ldots,
+\beta_{j-1}\mapsto T_{j-1})
+\]
+are nonempty due to well-formedness of $E$. Choose arbitrary
+$\env_0 \in \Sem\Gamma~\Env_0$. We want to prove that $\Sem
+t~\env_0 \in T$. Pick one particular instantiation of
+$T_\alpha,T_1,\ldots,T_n$ in equation~\eqref{nested-monstrosity}.
+Let
+\[
+\Env_1=\Update{\Env_0}\alpha\mapsto T_\alpha,\beta_1\mapsto T_1,
+\ldots,\beta_n\mapsto T_n.
+\]
+Since $T_\alpha,T_1,\ldots,T_n$ are taken from the index sets of
+\eqref{nested-monstrosity}, $\Env_1$ is compatible with $E$ and
+satisfies $C$. Since
+$\alpha,\beta_1,\ldots,\beta_n\notin\FTV(\Gamma)$,
+\[
+\Sem\Gamma~\Env_1=\Sem\Gamma~\Env_0\ni\env_0.
+\]
+By the antecedent $\Gamma\vdash t:\sigma\Given C$,
+\[
+\Sem t~\env_0\in\Sem\sigma~\Env_1.
+\]
+Since $T_\alpha,T_1,\ldots,T_n$ are arbitrary, the proof goal
+follows.
 
 
 \Par{Subtyping rules of CT1}~
