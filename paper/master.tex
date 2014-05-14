@@ -705,9 +705,8 @@ I &::=& [\rho, \tau] &\mbox{type interval}
 \label{interp-ct-types}
 
 Left and right type expressions have the same interpretation as
-open types; they denote partial functions mapping type
-environments to types. Recall that the union of two types is a
-type.
+open types; they are mappings from type environments to types.
+Recall that the union of two types is a type.
 \begin{align*}
 \Sem\Bot~\Env &=\{\bot\}\\
 \Sem{\rho_1\cup\rho_2}~\Env &= (\Sem{\rho_1}~\Env) \cup
@@ -742,7 +741,7 @@ of a family of types indexed by members of the interval.
 \Sem\rho~(\Update\Env\alpha\mapsto T)
 &\text{if}\quad\Sem I~\Env\neq\emptyset,
 \\[2em]
-\mbox{undefined}
+V-\{\Wrong\}
 &\text{if}\quad\Sem I~\Env=\emptyset.
 \end{cases}
 \end{align*}
@@ -932,8 +931,8 @@ T&=\Sem{\All\alpha\All{\beta_1\in I_1}\cdots\All{\beta_n\in I_n}\rho}~\Env\\
 \alpha\mapsto T_1,\beta_1\mapsto T_1,\ldots,\beta_n\mapsto T_n).
 \notag
 \end{align}
-Note that $T$ is defined only because
-in~\eqref{nested-monstrosity}, all index sets of the form
+Note that in~\eqref{nested-monstrosity}, all index sets of the
+form
 \[
 \Sem{I_j}~(\Update\Env\alpha\mapsto T_\alpha,\beta_1\mapsto T_1,\ldots,
 \beta_{j-1}\mapsto T_{j-1})
@@ -969,60 +968,59 @@ Since $T_\alpha,T_1,\ldots,T_n$ are arbitrary, $\Sem t~\env\in T$.
 {E\vdash C}
 {E\vdash C,\sigma\le\sigma}
 
+\infrule[S-Bot]
+{E\vdash C}
+{E\vdash C, \Bot\le\tau}
+
+\infrule[S-Top]
+{E\vdash C}
+{E\vdash C, \rho\le\Top}
+
 \infrule[S-Arrow]
-{E\vdash C, \sigma_2\le\sigma_0,\sigma_1\le\sigma_3}
-{E\vdash C, \sigma_0\R\sigma_1\le\sigma_2\R\sigma_3}
+{E\vdash C, \rho_1\le\tau_1,\rho_2\le\tau_2}
+{E\vdash C, \tau_1\R\rho_2 \le \rho_1\R\tau_2}
 
 \infrule[S-Union]
-{E\vdash C, \sigma_1\le\sigma_3,\sigma_2\le\sigma_3}
-{E\vdash C, \sigma_1\cup\sigma_2\le\sigma_3}
+{E\vdash C, \rho_1\le\tau,\rho_2\le\tau}
+{E\vdash C, \rho_1\cup\rho_2 \le \tau}
 
 \infrule[S-Intersect]
-{E\vdash C, \sigma_1\le\sigma_2,\sigma_1\le\sigma_3}
-{E\vdash C, \sigma_1\le\sigma_2\cap\sigma_3}
+{E\vdash C, \rho\le\tau_1, \rho\le\tau_2}
+{E\vdash C, \rho\le\tau_1\cap\tau_2}
 
 \infrule[S-L0]
 {
-E,\alpha\in I\vdash C, \sigma_1\le\sigma_2
+E,\alpha\in I\vdash C, \rho\le\tau
 \andalso
-\text{$\alpha$ occurs only in $\sigma_1$}
+\text{$\alpha$ occurs only in $\rho$}
 }
-{E\vdash C, (\All\alpha\sigma_1)\le\sigma_2}
+{E\vdash C, (\All\alpha\rho)\le\tau}
 
 \infrule[S-L1]
 {
-E,\alpha\in [\sigma_3\cup\sigma_4,\sigma_5\cap\sigma_6]\vdash
-C, \sigma_1\le\sigma_2
+E,\alpha\in [\rho_1\cup\rho_2,\tau_1\cap\tau_2]\vdash
+C, \rho\le\tau
 \andalso
-\text{$\alpha$ occurs only in $\sigma_1$}
+\text{$\alpha$ occurs only in $\rho$}
 }
-{E\vdash C, (\All{\alpha\in [\sigma_3,\sigma_5]}\sigma_1)\le\sigma_2}
+{E\vdash C, (\All{\alpha\in [\rho_1,\tau_1]}\rho)\le\tau}
 
 \infrule[S-R]
 {
-E\vdash C,\sigma_1\le\sigma_2
+E\vdash C,\rho\le\tau
 \andalso
-\text{$\alpha$ occurs only in $\sigma_2$}
+\text{$\alpha$ occurs only in $\tau$}
 }
-{E\vdash C, \sigma_1\le(\All\alpha\sigma_2)}
+{E\vdash C, \rho\le(\All\alpha\tau)}
 
 
 \infrule[S-Loner]
 {
-%\begin{array}[b]{r@{\;}l}
-%E&\vdash C\cup
-%\{\sigma_i\le\sigma_j\Or-m\le i\le-1\text{ and }1\le j\le n\}
-%\\
-%I&=[\sigma_{-m}\cup\cdots\cup\sigma_{-1},\sigma_1\cap\cdots\cap\sigma_n]
-%\end{array}
 E\vdash C,\rho\le\tau
 \andalso
 \text{$\alpha$ fresh}
 }
 {
-%E,\alpha\in I\vdash C,
-%\sigma_{-m}\le\alpha,\ldots,\sigma_{-1}\le\alpha,
-%\alpha\le\sigma_2,\ldots,\alpha\le\sigma_n
 E,\alpha\in[\rho,\tau]\vdash C,\rho\le\alpha,\alpha\le\tau
 }
 
