@@ -1025,13 +1025,105 @@ E,\alpha\in[\rho,\tau]\vdash C,\rho\le\alpha,\alpha\le\tau
 }
 
 
-\Par{Soundness of subtyping rules of CT1}
+\Par{Soundness of subtyping rules of CT1}~
+
+
+\textsc{S-Vacuous}: The empty prefix of interval bounds is
+well-formed. Every statement in an empty collection is true.
+
+\textsc{S-Refl}: The subset relation $\subseteq$ is reflexive.
+
+\textsc{S-Bot}: $\{\bot\}$ is a subset of every type.
+
+\textsc{S-Top}: Every type is a subset of $V-\{\Wrong\}$.
+
+\textsc{S-Arrow}: $E$ is well-formed. Let $\Env$ be compatible
+with $E$. Let
+\[
+f\in\Sem{\tau_1}~\Env\ \RT\ \Sem{\rho_2}~\Env.
+\]
+For every
+\[
+v\in\Sem{\rho_1}~\Env\subseteq\Sem{\tau_1}~\Env,
+\]
+we know
+\[
+f(v)\in\Sem{\rho_2}~\Env\subseteq\Sem{\tau_2}~\Env.
+\]
+The desired result follows:
+\[
+\Sem{\tau_1}~\Env\ \RT\ \Sem{\rho_2}~\Env
+\qquad\subseteq\qquad
+\Sem{\rho_1}~\Env\ \RT\ \Sem{\tau_2}~\Env
+\]
+
+\textsc{S-Union}, \textsc{S-Intersect}: Obvious, by definitions
+of set union and intersection.
+
+\textsc{S-L0}: This is a special case of \textsc{S-L1} with
+$\rho_1=\Bot$ and $\tau_1=\Top$.
+
+\textsc{S-L1}:
+Let $\Env$ be a type environment compatible with $E$. Let
+\begin{align*}
+I_1 &= \Sem{[\rho_1,\tau_1]}~\Env,\\
+I_2 &= \Sem{[\rho_1\cup\rho_2, \tau_1\cap\tau_2]}~\Env.
+\end{align*}
+Since $(E,\alpha\in [\rho_1\cup\rho_2, \tau_1\cap\tau_2])$ is
+well-formed, $E$ is well-formed and $I_2\subseteq I_1$ is
+nonempty. With any $T_\alpha\in I_2$,
+\begin{samepage}
+\begin{align*}
+\Sem{\All{\alpha\in[\rho_1,\tau_1]}\rho}~\Env
+&=\bigcap_{T\in I_1}\Sem\rho~(\Update\Env\alpha\mapsto T)\\
+&\subseteq
+\Sem\rho~(\Update\Env\alpha\mapsto T_\alpha)\\
+&\subseteq
+\Sem\tau~(\Update\Env\alpha\mapsto T_\alpha)\\
+&=\Sem\tau~\Env,
+\end{align*}
+\end{samepage}%
+where the last equality is due to $\alpha$ not being free in
+$\tau$. So $\Env$ satisfies $(\All\alpha\rho)\le\tau$. Since
+$\alpha$ is not free in $C$ and $(\Update\Env\alpha\mapsto
+T_\alpha)$ satisfies $C$, $\Env$ satisfies $C$ as well.
+
+\textsc{S-R}: Let $\Env$ be compatible with $E$. Then $\Env$
+satisfies $C$. Choose arbitrary $T_\alpha\in\Type$. Since
+$\alpha$ does not occur in $E$, the type environment
+\[
+\Env'=(\Update\Env\alpha\mapsto T_\alpha)
+\]
+is compatible with $E$. By the antecedent,
+\[
+\Sem\rho~\Env = \Sem\rho~\Env' \subseteq \Sem\tau~\Env'.
+\]
+Since $T_\alpha$ is arbitrary, we may conclude
+\[
+\Sem\rho~\Env
+\subseteq
+\bigcap_{T\in\Type}\Sem\tau~(\Update\Env\alpha\mapsto T)
+=\Sem{\All\alpha\tau}~\Env.
+\]
+
+\textsc{S-Loner}: Let $\Env$ be compatible with $E$. By the
+antecedent,
+\[
+\Sem\rho~\Env\subseteq\Sem\tau~\Env.
+\]
+Therefore the interval $\Sem{[\rho,\tau]}~\Env$ is nonempty, and
+the prefix $(E,\alpha\in [\rho,\tau])$ is well-formed. Moreover,
+\begin{align*}
+\Sem\rho~\Env&\subseteq T_\alpha&
+&\mbox{and}&
+T_\alpha&\subseteq\Sem\tau~\Env
+\end{align*}
+for every $T_\alpha\in \Sem{[\rho,\tau]}~\Env$ by definition.
+Hence the conclusion.
 
 
 \section{Mixing F and CT1 for optional type arguments}
 
-Look at all those syntactic extensions. Isn't this an awesome
-opportunity for some solutions to the expression problem?
 
 
 \section{Parametric types}
