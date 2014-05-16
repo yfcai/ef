@@ -289,7 +289,8 @@ This section recounts the ideal model of types by MacQueen et
 al.\ (Ideal model for recursive polymorphic types) with modern
 notions. After an informal overview with the most important
 concepts to keep in mind, we will work toward a proof that
-recursive types are well-defined.
+recursive types are well-defined. The next section starts on
+page~\pageref{domain-theory-ends}.
 
 \Par{Informal overview}
 
@@ -320,7 +321,7 @@ f\in V\R V\text{ and }f(T_1)\subseteq T_2
 \end{align*}
 
 Let us state the definition of types for future reference. A
-subset $T\subseteq V$ is a type if it is a nonempty closed set
+subset $T\subseteq V$ is a~type if it is a nonempty closed set
 under the Scott toplogy and $\Wrong\notin T$.
 
 \Par{Domain-theoretic background}
@@ -336,7 +337,8 @@ There is a \emph{definedness} partial order $\Sub$ on $V$ such
 that
 \begin{itemize}
 \item $\bot\Sub v$ for all $v\in V$,
-\item two distinct base values in $B$ are incomparable by $\Sub$,
+\item a base value in $B$ is only comparable with $\bot$ and
+itself,
 \item if $f,g\in V\R V$, then $f\Sub g$ if and only if $f(v)\Sub
 g(v)$ for all $v\in V$.
 \end{itemize}
@@ -374,23 +376,34 @@ for every directed set $A\subseteq T$.
 
 A subset $T\subseteq V$ is a \emph{type} if $T$ is a nonempty
 closed set and $\Wrong\notin T$. Both downward-closure and
-closure under directed limit are necessary to establish
-well-definedness of recursive types. Moreover, closure under
-directed limit is a natural strengthening of the
+closure under directed limit are necessary to establish that each
+recursive type equation is satisfied by a unique type. In
+particular, a unique type $T$ satisfies the following version of
+Curry's paradox:
+\[
+T=T\RT \{\bot\}.
+\]
+It allows us to type $\Omega$ with recursive types (folklore on
+Haskell mailing list):
+\[
+(\Abs{x : \mu\alpha. \alpha\R\Bot}x~x)~
+(\Abs{x : \mu\alpha. \alpha\R\Bot}x~x).
+\]
+Closure under directed limit is a natural strengthening of the
 \emph{admissibility} criterion for contracts in HALO (Haskell to
-logic through denotational semantics); in fact, all contracts
-described in HALO can be strengthened to types by adding a
-downward-closure condition without disturbing their theoretic
-development.
+logic through denotational semantics). In fact, all contracts
+described in HALO can be strengthened to types by imposing
+a~downward-closure condition without disturbing the theories
+surrounding them.
 
 Scott topology satisfies the 3 axioms of topology:
-\begin{enumerate}
+\begin{itemize}
 \item $\emptyset$ and $V$ are open,
 \item the union of an arbitrary family of open sets are open,
 \item the intersection of finitely many open sets is open.
-\end{enumerate}
+\end{itemize}
 
-Conversely,
+On the flip side,
 \begin{itemize}
 \item the intersection of an arbitrary family of types is a type,
 \item the union of finitely many types is a type.
@@ -425,9 +438,9 @@ directed set of compact elements. $V$ is an algebraic cpo. In
 particular, the behavior of every function in $V\R V$ is
 determined by its value on compact elements. It agrees with the
 intuition that a terminating higher-order function $f$ can only
-call its argument $g$ a finite number of times before returning a
-result. Even if $g$ is more complex than a finite number of
-argument-result pairs, the result $f(g)$ does not reflect it.
+call its argument~$g$ finitely many times. Even if $g$ is more
+complex than a finite number of argument-result pairs, the result
+$f(g)$ cannot reflect that extra complexity.
 
 Since $V$ is algebraic, every closed set is completely determined
 by its compact elements. In particular, if $T_1$ and $T_2$ are
@@ -462,11 +475,11 @@ V_n &= (V_{n-1} \R V_{n-1}) + B + \{\bot,\Wrong\},\\
 and defined the rank of a compact element $v$ as the number $i$
 such that $v$ ``appears'' in $V_i$ for the first time. It is
 possible to formalize this intuition in terms of commuting
-embedding-projection pairs between $V$ and each $V_i$ akin to
+embedding-projection pairs between each $V_i$ and $V$ akin to
 those described in \S12.3 on page~319 of Stoltenberg-Hansen et
 al.\ (Mathematical theory of domains). We will not discuss the
-formalities, only list the relevant properties of the rank
-function.
+formalities in detail, only list the relevant properties of the
+rank function.
 \begin{itemize}\itemsep=1ex
 \item[R1.] $\bot$ has rank 0.
 
@@ -477,8 +490,8 @@ exists a set $S$ of pairs of values of rank at most $n-1$ such
 that $f$ is the least function satisfying $f(x)=y$ for all
 $(x,y)\in S$.
 
-\item[R4.] If $f\in V \R V$ does not have rank $n$ for all
-$n\in\mathbb N$, then the rank of $f$ is $\infty$.
+\item[R4.] If $f\in V \R V$ does not have rank $n$ for every
+$n\in\mathbb N$, then $f$ has rank $\infty$.
 
 \item[R5.] For every value $v\in V$, there exists a value $v_n$
 of rank~$n$, called the rank-$n$ projection of $v$, such that $u
@@ -538,9 +551,104 @@ loss of generality that $v\in T_3-T_1$. If $v\in T_2$, then
 $d(T_1,T_3)\le d(T_1, T_2)$. If $v\notin T_2$, then $d(T_1,
 T_3)\le d(T_2, T_3)$.
 
+\Par{Converging sequences of sets}
+
+Recall the standard definition of convergence:
+
+The \emph{limit superior} of an infinite sequence of sets
+$S_1,S_2,\ldots$ is
+\[
+\limsup_{n\rightarrow\infty}S_n =
+\bigcap_{n=1}^\infty\bigcup_{i = n}^\infty S_i.
+\]
+The \emph{limit inferior} is
+\[
+\liminf_{n\rightarrow\infty}S_n =
+\bigcup_{n=1}^\infty\bigcap_{i = n}^\infty S_i.
+\]
+If the limit superior and limit inferior are equal, then the
+sequence $S_1,S_2,\ldots$ \emph{converges}, and its \emph{limit}
+is
+\[
+S = \limsup_{n\rightarrow\infty}S_n = \liminf_{n\rightarrow\infty}S_n.
+\]
+
+\Par{Cauchy sequences}
+
+An infinite sequence $T_1,T_2,\ldots$ of types is Cauchy if for
+every $\epsilon>0$ there exists $n\in\mathbb N$ such that for all
+$i,j\ge n$, the distance between $T_i$~and $T_j$ is smaller than
+$\epsilon$.
+
+\begin{theorem}
+Every Cauchy sequence converges to a type.
+\end{theorem}
+
+\begin{proof}
+This corresponds to theorem~1 of MacQueen et al.\ (Ideal model
+for recursive polymorphic types). There are two proof goals.
+\begin{enumerate}
+\item [G1.] Every Cauchy sequence of types converges to a set.
+\item [G2.] The limit of a Cauchy sequence is a type.
+\end{enumerate}
+
+G1. Let $T_1,T_2,\ldots$ be a Cauchy sequence of types. Knowing
+the standard result $\liminf T_n\subseteq\limsup T_n$, we need
+only show $\limsup T_n\subseteq\liminf T_n$.
+
+\def\Cauchy{\texttt{cauchy}}
+\def\Hasv{{\texttt{has\textunderscore}v}}
+
+Choose an arbitrary value
+\[
+v\in \limsup T_n = \bigcap_{n=1}^\infty\bigcup_{i = n}^\infty T_i.
+\]
+Let $\epsilon=2^{-\Rank(v)}>0$. There exists a natural number
+$\Cauchy$ such that for all $i,j\ge\Cauchy$, we have
+$d(T_i,T_j)<\epsilon$. Since $v$ is a member of the limit
+superior, there exists a natural number $\Hasv\ge\Cauchy$ such
+that $v\in T_\Hasv$. If we pick any $i\ge\Hasv$, then we have
+$v\in T_i$, because otherwise the contradiction
+\[
+d(T_\Hasv, T_i)\ge2^{-\Rank(v)}=\epsilon
+\]
+would arise. Thus
+\[
+v\in
+\bigcap_{i=\Hasv}^\infty T_i\subseteq
+\bigcup_{n=1}^\infty\bigcap_{i = n}^\infty T_i.
+=\liminf T_n.
+\]
+
+G2. We will verify that the limit
+\[
+T=\limsup T_n=\liminf T_n
+\]
+is a nonempty closed subset of $V$ excluding $\Wrong$. There are
+4 properties to check.
+\begin{enumerate}
+\item [G2.1.] $T\neq\emptyset$.
+\item [G2.2.] $\Wrong\notin T$.
+\item [G2.3.] $T$ is closed downward.
+\item [G2.4.] $T$ is closed under directed limit.
+\end{enumerate}
+
+Since each $T_n$ is nonempty and downward closed, $\bot\in T_n$
+for all $n\in\mathbb N$. Thus $\bot\in T$, and G2.1 follows. For
+G2.2, note that $\Wrong\notin T_n$ for all $n\in\mathbb N$. G2.3
+holds because arbitrary union and intersection preserve
+downward closure.
+
+For G2.4, let $A\subseteq T$ be directed. Since $T=\liminf T_n$,
+there exists $m\in\mathbb N$ such that for all $i\ge m$ we have
+$A\subseteq T_i$. Since each $T_i$ is a closed set, $\sup A\in
+T_i$ for all $i\ge m$. Thus $\sup A\in\liminf T_n$.
+\end{proof}
+
+% TODO
+
 Outline
 \begin{enumerate}
-\item proximity between types
 \item contractive, nonexpansive
 \item type constructors: finite union, arbitrary intersection,
 recursive
@@ -552,6 +660,8 @@ approximation, so it'd be good to mix things up.
 
 
 \section{Hask-like category of types}
+
+\label{domain-theory-ends}
 
 Object = type
 
@@ -1459,5 +1569,4 @@ relation. Free theorems should hold. Parametric types are not
 universal types.
 
 
-\input{appendix.tex}
 \end{document}
