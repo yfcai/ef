@@ -630,7 +630,7 @@ concrete data, we can represent them by well-formed formulas of
 ZFC (Zermelo-Fraenkel set theory with the axiom of choice). Each
 pluggable type system is free to produce its own flavor of
 judgements, but all systems should strive to eventually produce
-$J_0$-judgements, or typing judgements about closed terms.
+T-judgements, or typing judgements about closed terms.
 \begin{syntax}
 J_0
 & ::=
@@ -641,7 +641,7 @@ J_0
 The judgement $t:\sigma$ abbreviates ``The value denoted by $t$
 under the empty environment is a member of the type denoted by
 $\sigma$.'' We say a closed term $t$ is \emph{well-typed} if the
-type system in use can produce some $J_0$-judgement $t:\sigma$.
+type system in use can produce some T-judgement $t:\sigma$.
 Since $\Wrong$ is not a member of any type, well-typed
 expressions do not denote $\Wrong$.
 
@@ -672,13 +672,13 @@ sound type system only produces true judgements.
 
 We mix several type systems together by taking union of their
 typing rules. The mixture of sound type systems is clearly sound.
-If it produces the $J_0$-judgement $t:\sigma$, then we are
+If it produces the T-judgement $t:\sigma$, then we are
 certain that $t$ denotes an element of some type, which cannot be
 $\Wrong$. In this sense, mixing pluggable type systems preserves
 type safety.
 
 We know a term $t$ never raises runtime type errors if some
-typing derivation produces a $J_0$-judgement about $t$. It does
+typing derivation produces a T-judgement about $t$. It does
 not matter how the typing derivation is produced. A practical
 implementation of a pluggable type system may be incomplete
 without compromising type safety. The type checker may reject
@@ -800,7 +800,7 @@ For every type environment $\Env$ and every $\env\in\Sem\Gamma~\Env$,
 
 \Par{Typing rules of Pluggable~F}~
 
-\infrule[F-0]
+\infrule[T-F]
 {\emptyset\vdash t:\sigma\andalso t,\sigma\text{ closed}}
 {t:\sigma}
 
@@ -837,7 +837,7 @@ For every type environment $\Env$ and every $\env\in\Sem\Gamma~\Env$,
 We outline the proof of each statement corresponding to a typing
 rule of Pluggable~F.
 
-\textsc{F-0}: Since $t$ and $\sigma$ are closed, they denote a
+\textsc{T-F}: Since $t$ and $\sigma$ are closed, they denote a
 value $v_t$ and a type $T_\sigma$ under whatever environments.
 The antecedent says $v_t\in T_\sigma$; the conclusion says the
 same thing.
@@ -1071,7 +1071,7 @@ $E$ is well-formed. Every $\Env$ compatible with $E$ satisfies $C$.
 
 % handle top-level sigs by type ascription in next section
 % no need for sub0 here
-\infrule[CT-0]
+\infrule[T-CT]
 {\emptyset\vdash t:\rho\Given\emptyset\andalso
 t,\rho\text{ closed}}
 {t:\rho}
@@ -1121,7 +1121,7 @@ t,\rho\text{ closed}}
 We outline the proof of each statement corresponding to a
 constrained typing rule of CT1.
 
-\textsc{CT-0}: Since $t$ and $\sigma$ are closed, they denote a
+\textsc{T-CT}: Since $t$ and $\sigma$ are closed, they denote a
 value $v$ and a type $T$ under whatever environments. The
 antecedent states that $v\in T$ under a vacuously true condition,
 so we may conclude $v\in T$.
