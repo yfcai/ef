@@ -805,7 +805,7 @@ type checker to become complete and decidable.
 
 We will phrase System~F in the framework outlined in
 \S\ref{howto} so that it can be used together with other type
-systems. This particular semantic model of System~F was outlined
+systems. This particular semantic model of System~F was sketched
 in Girard (System~F of variable types: fifteen years later,
 \S3.1).
 
@@ -1015,15 +1015,15 @@ To demonstrate what pluggable types are possible, we present a
 novel type system CT1 (Constrained Type System Version 1). It
 supports the impredicative universal types of System~F, but does
 not demand type arguments from the user. The metatheory of CT1 is
-far from mature. We do not know whether it can type all
-well-typed System~F terms with type applications erased, or
-whether it has a terminating type checking algorithm. Since CT1
-is pluggable, however, we can start reaping the benefit of CT1
-without waiting for metatheoretic development. If it so happened
-that CT1 could not handle certain useful programs, then we would
-simply import a new type system to deal with those, confident
-that any legacy code typed under CT1 will continue to enjoy
-strong type soundness.
+far from mature. We do not know whether it can type all terms
+typeable in System~F with extra type arguments, or whether it
+admits a terminating type checking algorithm. Since CT1 is
+pluggable, however, we can start reaping its the benefit without
+waiting for metatheoretic development. If it so happened that CT1
+could not handle certain useful programs, then we need only
+import a new type system to deal with those, confident that any
+legacy code typed under CT1 will continue to enjoy strong type
+soundness.
 
 \Par{Syntax extension}
 
@@ -1042,7 +1042,11 @@ t &\+=& \Abs{x:\sigma}t &\mbox{annotated abstraction}\\
 CT1 divides type expressions into two camps. If I am a~value,
 left types stand for what I am, right types stand for what I
 aspire to be. Open type expressions (\S\ref{open-types}) are both
-left and right.
+left and right. We divide the left from the right to keep union
+types on the left hand side of any subtype constraint, and
+intersection types on the right hand side. This way, every
+subtype constraint on compound types can be expressed as the
+conjunction of constraints on simpler types.
 
 \begin{syntax}
 \rho &::=& &\mbox{left type expression}\\
@@ -1530,7 +1534,7 @@ It is trickier to go from CT-judgements to F-judgements. Not only
 do we have to resolve accumulated constraints (via \text{CT-S}
 for example), we must also eliminate union, intersection and
 interval-bounded universal type expressions from the type of a
-term, so that F-rules can deal with it in comfort. Ascription
+term, so that F-rules can deal with it comfortably. Ascription
 suffices.
 
 \begin{samepage}
