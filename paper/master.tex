@@ -75,7 +75,7 @@ fixed point, and each $v\notin V\R V$ to~$\Wrong$
 
 \indent$\alpha\R\beta$ & \indent
 \begin{minipage}[t]{\miniwidth}
-A certain partial function mapping type environments to types
+A certain mapping from type environments to types
 \end{minipage}
 \vspace{1ex}
 \\
@@ -135,9 +135,10 @@ $s~t$ denotes $f(v)\in Z_\bot$.
 
 \section{Pros and cons}
 
-Bracha (Pluggable type systems) recommends making the type system
-of a language optional and unrelated to the language's runtime
-behavior. Doing so confers several benefits.
+Bracha (Pluggable type systems) advocates that the type system of
+a language should be optional and should not affect the
+language's runtime behavior. There are several benefits to such
+arrangements.
 \begin{enumerate}
 \item A useful program can be executed even if it has no type.
 \item Type systems can evolve faster than the language itself.
@@ -149,33 +150,35 @@ We demonstrate a technique of pluggable types for purely
 functional languages. It achieves all of the above and more:
 \begin{enumerate}\setcounter{enumi}3
 \item It is safe for type systems to work together. The composite
-of several sound subsystems will continue to reject programs with
-runtime type errors.
+of several sound subsystems will continue to reject all programs
+with runtime type errors.
 \item Types defined in different subsystems can interact with
 each other. It is possible to call library functions defined
 in a different type system.
 \end{enumerate}
 The technique is applicable to a wide variety of type systems. It
-is straightforward to express \thingsExpressibleInMpsModel.
+can express \thingsExpressibleInMpsModel.
 
 There are some restrictions on what a type can be. For example,
-if a program~$f$ has type $T$, then every program $g$ has type
-$T$ whenever $g$ is less terminating than $f$ but behaves
-otherwise just like $f$. Types cannot separate terminating
-programs from nonterminating ones.
+if a program~$f$ has type $T$, then $T$ must admit every program
+that terminates less often than $f$ but behaves identically
+otherwise. Types cannot separate terminating programs from
+nonterminating ones.
 
 The technique guarantees nothing about the type checker's
 performance; it may run forever. Writing a nonterminating type
 checker is as easy as writing a nonterminating program in Java.
+It remains to investigate how to compose non-brute-force type
+checkers in a modular and scalable way.
 
 \section{Background}
 
 A runtime type error occurs when a value is used in an unintended
-way; examples include adding an integer and a truth value,
-dereferencing a non-pointer, and calling a non-function. A type
-system is \emph{sound} if no well-typed program encounters
-runtime type errors during execution. Soundness is one of the
-most important design goals of type systems.
+way, such as adding an integer and a truth value, dereferencing a
+non-pointer, and calling a non-function. A type system is
+\emph{sound} if no well-typed program encounters runtime type
+errors. Soundness is one of the most important design goals of
+type systems.
 
 There are several methods to prove a type system sound. We will
 discuss two: the syntactic approach, and the domain-theoretic
@@ -203,14 +206,14 @@ existing arguments. But we cannot take two systems proven sound
 by the syntactic approach, take the union of their typing rules,
 and expect soundness to hold for the result. The two syntactic
 soundness proofs gave us progress and preservation for terms
-typed purely with rules in one system; they say nothing about
+typed with rules in one single system; they say nothing about
 terms typed with a mixture of rules from both systems.
 
 \Par{The domain-theoretic approach}
 
 \begin{enumerate}
-\item Capture the runtime behavior of the language in a domain
-equation.
+\item Capture the runtime behavior of the language in a Scott
+domain.
 \item Define types as certain sets of values in the semantic
 domain. Designate a special value $\Wrong$ for runtime type
 errors, and make sure it is not a member of any type.
@@ -238,8 +241,8 @@ carries over even to terms typed with a mixture of old and new
 rules, and type soundness continues to hold.
 
 If types are pluggable, then the language's runtime behavior has
-to stay constant in all possible type systems. In this situation,
-a domain-theoretic type soundness proof is more extensible than a
+to stay constant in all possible type systems. Here, a
+domain-theoretic type soundness proof is more extensible than a
 syntactic proof.
 
 
@@ -265,16 +268,16 @@ of type systems is no more than writing proofs with a larger
 collection of lemmas.
 
 The next section discusses domains and the MacQueen-Plotkin-Sethi
-model of types on a high level. We will only disclose the
-technical details absolutely essential for understanding
-pluggable types.
+model of types.
 
 The section after that describes how to make type systems
 pluggable.
 
 The other sections give examples of pluggable type systems. We
 will look at System~F, unboxed impredicative polymorphism,
-optional type arguments, and subtyping.
+optional type arguments, and subtyping. It is interesting to
+explore continuations, mutation, dependent types and higher
+kinds.
 
 
 \section{MacQueen-Plotkin-Sethi model of types}
@@ -326,8 +329,8 @@ type systems pluggable.
 Our core language is untyped lambda calculus with constants. Its
 standard denotational semantics serves as the interface to the
 runtime system modeled by the value domain $V$. Each lambda term
-denotes a value in $V$ under a term environment~$\env$, which is
-a partial function mapping variables to values in $V$.
+denotes a value in $V$ under a term environment~$\env$, which
+maps variables to values in $V$.
 
 \begin{syntax}
 t & ::= & &\mbox{untyped lambda term} \\
@@ -393,19 +396,18 @@ expressions do not denote $\Wrong$.
 
 A pluggable type system produces judgements according to a
 collection of \emph{typing rules}. In fact, we can think of the
-type system as the collection of typing rules. A typing rule is
-an inference rule in the style of natural deduction. Each rule
-has zero or more antecedents, zero or more side conditions, and
-one conclusion. The antecedents are judgements, the side
+type system \emph{as} the collection of typing rules. A typing
+rule is an inference rule in the style of natural deduction. Each
+rule has zero or more antecedents, zero or more side conditions,
+and one conclusion. The antecedents are judgements, the side
 conditions are statements (i.~e., well-formed formulas of ZFC),
 and the conclusion is a judgement. A typing rule corresponds to
 the statement ``If all antecedents and side conditions are true,
 then the conclusion is true.'' We call a typing rule \emph{sound}
 if it corresponds to a provable statement. Sound typing rules are
-admissible with respect to the inference rules of natural
-deduction (Does this claim need justification?). The typing rule
-in the last row of table~\ref{corres} on page~\ref{corres} is
-sound.
+admissible with respect to the axioms and inference rules of ZFC
+(Does this claim need justification?). The typing rule in the
+last row of table~\ref{corres} on page~\ref{corres} is sound.
 
 Judgements are produced by \emph{derivations.} A derivation is a
 natural deduction proof: a finite tree built from instances of
@@ -432,9 +434,9 @@ without compromising type safety. The type checker may reject
 some terms by mistake and loop forever on others, but the terms
 it does accept are guaranteed to be type safe. Since the type
 system is extensible, writing code with an incomplete type
-checker will not create maintenance hell in the future. The user
-can start using a type system without waiting for its type
-checker to become complete and decidable.
+checker will not create maintenance hell in the future. The
+programmer can start using a type system without waiting for its
+type checker to become complete and decidable.
 
 
 
@@ -547,71 +549,72 @@ For every type environment $\Env$ and every $\env\in\Sem\Gamma~\Env$,
 
 \Par{Typing rules of Pluggable~F}~
 
-\infrule[T-0]
+\infrule[F-0]
 {\emptyset\vdash t:\sigma\andalso t,\sigma\text{ closed}}
 {t:\sigma}
 
-\infrule[T-Con]
-{v_c\in \Sem\sigma~\emptyset\andalso\sigma\text{ closed}}
+\infrule[F-Con]
+{v_c\in \Sem\sigma~\Env\andalso\sigma\text{ closed}}
 {\Gamma\vdash c:\sigma}
 
-\infrule[T-Var]
+\infrule[F-Var]
 {x:\sigma\in\Gamma}
 {\Gamma\vdash x:\sigma}
 
-\infrule[T-Abs]
+\infrule[F-Abs]
 {\Gamma,x:\sigma_1\vdash t:\sigma_2
 \andalso x\notin\Gamma}
 {\Gamma\vdash\Abs{x:\sigma}t : \sigma_1\R\sigma_2}
 
-\infrule[T-App]
+\infrule[F-App]
 {\Gamma\vdash t_1:\sigma_2\R\sigma_3
 \andalso\Gamma\vdash t_2:\sigma_2}
 {\Gamma\vdash t_1~t_2:\sigma_3}
 
-\infrule[T-Tabs]
+\infrule[F-Tabs]
 {\Gamma\vdash t:\sigma\andalso\alpha\notin\FTV(\Gamma)}
 {\Gamma\vdash\Tabs\alpha t:\All\alpha\sigma}
 
-\infrule[T-Tapp]
+\infrule[F-Tapp]
 {\Gamma\vdash t:\All\alpha\sigma_0}
 {\Gamma\vdash t~[\sigma_1]:\sigma_0[\alpha\mapsto\sigma_1]}
 
 
 \Par{Soundness of Pluggable~F}
+\label{sound-F}
 
 We outline the proof of each statement corresponding to a typing
 rule of Pluggable~F.
 
-\textsc{T-0}: Since $t$ and $\sigma$ are closed, they denote a
+\textsc{F-0}: Since $t$ and $\sigma$ are closed, they denote a
 value $v_t$ and a type $T_\sigma$ under whatever environments.
 The antecedent says $v_t\in T_\sigma$; the conclusion says the
 same thing.
 
-\textsc{T-Con}: Since $c$ and $\sigma$ are both closed, their
+\textsc{F-Con}: Since $c$ and $\sigma$ are both closed, their
 denotations do not depend on type or term environments. The
 conclusion is a consequence of the first side condition.
 
-\textsc{T-Var}: The
+\textsc{F-Var}: The
 side condition implies that no matter which term environment
 $\env$ compatible with $\Gamma$ is chosen, the value $\env(x)$
 must be a member of the type $\Sem\sigma~\Env$. The conclusion
 follows.
 
-\textsc{T-Abs}: Write $T_1=\Sem{\sigma_1}~\Env$ and
+\textsc{F-Abs}: Write $T_1=\Sem{\sigma_1}~\Env$ and
 $T_2=\Sem{\sigma_2}~\Env$. By the antecedent, $t$ denotes a value
 in $T_2$ under every environment $\env$ that is compatible with
 $\Gamma$ and maps $x$ to a member of $T_1$. It follows that the
 denotation of $\Abs xt$ under every environment compatible with
 $\Gamma$ is a function whose image of $T_1$ is a subset of $T_2$.
 
-\textsc{T-App}: The antecedents say that under every
+\textsc{F-App}: The antecedents say that under every
 compatible environment, $t_1$ denotes a function $f$ whose image
 of $\Sem{\sigma_2}~\Env$ is a subset of $\Sem{\sigma_3}~\Env$,
 and $t_2$ denotes a value $v\in\Sem{\sigma_2}~\Env$. As desired,
 $f(v)\in\Sem{\sigma_3}~\Env$.
 
-\textsc{T-Tabs}: Let $\env$ be an arbitrary term environment
+\textsc{F-Tabs}: Let $\env$ be an arbitrary term environment
 compatible with $\Gamma$ under $\Env$. Let $v=\Sem{t}~\env$.
 For every type $T\in\Type$, the antecedent guarantees that
 \[
@@ -623,7 +626,7 @@ v\in\bigcap_{T\in\Type}\Sem\sigma~(\Update\Env(\alpha\mapsto T))
 =\Sem{\All\alpha\sigma}~\Env.
 \]
 
-\textsc{T-Tapp}: Let $\env$ be a term environment compatible with
+\textsc{F-Tapp}: Let $\env$ be a term environment compatible with
 $\Gamma$ under $\Env$. Write
 \begin{align*}
 T_1&=\Sem{\sigma_1}~\Env,\\
@@ -821,6 +824,10 @@ $E$ is well-formed. Every $\Env$ compatible with $E$ satisfies $C$.
 t,\rho\text{ closed}}
 {t:\rho}
 
+\infrule[CT-Con]
+{v_c\in \Sem\rho~\Env\andalso\rho\text{ closed}}
+{\Gamma\vdash c:\rho \Given \emptyset}
+
 \infrule[CT-Var]
 {x:\sigma\in\Gamma}
 {\Gamma\vdash x:\sigma\Given\emptyset}
@@ -840,18 +847,24 @@ t,\rho\text{ closed}}
 }
 
 \infrule[CT-Tabs]
+{\Gamma\vdash t:\rho\Given C\andalso
+\alpha\notin\FTV(\Gamma)\cup\FTV(C)}
+{\Gamma\vdash\Tabs\alpha t:\All\alpha\rho\Given C}
+
+\infrule[CT-S]
 {
 \Gamma\vdash t:\rho\Given C
 \andalso
 \beta_1\in I_1,\ldots,\beta_n\in I_n\vdash C
 \andalso
-\alpha,\beta_1,\ldots,\beta_n\notin\FTV(\Gamma)
+\beta_1,\ldots,\beta_n\notin\FTV(\Gamma)
 }
-{\Gamma\vdash\Tabs\alpha t :
-\All\alpha\All{\beta_1\in I_1}\cdots\All{\beta_n\in I_n}\rho
+{\Gamma\vdash t :
+\All{\beta_1\in I_1}\cdots\All{\beta_n\in I_n}\rho
 \Given\emptyset}
 
 \Par{Soundness of constrained typing rules of CT1}
+\label{sound-CT}
 
 We outline the proof of each statement corresponding to a
 constrained typing rule of CT1.
@@ -861,8 +874,8 @@ value $v$ and a type $T$ under whatever environments. The
 antecedent states that $v\in T$ under a vacuously true condition,
 so we may conclude $v\in T$.
 
-\textsc{CT-Var}: The conclusion follows from the definition of
-$\Sem\Gamma~\Env$.
+\textsc{CT-Con} and \textsc{CT-Var}: Analogous to \textsc{F-Con}
+and \textsc{F-Var} discussed in \S\ref{sound-F}.
 
 \textsc{CT-Abs}: Let $\Env$ be a type environment satisfying $C$.
 If $\Env$ does not exist, then the conclusion is vacuously true.
@@ -903,8 +916,12 @@ v_2&\in T_2 \subseteq \Env(\alpha),
 \end{align*}
 which yield $v_1(v_2)\in\Env(\beta)$ as desired.
 
-\textsc{CT-Tabs}: The assumed S-judgement $\beta_1\in
-I_1,\ldots,\beta_n\in I_n\vdash C$ states two things: that
+\textsc{CT-Tabs}: Similar to \textsc{T-Tabs} discussed in
+\S\ref{sound-F}.
+
+\textsc{CT-S}: The assumed S-judgement $\beta_1\in
+I_1,\ldots,\beta_n\in I_n\vdash C$ states that the prefix of
+interval bounds
 \[
 E=\beta_1\in I_1,\ldots,\beta_n\in I_n
 \]
@@ -913,41 +930,41 @@ $E$ satisfies $C$. Consider an arbitrary type environment
 $\Env$. Let
 \begin{align}
 \notag
-T&=\Sem{\All\alpha\All{\beta_1\in I_1}\cdots\All{\beta_n\in I_n}\rho}~\Env\\
+T&=\Sem{\All{\beta_1\in I_1}\cdots\All{\beta_n\in I_n}\rho}~\Env\\
 &=
-\bigcap_{T_\alpha\in\Type\quad}
-\bigcap_{T_1\in\SemSlim{I_1}~(\Update\Env\alpha\mapsto T_\alpha)}
+\bigcap_{T_1\in\SemSlim{I_1}~\Env}
+\qquad
+\bigcap_{T_2\in\SemSlim{I_2}~(\Update\Env\beta_1\mapsto T_1)}
 \cdots
 \notag\\
 &\hspace{0.5cm}\cdots
 \bigcap_{T_n\in\SemSlim{I_n}~(\Update\Env
-\alpha\mapsto T_\alpha,\beta_1\mapsto T_1,\ldots,
+\beta_1\mapsto T_1,\ldots,
 \beta_{n-1}\mapsto T_{n-1}
 )}
 \label{nested-monstrosity}
 \\[1em]
 &\hspace{2cm}
 \Sem\rho~(\Update\Env
-\alpha\mapsto T_1,\beta_1\mapsto T_1,\ldots,\beta_n\mapsto T_n).
+\beta_1\mapsto T_1,\ldots,\beta_n\mapsto T_n).
 \notag
 \end{align}
 Note that in~\eqref{nested-monstrosity}, all index sets of the
 form
 \[
-\Sem{I_j}~(\Update\Env\alpha\mapsto T_\alpha,\beta_1\mapsto T_1,\ldots,
+\Sem{I_j}~(\Update\Env\beta_1\mapsto T_1,\ldots,
 \beta_{j-1}\mapsto T_{j-1})
 \]
 are nonempty due to well-formedness of $E$. Choose arbitrary
 $\env \in \Sem\Gamma~\Env$. We want to prove that $\Sem
 t~\env \in T$. Pick one particular instantiation of
-$T_\alpha,T_1,\ldots,T_n$ in equation~\eqref{nested-monstrosity}.
+$T_1,\ldots,T_n$ in equation~\eqref{nested-monstrosity}.
 Let
 \[
-\Env'=(\Update{\Env}\alpha\mapsto T_\alpha,\beta_1\mapsto T_1,
-\ldots,\beta_n\mapsto T_n).
+\Env'=(\Env\Updated\beta_1\mapsto T_1,\ldots,\beta_n\mapsto T_n).
 \]
 $\Env'$ is compatible with $E$ and satisfies $C$. Since
-$\alpha,\beta_1,\ldots,\beta_n\notin\FTV(\Gamma)$,
+$\beta_1,\ldots,\beta_n\notin\FTV(\Gamma)$,
 \[
 \Sem\Gamma~\Env'=\Sem\Gamma~\Env\ni\env.
 \]
@@ -1026,6 +1043,7 @@ E,\alpha\in[\rho,\tau]\vdash C,\rho\le\alpha,\alpha\le\tau
 
 
 \Par{Soundness of subtyping rules of CT1}~
+\label{sound-S}
 
 
 \textsc{S-Vacuous}: The empty prefix of interval bounds is
