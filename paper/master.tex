@@ -763,9 +763,8 @@ types. Typing contexts are identical to those in System~F.
 E & ::= & \emptyset & \mbox{prefix of interval bounds}\\
 &|&E,\alpha\in I\\
 \\\\
-C & ::= && \mbox{subtype constraints}\\
-&& \emptyset &\mbox{no constraint}\\
-&|& C,\rho\le\tau & \mbox{left type is subtype of right type}\\
+C & ::= &\emptyset& \mbox{S-constraints}\\
+&|& C,\rho\le\tau\\
 \\\\
 \JCT & ::= & \Gamma\vdash t:\rho\Given C
 &\mbox{CT-judgement}\\
@@ -798,6 +797,7 @@ prefix of interval bounds. A type environment $\Env$ is
 (See \S\ref{interp-ct-types} for the meaning $\Sem{I_j}~\Env$.
 Note that $\Env$ appears on both sides of the membership relation.)
 
+\begin{samepage}
 Define \emph{well-formed prefixes} recursively thus:
 \begin{itemize}
 \item $\emptyset$ is well-formed.
@@ -805,6 +805,7 @@ Define \emph{well-formed prefixes} recursively thus:
 and $\Sem I~\Env\neq\emptyset$ for every $\Env$ compatible with
 $E$, then $(E,\alpha\in I)$ is well-formed.
 \end{itemize}
+\end{samepage}
 
 
 \begin{samepage}
@@ -815,7 +816,7 @@ $E$ is well-formed. Every $\Env$ compatible with $E$ satisfies $C$.
 \end{samepage}
 
 
-\Par{Constrained typing rules of CT1}~
+\Par{CT-rules of CT1}~
 
 % handle top-level sigs by type ascription in next section
 % no need for sub0 here
@@ -863,7 +864,7 @@ t,\rho\text{ closed}}
 \All{\beta_1\in I_1}\cdots\All{\beta_n\in I_n}\rho
 \Given\emptyset}
 
-\Par{Soundness of constrained typing rules of CT1}
+\Par{Soundness of CT-rules}
 \label{sound-CT}
 
 We outline the proof of each statement corresponding to a
@@ -975,7 +976,7 @@ By the antecedent $(\Gamma\vdash t:\rho\Given C)$,
 Since $T_\alpha,T_1,\ldots,T_n$ are arbitrary, $\Sem t~\env\in T$.
 
 
-\Par{Subtyping rules of CT1}~
+\Par{S-rules of CT1}~
 
 \infrule[S-Vacuous]
 {}
@@ -1042,7 +1043,7 @@ E,\alpha\in[\rho,\tau]\vdash C,\rho\le\alpha,\alpha\le\tau
 }
 
 
-\Par{Soundness of subtyping rules of CT1}~
+\Par{Soundness of S-rules}~
 \label{sound-S}
 
 
@@ -1142,26 +1143,34 @@ Hence the conclusion.
 
 \section{Mixing F and CT1 for optional type arguments}
 
-We can start using F and CT1 together simply by mixing their
-typing rules. However, F consumes produces F-judgements, while
-CT1 consumes and produces S- and CT-judgements. To use rules from
-both systems in the typing derivation of a single term, we need
-to make F- and CT-judgements talk to each other by establishing
-some entailment relations.
+CT1 is friendlier than F for programming with impredicative
+polymorphism, because the user does not have to provide type
+arguments. However, we do not know whether CT1 subsumes F,
+whether all terms well-typed in F remain well-typed in CT1 if we
+leave out type applications. This lack of knowledge discourages a
+commitment to CT1, but it does not prevent us from enjoying its
+benefit. By mixing F and CT1 together, user program fragments
+will not be problematic if they can be typed in F and not in CT1.
+
+F consumes and produces F-judgements, while CT1 consumes and
+produces S- and CT-judgements. To have rules from both systems in
+the typing derivation of a single term, we need to make F- and
+CT-judgements talk to each other by establishing some entailment
+relations.
 
 Going from F-judgements to CT-judgements is easy, because the
-former are a stronger statements than the latter.
+former are stronger than the latter.
 
 \infrule[CT-F]
 {\Gamma\vdash t : \sigma}
 {\Gamma\vdash t : \sigma\Given\emptyset}
 
 It is trickier to go from CT-judgements to F-judgements. Not only
-do we have to resolve accumulated constraints by e.~g.\
-\textsc{CT-S}, we must also eliminate the union, intersection and
-interval-bounded universal type expression constructors from the
-type of a term, so that F-rules can handle it comfortably.
-Ascription suffices.
+do we have to resolve accumulated constraints (via \text{CT-S}
+for example), we must also eliminate union, intersection and
+interval-bounded universal type expressions from the type of a
+term, so that F-rules can deal with it in comfort. Ascription
+suffices.
 
 \begin{samepage}
 \begin{syntax}
@@ -1175,13 +1184,9 @@ t &\+=& t : \sigma &\mbox{ascription}
 
 \infrule[F-Ascr]
 {
-\begin{array}[b]{r@{\;}l}
-\Gamma&\vdash t:\rho\Given C
-\\
-\beta_1\in I_1,\ldots,\beta_n\in I_n&\vdash C,\rho\le\sigma
-\end{array}
+\Gamma\vdash t:\rho\Given\emptyset
 \andalso
-\beta_1,\ldots,\beta_n\notin\FTV(\Gamma)\cup\FTV(\sigma)
+\emptyset\vdash\rho\le\sigma
 }
 {\Gamma\vdash (t : \sigma) : \sigma}
 
