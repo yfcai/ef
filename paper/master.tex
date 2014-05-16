@@ -267,28 +267,279 @@ and typing derivations become proofs. Typing terms with a mixture
 of type systems is no more than writing proofs with a larger
 collection of lemmas.
 
-The next section discusses domains and the MacQueen-Plotkin-Sethi
-model of types.
+The next section discusses domains and the ideal model of types
+by MacQueen et al. (Ideal model for recursive polymorphic types).
+
+The section after that expounds the category of types as a theory
+of datatype generic programming.
 
 The section after that describes how to make type systems
 pluggable.
 
 The other sections give examples of pluggable type systems. We
 will look at System~F, unboxed impredicative polymorphism,
-optional type arguments, and subtyping. It is interesting to
+optional type arguments, and subtyping. It will be interesting to
 explore continuations, mutation, dependent types and higher
 kinds.
 
 
-\section{MacQueen-Plotkin-Sethi model of types}
+\section{Ideal model of types}
+
+This section recounts the ideal model of types by MacQueen et
+al.\ (Ideal model for recursive polymorphic types) with modern
+notions. After an informal overview with the most important
+concepts to keep in mind, we will work toward a proof that
+recursive types are well-defined.
+
+\Par{Informal overview}
+
+The domain $V$ contains values denoted by terms of untyped lambda
+calculus. It satisfies the isomorphism
+\begin{align}
+\label{domain-eq}
+V&\simeq (V\R V)+B+\{\bot,\Wrong\},
+\end{align}
+where $+$ is disjoint union, $(V\R V)$ is the set of
+``continuous'' functions from $V$ to $V$, $B$ is the set of base
+values (usually numbers, truth values and strings), $\bot$ is the
+value of nonterminating programs, and $\Wrong$ signifies runtime
+type errors. Let us assume implicit conversion between $V$ and
+$B$, $(V\R V)$ etc., so that we may treat base values, functions,
+$\bot$ and $\Wrong$ as if they were actual values in $V$ and save
+space.
+
+Types are sets of values under certain closure conditions. The
+operator $\RT$ constructs a type from two types.
+\begin{align*}
+\Type &= \text{set of subsets of $V$ that are types}\\
+T_1\RT T_2 &= \{f\in V
+\Or
+f=\bot\quad\text{or}\quad
+f\in V\R V\text{ and }f(T_1)\subseteq T_2
+\}
+\end{align*}
+
+Let us state the definition of types for future reference. A
+subset $T\subseteq V$ is a type if it is a nonempty closed set
+under the Scott toplogy and $\Wrong\notin T$.
+
+\Par{Domain-theoretic background}
+\label{domain-theory}
+
+Here we list facts from domain theory. Some results will depend
+on the particular construction of $V$ as a \emph{consistently
+complete algebraic cpo}, but we will not go into details.
+Chapters 2--4 of Stoltenberg-Hansen et al.\ (Mathematical Theory
+of Domains) contain a careful development.
+
+There is a \emph{definedness} partial order $\Sub$ on $V$ such
+that
+\begin{itemize}
+\item $\bot\Sub v$ for all $v\in V$,
+\item two distinct base values in $B$ are incomparable by $\Sub$,
+\item if $f,g\in V\R V$, then $f\Sub g$ if and only if $f(v)\Sub
+g(v)$ for all $v\in V$.
+\end{itemize}
+
+A set $A\subseteq S$ is \emph{directed} if $A$ is nonempty and
+for all $x,y\in A$ there exists $z\in A$ such that $x\Sub z$ and
+$y\Sub z$. Intuitively, a set is directed if it contains no
+conflicting values; in other words, a directed set contains less
+defined (or, less terminating) versions of the same value.
+
+A partially ordered set is a \emph{cpo} (complete partial order)
+if its every directed subset has a supremum. $V$ is a cpo.
+
+\begin{samepage}
+There is a topology on $V$ called the \emph{Scott topology}.
+A set $S\subseteq V$ is \emph{open} in the Scott topology if
+\begin{itemize}
+\item $S$ is \emph{upward-closed}: $v\in S$ whenever $u\Sub v$
+for some $u\in S$, and
+\item $S$ is \emph{unreachable by directed limit}: $\sup A\notin
+S$ for every directed set $A$ disjoint from $S$.
+\end{itemize}
+\end{samepage}
+
+\begin{samepage}
+A set $T\subseteq V$ is \emph{closed} if its complement $V-T$ is
+open. $T$ is closed if and only if
+\begin{itemize}
+\item $T$ is \emph{downward-closed}: $u\in T$ whenever $u\Sub v$
+for some $v\in T$, and
+\item $T$ is \emph{closed under directed limit}: $\sup A\in T$
+for every directed set $A\subseteq T$.
+\end{itemize}
+\end{samepage}
+
+A subset $T\subseteq V$ is a \emph{type} if $T$ is a nonempty
+closed set and $\Wrong\notin T$. Both downward-closure and
+closure under directed limit are necessary to establish
+well-definedness of recursive types. Moreover, closure under
+directed limit is a natural strengthening of the
+\emph{admissibility} criterion for contracts in HALO (Haskell to
+logic through denotational semantics); in fact, all contracts
+described in HALO can be strengthened to types by adding a
+downward-closure condition without disturbing their theoretic
+development.
+
+Scott topology satisfies the 3 axioms of topology:
+\begin{enumerate}
+\item $\emptyset$ and $V$ are open,
+\item the union of an arbitrary family of open sets are open,
+\item the intersection of finitely many open sets is open.
+\end{enumerate}
+
+Conversely,
+\begin{itemize}
+\item the intersection of an arbitrary family of types is a type,
+\item the union of finitely many types is a type.
+\end{itemize}
+
+A function $f$ from $V$ to $V$ is \emph{continuous} if for every
+open set $S\subseteq V$, the preimage $f^{-1}(S)$ is an open set.
+The function $f$ is continuous if and only if
+\begin{itemize}
+\item $f$ is \emph{monotone}: $f(u)\Sub f(v)$ whenever $u\Sub v$,
+and
+\item $f$ \emph{preserves directed limits}: $\sup f(A) = f(\sup
+A)$ for every directed $A\subseteq V$.
+\end{itemize}
+Write $V\R V$ for the set of continuous functions from $V$ to
+$V$. The domain equation~\eqref{domain-eq} states that a subset
+of $V$ is isomorphic to the set of continuous functions on $V$.
+
+A value $v\in V$ is \emph{compact} if for all directed set $A$
+with $v\Sub\sup A$, there exists $a\in A$ such that $v\Sub a$. A
+compact element of $V$ is either $\bot$, $\Wrong$, a base value,
+or a function $f$ such that there exists compact values
+$u_1,v_1,\ldots,u_n,v_n$ and $f$ is the least function mapping
+each $u_i$ to $v_i$. Informally, all information about a compact
+function lies within a finite number of argument-result pairs.
+This characterization of compact elements is a corollary of
+theorem~3.8 in chapter~3 on page~67 of Stoltenberg-Hansen et al.\
+(Mathematical Theory of Domains).
+
+A cpo is \emph{algebraic} if every element is the supremum of a
+directed set of compact elements. $V$ is an algebraic cpo. In
+particular, the behavior of every function in $V\R V$ is
+determined by its value on compact elements. It agrees with the
+intuition that a terminating higher-order function $f$ can only
+call its argument $g$ a finite number of times before returning a
+result. Even if $g$ is more complex than a finite number of
+argument-result pairs, the result $f(g)$ does not reflect it.
+
+Since $V$ is algebraic, every closed set is completely determined
+by its compact elements. In particular, if $T_1$ and $T_2$ are
+distinct types, then there exists a compact element that belongs
+to one and not the other. This fact will be significant in the
+construction of recursive types.
+
+A cpo is \emph{consistently complete} if every pair of elements
+have a least upper bound whenever they have an upper bound. $V$
+is consistently complete. We will not use consistent
+completeness, although it is important in establishing the domain
+equation~\eqref{domain-eq}.
+
+These are all the concepts necessary to comprehend the statement
+``$V$ is a consistently complete algebraic cpo.''
+
+
+\Par{Rank of compact elements}
+
+MacQueen et al.\ (Ideal model for recursive polymorphic types)
+proposed the notion of \emph{rank} of compact elements so as to
+define the distance between types and discuss the convergence of
+sequences of types. They presented the domain $V$ as some limit
+of $V_0,V_1,\ldots$, where
+\begin{align*}
+V_0 &= \{\bot\},\\
+V_1 &= (V_0\R V_0)+B+\{\bot,\Wrong\},\\
+&\vdots\\
+V_n &= (V_{n-1} \R V_{n-1}) + B + \{\bot,\Wrong\},\\
+&\vdots
+\end{align*}
+and defined the rank of a compact element $v$ as the number $i$
+such that $v$ ``appears'' in $V_i$ for the first time. It is
+possible to formalize this intuition in terms of commuting
+embedding-projection pairs between $V$ and each $V_i$ akin to
+those described in \S12.3 on page~319 of Stoltenberg-Hansen et
+al.\ (Mathematical theory of domains). We will not discuss the
+formalities, only list the relevant properties of the rank
+function.
+\begin{itemize}\itemsep=1ex
+\item[R1.] $\bot$ has rank 0.
+
+\item[R2.] Base values in $B$ have rank 1.
+
+\item[R3.] If a function $f\in V\R V$ has rank $n$, then there
+exists a set $S$ of pairs of values of rank at most $n-1$ such
+that $f$ is the least function satisfying $f(x)=y$ for all
+$(x,y)\in S$.
+
+\item[R4.] If $f\in V \R V$ does not have rank $n$ for all
+$n\in\mathbb N$, then the rank of $f$ is $\infty$.
+
+\item[R5.] For every value $v\in V$, there exists a value $v_n$
+of rank~$n$, called the rank-$n$ projection of $v$, such that $u
+\Sub v$ if and only if $u\Sub v_n$ for all elements $u$ of
+rank~$n$.
+
+\item[R6.] Every compact element has finite rank.
+\end{itemize}
+Properties R1--4 can be regarded as a practical definition of
+rank. R5 is a property of the embedding-projection pair between
+$V_n$ and $V$. R6 is a consequence of theorems 6.5~and 6.7 in
+chapter~4 on page~107 of Stoltenberg-Hansen et al.\ (Mathematical
+Theory of Domains).
+
+
+\Par{Metric space of types}
+
+Recall from \S\ref{domain-theory} that types are nonempty closed
+sets excluding $\Wrong$. Following MacQueen et al.\ (Ideal model
+for recursive polymorphic types), we will define a distance
+function between types so that they form a metric space.
+
+Let $T_1,T_2$ be types. If $T_1=T_2$, then their \emph{proximity}
+is $\infty$. If $T_1\neq T_2$, then their proximity is the
+smallest rank among elements in the symmetric difference
+\[
+T_1 \operatorname\triangle T_2 = (T_1 - T_2)\cup (T_2 - T_1).
+\]
+The proximity of two types signifies how hard it is to tell them
+apart. No two types have proximity~0, because $\bot$ is a member
+of all types. It is easiest to tell types of proximity~1 apart,
+because they are separated by a visible base value. If a
+function~$f$ separates two types, then we will have a hard time
+verifying it if we have to call $f$ on many complicated arguments
+before arriving at some visible evidence.
+
+The distance $d(T_1, T_2)$ between types $T_1, T_2$ is inverse
+exponential in the types' proximity.
+\begin{align}
+\label{distance}
+d(T_1,T_2)
+&=\frac{1}{2^{\mathrm{proximity}(T_1,T_2)}}
+\end{align}
+The distance function $d$ satisfies the conditions required of
+one in a metric space:
+\begin{enumerate}\itemsep=1ex
+\item [M1.] $d(T_1,T_2)\ge0$.
+\item [M2.] $d(T_1,T_2)=0$ if and only if $T_1=T_2$.
+\item [M3.] $d(T_1,T_2)=d(T_2,T_1)$.
+\item [M4.] $d(T_1,T_3)\le d(T_1,T_2)+d(T_2,T_3)$.
+\end{enumerate}
+M1 is obvious. M2 is because all pairs of distinct types are
+separated by a compact element, which has finite rank. M3 follows
+from symmetry of symmetric difference. To see M4, let $v$ be the
+least-ranked element separating $T_1$ and $T_3$. Assume without
+loss of generality that $v\in T_3-T_1$. If $v\in T_2$, then
+$d(T_1,T_3)\le d(T_1, T_2)$. If $v\notin T_2$, then $d(T_1,
+T_3)\le d(T_2, T_3)$.
 
 Outline
 \begin{enumerate}
-\item domain equation
-\item reflexive transitive antisymmetric ordering $\Sub$
-\item topology, continuous functions, compact elements
-\item rank of elements; every compact element has a finite rank
-\item types
 \item proximity between types
 \item contractive, nonexpansive
 \item type constructors: finite union, arbitrary intersection,
