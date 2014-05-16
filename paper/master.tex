@@ -1142,6 +1142,57 @@ Hence the conclusion.
 
 \section{Mixing F and CT1 for optional type arguments}
 
+We can start using F and CT1 together simply by mixing their
+typing rules. However, F consumes produces F-judgements, while
+CT1 consumes and produces S- and CT-judgements. To use rules from
+both systems in the typing derivation of a single term, we need
+to make F- and CT-judgements talk to each other by establishing
+some entailment relations.
+
+Going from F-judgements to CT-judgements is easy, because the
+former are a stronger statements than the latter.
+
+\infrule[CT-F]
+{\Gamma\vdash t : \sigma}
+{\Gamma\vdash t : \sigma\Given\emptyset}
+
+It is trickier to go from CT-judgements to F-judgements. Not only
+do we have to resolve accumulated constraints by e.~g.\
+\textsc{CT-S}, we must also eliminate the union, intersection and
+interval-bounded universal type expression constructors from the
+type of a term, so that F-rules can handle it comfortably.
+Ascription suffices.
+
+\begin{samepage}
+\begin{syntax}
+t &\+=& t : \sigma &\mbox{ascription}
+\end{syntax}%
+
+\[
+\Erase(t:\sigma)=t
+\]
+\end{samepage}
+
+\infrule[F-Ascr]
+{
+\begin{array}[b]{r@{\;}l}
+\Gamma&\vdash t:\rho\Given C
+\\
+\beta_1\in I_1,\ldots,\beta_n\in I_n&\vdash C,\rho\le\sigma
+\end{array}
+\andalso
+\beta_1,\ldots,\beta_n\notin\FTV(\Gamma)\cup\FTV(\sigma)
+}
+{\Gamma\vdash (t : \sigma) : \sigma}
+
+The soundness of these rules is obvious after \S\ref{sound-F},
+\ref{sound-CT} and \ref{sound-S}.
+
+
+\section{Subtyping}
+
+Records, variants, subtyping. Subsumption and supertype-bounded
+quantification in F and CT1.
 
 
 \section{Parametric types}
