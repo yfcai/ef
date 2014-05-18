@@ -22,9 +22,12 @@
 \nc\B         {\mathbb}
 \nc\Bool      {\mathrm{Bool}}
 \nc\Bot       {\texttt{Bot}}
+\nc\BoxIt[1]  {\framebox[1em]{\raisebox{0pt}[1.05ex][0ex]{$#1$}}}
 \nc\Brouwer   {\operatorname{Brouwer}}
 \nc\Case      {\medbreak\noindent\textbf{Case}~}
+\nc\Cap       {\MakeL\cap}
 \nc\Cps       {\operatorname{cps}}
+\nc\Cup       {\MakeL\cup}
 \nc\Dn[1]     {(#1 \R \bot) \R \bot}
 \nc\Dni       {\mathrm{\neg\neg I}}
 \nc\Dom       {\mathrm{dom}}
@@ -53,7 +56,8 @@
 \nc\JS        {J_{\rm S}}
 \nc\LHS       {\operatorname{LHS}}
 \nc\Mgsr      {\operatorname{mgsr}}
-\nc\MakeT[1]  {\ \framebox[1em]{\raisebox{0pt}[1.05ex][0ex]{$#1$}}\ }
+\nc\MakeT[1]  {\ \BoxIt{#1}\ }
+\nc\MakeL[1]  {\ \mathrm{:\hspace{-2pt}#1\hspace{-2pt}:}\ }
 \nc\Or        {\ | \ }
 \nc\Pack      {\mathrm{pack}}
 \nc\Par       {\subsection}
@@ -74,6 +78,7 @@
 \nc\True      {\mathrm{true}}
 \nc\Type      {\mathbf{Type}}
 \nc\R         {\rightarrow}
+\nc\RL        {\MakeL{\BoxIt\R}}
 \nc\RT        {\MakeT\R}
 %\nc\Red       {\xymatrix{{}\ar@{~>}[r]&{}}}
 \nc\Red       {\rightsquigarrow}

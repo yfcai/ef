@@ -655,7 +655,78 @@ will show record, variant and function type constructions to be
 contractive, substantiating the claim that recursive algebraic
 data types are well-defined.
 
-\Par{Composition of binary type operators}
+\Par{KISP: composing binary type operators}
+\label{kisp}
+
+We want to show record, variant and function type constructions
+to be contractive even when nested to arbitrary depth. The KISP
+framework in Yakushev et al.\ (Generic programming with fixed
+points for mutually recursive datatypes) provides a good
+structure to the argument. KISP stands for the type-level
+combinators $K$, $I$, sum and product, which are sufficient to
+express all strictly positive algebraic data types. Instead of
+sum and product, we will use combinators lifted from $\RT$, union
+and intersection, so as to support recursion in contravariant
+positions as well.
+
+Suppose we want to establish that a unique type $T_*$
+satisfies
+\[
+T_*=(T_*\RT \mathbb Z_\bot)\RT \mathbb Z_\bot.
+\]
+For that, we need to demonstrate contraction of the type-level
+function $F$ mapping each $T$ to $(T \RT \mathbb Z_\bot)\RT
+\mathbb Z_\bot$. The poof is easier if we express $F$ in
+point-free style:
+\begin{align*}
+F &= (I \RL K(\mathbb Z_\bot)) \RL K(\mathbb Z_\bot)
+\end{align*}
+where
+\begin{align*}
+I(T) &= T \\
+K(T_1)(T_2) &= T_1 \\
+(F_1 \RL F_2)(T) &= F_1(T) \RT F_2(T)\\
+(F_1 \Cup F_2)(T) &= F_1(T) \cup F_2(T)\\
+(F_1 \Cap F_2)(T) &= F_1(T) \cap F_2(T)
+\end{align*}
+The lifted union and intersection will be relevant later for
+records and variants. We can show contraction of $F$---or of many
+type functions built with the five combinators above---with the
+following lemma.
+
+\begin{lemma}
+\label{kisp}
+~
+\begin{itemize}
+\item [L1.] $K(T)$ is contractive for all $T$.
+\item [L2.] $I$ is nonexpansive.
+\item [L3.] If $F$ and $G$ are nonexpansive, then $F\RL G$ is
+contractive.
+\item [L4.] If $F$ and $G$ are nonexpansive, then $F\Cup G$ and
+$F\Cap G$ are nonexpansive. If $G$ and $G$ are contractive, then
+$F\Cup G$ and $F\Cap G$ are contractive.
+\end{itemize}
+\end{lemma}
+
+$K(T)$ is contractive because it takes all distances between
+types to 0. $I$ is nonexpansive because it preserves distance.
+For L3 and L4, imagine $H$ to be a~binary type operator like
+$\RT$, $\cup$ or $\cap$. If $H$ is nonexpansive in both
+arguments, then the type combinator lifted from $H$ preserves
+nonexpansion and contraction. Such is the case in L4. If $H$ is
+contractive in both arguments, then the type combinator lifted
+from $H$ takes nonexpansive type functions to a contractive one.
+Such is the case in L3. We will prove neither the 2 preceding
+sentences nor nonexpansion of union and intersection, because I
+do not think they are hard and do not know how to present them in
+an interesting way. Contraction of $\RT$ is more complicated and
+will be discussed in the next section.
+
+
+\Par{Nonexpansion of function type construction}
+
+% TODO: start here.
+
 
 \Par{Beyond algebraic data types}
 
