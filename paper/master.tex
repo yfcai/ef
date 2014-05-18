@@ -676,8 +676,7 @@ T_*=(T_*\RT \mathbb Z_\bot)\RT \mathbb Z_\bot.
 \]
 For that, we need to demonstrate contraction of the type-level
 function $F$ mapping each $T$ to $(T \RT \mathbb Z_\bot)\RT
-\mathbb Z_\bot$. The poof is easier if we express $F$ in
-point-free style:
+\mathbb Z_\bot$. Let us express $F$ in point-free style:
 \begin{align*}
 F &= (I \RL K(\mathbb Z_\bot)) \RL K(\mathbb Z_\bot)
 \end{align*}
@@ -690,9 +689,9 @@ K(T_1)(T_2) &= T_1 \\
 (F_1 \Cap F_2)(T) &= F_1(T) \cap F_2(T)
 \end{align*}
 The lifted union and intersection will be relevant later for
-records and variants. We can show contraction of $F$---or of many
-type functions built with the five combinators above---with the
-following lemma.
+records and variants. We can show contraction of $F$---or of
+other type functions built with the five combinators above---with
+the following lemma.
 
 \begin{lemma}
 \label{kisp}
@@ -715,9 +714,9 @@ $\RT$, $\cup$ or $\cap$. If $H$ is nonexpansive in both
 arguments, then the type combinator lifted from $H$ preserves
 nonexpansion and contraction. Such is the case in L4. If $H$ is
 contractive in both arguments, then the type combinator lifted
-from $H$ takes nonexpansive type functions to a contractive one.
-Such is the case in L3. We will prove neither the 2 preceding
-sentences nor nonexpansion of union and intersection, because I
+from $H$ takes two nonexpansive type functions to a contractive
+one. Such is the case in L3. We will prove neither the preceding
+remarks nor the nonexpansion of union and intersection, because I
 do not think they are hard and do not know how to present them in
 an interesting way. Contraction of $\RT$ is more complicated and
 will be discussed in the next section.
