@@ -269,7 +269,7 @@ The next section discusses domains and the ideal model of types
 by MacQueen et al. (Ideal model for recursive polymorphic types).
 
 The section after that expounds the category of types as a theory
-of datatype generic programming.
+of data type generic programming.
 
 The section after that describes how to make type systems
 pluggable.
@@ -697,7 +697,7 @@ data types are well-defined.
 We want to show record, variant and function type constructions
 to be contractive even when nested to arbitrary depth. The KISP
 framework in Yakushev et al.\ (Generic programming with fixed
-points for mutually recursive datatypes) provides a good
+points for mutually recursive data types) provides a good
 structure to the argument. KISP stands for the type-level
 combinators $K$, $I$, sum and product, which are sufficient to
 express all strictly positive algebraic data types. Instead of
@@ -859,33 +859,57 @@ in Haskell, we need only add the name of the data type as a field
 to every constructor.
 
 
-% TODO: start here.
-
-
 \Par{Beyond algebraic data types}
 
-Arbitrary intersection (universals, which we will encounter).
-Arbitrary union (for dependent types and existential types).
+We have shown that the recursive type $\mu\alpha.~\sigma$ is
+well-defined if $\sigma$ is built from record, variant and
+function type constructions. In a language with universal types
+such as System~F, it is desirable if we do not exclude universal
+types from the body of a recursive type. We may see types like
+\begin{align*}
+&\mu\alpha.~\alpha\R(\All\beta\beta\R\alpha)
+&\mbox{or}&
+&\All\alpha\alpha\R(\mu\beta.~\beta\R\alpha).
+\end{align*}
+Proving them well-defined involves reasoning about more than one
+bound type variable at a time, which requires a more powerful
+framework than KISP.
 
-% How to describe composition of binary operators to produce
-% contractive mappings?
-%
-% With a lemma. If a binary operator is contractive and
-% components are nonexpansive, then result is contractive.
-% If a nonexpansive
+Write
+\[
+T_1 \Times T_2 = \{\texttt{fst} : T_1, \texttt{snd} : T_2\}.
+\]
+To encode dependent vectors of real numbers, we might attempt to
+take the infinite union
+\[
+\def\Unit{\mathit{Unit}}
+\def\Real{\mathbb R_\bot}
+(0\Times\Unit)\cup(1\Times\Real)\cup
+(2\Times\Real\Times\Real)\cup(3\Times\Real\Times\Real\Times\Real)\cup\cdots.
+\]
+Although the arbitrary union of types is not always a type, there
+exists a smallest type containing the sets
+$(0\Times\mathit{Unit})$, $(1\Times\mathbb R_\bot)$ etc.\ that we
+can take as the type of dependent vectors. This is a consequence
+of example~1.4(ii) in chapter~5 on page~117 of Stoltenberg-Hansen
+et al.\ (Mathematical Theory of Domains).
 
 
+\Par{The importance of being pluggable}
 
-Outline
-\begin{enumerate}
-\item contractive, nonexpansive
-\item type constructors: finite union, arbitrary intersection,
-recursive
-\item why pluggable: MPS says typing's undecidable with any
-recursively enumerable set of axioms, so we can only build
-conservative approximations. There mayn't be a best
-approximation, so it'd be good to mix things up.
-\end{enumerate}
+We have seen that the ideal model can express function types,
+records, variants, recursive types and dependent types. With such
+power, why do we need pluggable types at all? Why not a
+monolithic type system to mirror the ideal model exactly?
+MacQueen et al.\ (Ideal model for recursive polymorphic types)
+states that it is undecidable to check whether an untyped lambda
+term denotes a member of any given type. While I lack the
+expertise to verify it, it seems reasonable to assume that the
+undecidability result would survive the port of the ideal model
+to consistently complete algebraic cpos. If this is the case,
+then we may never enjoy a complete type checker for the ideal
+model, but only use fragments appropriate to the situation at
+hand.
 
 
 \section{Hask-like category of types}
