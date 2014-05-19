@@ -334,10 +334,10 @@ of Domains) contain a careful development.
 There is a \emph{definedness} partial order $\Sub$ on $V$ such
 that
 \begin{itemize}
-\item $\bot\Sub v$ for all $v\in V$,
-\item a base value in $B$ is only comparable with $\bot$ and
+\item [D1.] $\bot\Sub v$ for all $v\in V$,
+\item [D2.] a base value in $B$ is only comparable with $\bot$ and
 itself,
-\item if $f,g\in V\R V$, then $f\Sub g$ if and only if $f(v)\Sub
+\item [D3.] if $f,g\in V\R V$, then $f\Sub g$ if and only if $f(v)\Sub
 g(v)$ for all $v\in V$.
 \end{itemize}
 
@@ -434,11 +434,12 @@ theorem~3.8 in chapter~3 on page~67 of Stoltenberg-Hansen et al.\
 A cpo is \emph{algebraic} if every element is the supremum of a
 directed set of compact elements. $V$ is an algebraic cpo. In
 particular, the behavior of every function in $V\R V$ is
-determined by its value on compact elements. It agrees with the
+determined by its value on compact elements. This agrees with the
 intuition that a terminating higher-order function $f$ can only
 call its argument~$g$ finitely many times. Even if $g$ is more
-complex than a finite number of argument-result pairs, the result
-$f(g)$ cannot reflect that extra complexity.
+complex than finite collections of argument-result pairs, $f$
+cannot detect that extra complexity and cannot reflect it in the
+result $f(g)$.
 
 Since $V$ is algebraic, every closed set is completely determined
 by its compact elements. In particular, if $T_1$ and $T_2$ are
@@ -478,12 +479,12 @@ rank function.
 \begin{itemize}\itemsep=1ex
 \item[R1.] $\bot$ has rank 0.
 
-\item[R2.] Base values in $B$ have rank 1.
+\item[R2.] Base values in $B$ and $\Wrong$ have rank 1.
 
-\item[R3.] If a function $f\in V\R V$ has rank $n$, then there
-exists a set $S$ of pairs of values of rank at most $n-1$ such
-that $f$ is the least function satisfying $f(x)=y$ for all
-$(x,y)\in S$.
+\item[R3.] A function $f\in V\R V$ has rank at most $n$ if and
+only if there exists a set $S$ of pairs of values of rank at most
+$n-1$ such that $f$ is the least function satisfying $f(x)=y$ for
+all $(x,y)\in S$.
 
 \item[R4.] If $f\in V \R V$ does not have rank $n$ for every
 $n\in\mathbb N$, then $f$ has rank $\infty$.
@@ -494,6 +495,39 @@ Properties R1--4 can be regarded as a practical definition of
 rank. R5 is a consequence of theorems 6.5~and 6.7 in chapter~4 on
 page~107 of Stoltenberg-Hansen et al.\ (Mathematical Theory of
 Domains).
+
+The next lemma exercises the properties of rank and will be used
+in \S\ref{contract-fun}.
+
+\begin{lemma}
+\label{sup-rank}
+Let $S\subseteq V$ be a set of rank-$n$ elements. If\/ $S$ has an
+upper bound in $V$, then $\sup S$ exists and has rank at most $n$.
+\end{lemma}
+
+\begin{proof}
+Since $S$ has an upper bound in $V$, either $S$ is disjoint from
+$V\R V$ or is a subset of it.
+
+\emph{Case} $S\cap(V\R V)=\emptyset$. If $S$ has no rank-1
+element, then $S=\{\bot\}$ and $\sup S=\bot$. If $S$ has a rank-1
+element $v$, then $v$ is maximal in $V$ and has to be an upper
+bound of $S$. Thus $v=\sup S$.
+
+\emph{Case} $S\subseteq V\R V$. Let $g\in V$ be an upper bound of
+$S$. By R3, for each $v\in S$ there exists a set $P_v$ of
+argument-result pairs of rank at most $n-1$ such that $v$ is the
+least function agreeing with $P_v$. Let
+\begin{align*}
+P &= \bigcup_{v\in S} P_v,\\
+f(x) &= \sup\ \{y' \Or (x',y')\in P\text{ and } x'\Sub x \}.
+\end{align*}
+Since $g$ is an upper bound of $S$, each set $\{y' \Or (x',y')\in
+P\text{ and } x'\Sub x \}$ is bounded above by $g(x)$ and has a
+supremum in $V$ by consistent completeness. Thus $f$ is
+well-defined. By property~D3 of the definedness partial order,
+$f$ is the least upper bound of $S$. By R4, $f$ has rank $\le n$.
+\end{proof}
 
 
 \Par{Metric space of types}
@@ -540,6 +574,7 @@ $T_3$. Assume without loss of generality that $v\in T_3-T_1$. If
 $v\in T_2$, then $d(T_1,T_3)\le d(T_1, T_2)$. If $v\notin T_2$,
 then $d(T_1, T_3)\le d(T_2, T_3)$.
 
+\penalty-1000 % really like to page break before a paragraph
 \Par{Converging sequences of sets}
 
 Recall the standard definition of convergence:
@@ -561,6 +596,7 @@ is
 \[
 S = \limsup_{n\rightarrow\infty}S_n = \liminf_{n\rightarrow\infty}S_n.
 \]
+
 
 \Par{Cauchy sequences}
 
@@ -693,6 +729,7 @@ records and variants. We can show contraction of $F$---or of
 other type functions built with the five combinators above---with
 the following lemma.
 
+\begin{samepage}
 \begin{lemma}
 \label{kisp}
 ~
@@ -706,6 +743,7 @@ $F\Cap G$ are nonexpansive. If $G$ and $G$ are contractive, then
 $F\Cup G$ and $F\Cap G$ are contractive.
 \end{itemize}
 \end{lemma}
+\end{samepage}
 
 $K(T)$ is contractive because it takes all distances between
 types to 0. $I$ is nonexpansive because it preserves distance.
@@ -719,10 +757,107 @@ one. Such is the case in L3. We will prove neither the preceding
 remarks nor the nonexpansion of union and intersection, because I
 do not think they are hard and do not know how to present them in
 an interesting way. Contraction of $\RT$ is more complicated and
-will be discussed in the next section.
+will be discussed in the next theorem.
 
 
-\Par{Nonexpansion of function type construction}
+\begin{theorem}
+\label{contract-fun}
+The binary type operator~$\RT$ is contractive in both arguments.
+\end{theorem}
+
+\begin{proof}
+We will only prove contraction of $\RT$ in its contravariant
+first argument; the case for the covariant second argument is
+similar. Let
+\[
+f\in(A\RT C)-(B\RT C)
+\]
+be the least-ranked element in the symmetric difference between
+$A\RT C$ and $B\RT C$. There exists a pair of elements $x,y\in V$
+such that $x\in B-A$, $y\notin C$ and $f(x)=y$. Let $n$ be the
+rank of $f$. There exists a set $P$ of argument-result pairs of
+rank at most $n-1$ such that $f$ is the least function agreeing
+with $P$. Let
+\begin{align*}
+S &= \{x' \Or x'\Sub x\text{ and }(x', y')\in P\text{ for some }y'\},
+\end{align*}
+$S$ has a supremum because $x$ is an upper bound of $S$. Since
+$f$ is least,
+\[
+\sup S=f(x)=y.
+\]
+By lemma~\ref{sup-rank}, the rank of $y$ is at most $n-1$. Thus
+\[
+d(A\RT C,B\RT C)=\frac1{2^n}=\frac12\cdot\frac1{2^{n-1}}
+\le\frac12\cdot\frac1{2^{\Rank(y)}}\le\frac12\,d(B,C).
+\]
+\end{proof}
+
+
+\Par{Contraction of record and variant constructions}
+
+Using lemma \ref{kisp}~and theorem~\ref{contract-fun}, we can
+encode record and variant constructions into type functions and
+show them to be contractive.
+
+For each value $v\in V$, write
+\[
+v\Down = \{u\in V \Or u \Sub v\}.
+\]
+Clearly $v\Down$ is a type. The record type
+$
+\{\texttt{real}:\mathbb R_\bot,\texttt{img}:\mathbb R_\bot\}
+$
+is encoded as intersection of function types
+\[
+(\texttt{"real"}\Down~\RT~\mathbb R_\bot)
+\cap(\texttt{"img"}\Down~\RT~\mathbb R_\bot),
+\]
+where \texttt{"real"} and \texttt{"img"} are string literals. In
+general, record types are encoded thus:
+\[
+\{l_i:T_i~^{1\le i \le n}\}
+=
+\bigcap_{i=1}^n l_i\Down~\RT~T_i.
+\]
+If all $F_i$ are nonexpansive, then the function taking $T$ to
+$\{l_i:F_i(T)\}$ is contractive by L3 and L4 of lemma~\ref{kisp}.
+
+The variant type $\langle\texttt{rational}:\mathbb
+Q_\bot,\texttt{irrational}:\mathbb R_\bot\rangle$ is encoded as
+the union of intersections of function types
+{\def\Raise{\raisebox{0pt}[2.1ex][0pt]{}}
+\begin{align*}
+&\left(\Raise
+(\texttt{"tag"}\Down~\RT~\texttt{"rational"})
+\cap
+(\texttt{"content"}\Down~\RT~\mathbb Q_\bot)
+\right)\\
+&\cup~
+\left(\Raise
+(\texttt{"tag"}\Down~\RT~\texttt{"irrational"})
+\cap
+(\texttt{"content"}\Down~\RT~\mathbb R_\bot)
+\right).
+\end{align*}}%
+Since the strings \texttt{"rational"} and \texttt{"irrational"}
+are maximal in $V$, no value can be both variants at the same
+time. In general,
+\[
+\langle l_i:T_i~^{1\le i\le n}\rangle =
+\bigcup_{i=1}^n~
+(\texttt{"tag"}\Down~\RT~l_i\Down)
+~\cap~
+(\texttt{"content"}\Down~\RT~T_i).
+\]
+Just like record types, the function taking $T$ to $\langle
+l_i:F_i(T)\rangle$ is contractive if each $F_i$ is nonexpansive.
+
+This encoding of records and variants has structural subtyping.
+If we want to make algebraic data types ``disjoint'' as they are
+in Haskell, we need only add the name of the data type as a field
+to every constructor.
+
 
 % TODO: start here.
 

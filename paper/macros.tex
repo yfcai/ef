@@ -11,6 +11,7 @@
 \makeatother
 \def\thesubsection{\arabic{section}.\arabic{subsection}}
 \def\+={\text{+=}}
+\setlength\fboxsep{0pt}
 
 \nc\Abs       {\DotExpr\lambda}
 \nc\Add       {\mathrm{add}}
@@ -22,7 +23,7 @@
 \nc\B         {\mathbb}
 \nc\Bool      {\mathrm{Bool}}
 \nc\Bot       {\texttt{Bot}}
-\nc\BoxIt[1]  {\framebox[1em]{\raisebox{0pt}[1.05ex][0ex]{$#1$}}}
+\nc\BoxIt[1]  {\framebox{\raisebox{0.1ex}[1.5ex][0.2ex]{$#1$}}}
 \nc\Brouwer   {\operatorname{Brouwer}}
 \nc\Case      {\medbreak\noindent\textbf{Case}~}
 \nc\Cap       {\MakeL\cap}
@@ -31,6 +32,7 @@
 \nc\Dn[1]     {(#1 \R \bot) \R \bot}
 \nc\Dni       {\mathrm{\neg\neg I}}
 \nc\Dom       {\mathrm{dom}}
+\nc\Down      {\mathord\downarrow}
 \nc\Eco       {\mathit{Eco}}
 \nc\Env       {\mathit{Env}}
 \nc\env       {\mathit{env}}
@@ -49,8 +51,8 @@
 \nc\If        {\mathrm{if}}
 \nc\Ideals    {\mathcal{I}}
 \nc\Indent    {\hspace{3em}}
+\nc\Int       {\texttt{Int}}
 \nc\Inject    {\mathrm{inject}}
-\nc\Int       {\mathrm{Int}}
 \nc\JCT       {J_{\rm CT}}
 \nc\JF        {J_{\rm F}}
 \nc\JS        {J_{\rm S}}
@@ -70,6 +72,7 @@
 \nc\RHS       {\operatorname{RHS}}
 \nc\Sem[1]    {\SemSlim{~#1~}}
 \nc\SemSlim[1]{\llbracket#1\rrbracket}
+\nc\String    {\texttt{String}}
 \nc\Sub       {\sqsubseteq}
 \nc\Sup       {\sqsupseteq}
 \nc\Tabs      {\DotExpr\Lambda}
