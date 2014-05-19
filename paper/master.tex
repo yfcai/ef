@@ -131,6 +131,10 @@ $s~t$ denotes $f(v)\in Z_\bot$.
 
 \end{samepage}
 
+\newpage
+\setcounter{tocdepth}1
+\tableofcontents
+
 \section{Pros and cons}
 
 Bracha (Pluggable type systems) advocates that the type system of
@@ -910,27 +914,6 @@ to consistently complete algebraic cpos. If this is the case,
 then we may never enjoy a complete type checker for the ideal
 model, but only use fragments of it appropriate to the situation
 at hand.
-
-
-\section{Hask-like category of types}
-
-\label{domain-theory-ends}
-
-Object = type
-
-Morphism = (function value, domain type, range type)
-
-Show it's a category at all ...
-
-... which is not cartesian closed.
-
-Talk about fmap, fold and generic programming.
-
-btw, existence of unique fixed point for contractive functors
-means that initial algebras are final coalgebras whose object is
-the fixed point and whose morphism is id. which means lists
-\emph{are} streams.
-
 
 
 \section{How to craft pluggable types}
@@ -1824,6 +1807,35 @@ It may be possible to refine ``equal up to termination'' relation
 in ``fast and loose reasoning'' to the non-transitive consistency
 relation. Free theorems should hold. Parametric types are not
 universal types.
+
+
+\section{Category of types}
+\label{hask}
+
+\label{domain-theory-ends}
+
+Category theory has been applied to programming languages and is
+useful to reason about data type generic programming (bananas et
+co.). Types form a category.
+\begin{itemize}
+\item Objects are types.
+\item Morphisms are triples $(f,T_1, T_2)$ where $f\in V\R V$ and
+$f(T_1)\subseteq T_2$.
+\item Composition of morphisms is function composition on the
+first component:\\
+$(f,T_2,T_3)\circ(g, T_1, T_2)=(f\circ g,T_1,T_3)$.
+\end{itemize}
+Each function in $V\R V$ gives rise to multiple morphisms. The
+composition of morphisms is clearly associative and always
+produces a morphism. The identity morphism on the object $T$ is
+$(\Id_V, T, T)$, where $\Id_V$ is the identity function on $V$.
+
+An endofunctor $F$ is a function mapping types to types and
+morphisms to morphisms such that identity morphisms and
+composition are preserved. If $F$ is contractive, then it has a
+unique fixed point $T$. If we write $\Id_T$ for the identity
+morphism $(\Id_V, T, T)$, then $(T,\Id_T)$ is both the initial
+algebra and the final coalgebra. Lists \emph{are} streams.
 
 
 \end{document}
