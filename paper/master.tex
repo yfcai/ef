@@ -10,6 +10,8 @@
 \newtheorem{theorem}[subsection]{Theorem}
 \newtheorem{lemma}[subsection]{Lemma}
 \newtheorem{corollary}[subsection]{Corollary}
+\theoremstyle{definition}
+\newtheorem{remark}[subsection]{Remark}
 
 \input{macros.tex}
 
@@ -140,7 +142,7 @@ $s~t$ denotes $f(v)\in Z_\bot$.
 Bracha (Pluggable type systems) advocates that the type system of
 a language should be optional and should not affect the
 language's runtime behavior. There are several benefits to such
-arrangements.
+an arrangement.
 \begin{enumerate}
 \item A useful program can be executed even if it has no type.
 \item Type systems can evolve faster than the language itself.
@@ -155,16 +157,16 @@ functional languages. It achieves all of the above and more:
 of several sound subsystems will continue to reject all programs
 with runtime type errors.
 \item Types defined in different subsystems can interact with
-each other. It is possible to call library functions defined
-in a different type system.
+each other. It is possible to call library functions defined in
+another type system.
 \end{enumerate}
 The technique is applicable to a wide variety of type systems. It
 can express \thingsExpressibleInMpsModel.
 
 There are some restrictions on what a type can be. For example,
 if a program~$f$ has type $T$, then $T$ must admit every program
-that terminates less often than $f$ but behaves identically
-otherwise. Types cannot separate terminating programs from
+that terminates less often than $f$ but behaves otherwise in the
+same way. Our types cannot separate terminating programs from
 nonterminating ones.
 
 The technique guarantees nothing about the type checker's
@@ -176,11 +178,11 @@ checkers in a modular and scalable way.
 \section{Background}
 
 A runtime type error occurs when a value is used in an unintended
-way, such as adding an integer and a truth value, dereferencing a
-non-pointer, and calling a non-function. A type system is
-\emph{sound} if no well-typed program encounters runtime type
-errors. Soundness is one of the most important design goals of
-type systems.
+manner, such as adding an integer and a truth value,
+dereferencing a non-pointer, and calling a non-function. A type
+system is \emph{sound} if no well-typed program encounters
+runtime type errors. Soundness is one of the most important
+design goals of type systems.
 
 There are several methods to prove a type system sound. We will
 discuss two: the syntactic approach, and the domain-theoretic
@@ -229,9 +231,9 @@ type errors.
 
 A domain-theoretic soundness proof is not extensible with new
 runtime behaviors. Adding mutation to a purely functional
-language, for example, requires a completely new domain equation.
-The old arguments have to be rewritten, because their
-foundation---the old domain equation---has become obsolete.
+language, for example, requires a completely new domain. The old
+arguments have to be rewritten, because their foundation---the
+old domain equation---has become obsolete.
 
 However, if we extend the type system without modifying the
 runtime behavior, then we can keep interpreting terms into the
@@ -269,19 +271,18 @@ and typing derivations become proofs. Typing terms with a mixture
 of type systems is no more than writing proofs with a larger
 collection of lemmas.
 
-The next section discusses domains and the ideal model of types
-by MacQueen et al. (Ideal model for recursive polymorphic types).
-
-The section after that expounds the category of types as a theory
-of data type generic programming.
+The next section rephrases the ideal model of types by MacQueen
+et al. (Ideal model for recursive polymorphic types) in a more
+modern framework, so as to avoid using 2 different notions of
+limit in the semantic domain.
 
 The section after that describes how to make type systems
 pluggable.
 
 The other sections give examples of pluggable type systems. We
-will look at System~F, unboxed impredicative polymorphism,
-optional type arguments, and subtyping. It will be interesting to
-explore continuations, mutation, dependent types and higher
+will look at System~F, unboxed impredicative polymorphism, and
+optional type arguments. It will be interesting to explore
+subtyping, continuations, mutation, dependent types and higher
 kinds.
 
 
@@ -289,10 +290,10 @@ kinds.
 
 This section recounts the ideal model of types by MacQueen et
 al.\ (Ideal model for recursive polymorphic types) with modern
-notions. After an informal overview with the most important
-concepts to keep in mind, we will work toward a proof that
-recursive types are well-defined. The next section starts on
-page~\pageref{domain-theory-ends}.
+notions. After an informal overview of the most important
+concepts, we will work toward a proof that recursive types are
+well-defined. The next section starts on
+page~\pageref{after-domain-theory}.
 
 \Par{Informal overview}
 
@@ -347,9 +348,8 @@ g(v)$ for all $v\in V$.
 
 A set $A\subseteq S$ is \emph{directed} if $A$ is nonempty and
 for all $x,y\in A$ there exists $z\in A$ such that $x\Sub z$ and
-$y\Sub z$. Intuitively, a set is directed if it contains no
-conflicting values; in other words, a directed set contains less
-defined (or, less terminating) versions of the same value.
+$y\Sub z$. Intuitively, a directed set contains successive
+approximations of the same value.
 
 A partially ordered set is a \emph{cpo} (complete partial order)
 if its every directed subset has a supremum. $V$ is a cpo.
@@ -379,8 +379,8 @@ for every directed set $A\subseteq T$.
 A subset $T\subseteq V$ is a \emph{type} if $T$ is a nonempty
 closed set and $\Wrong\notin T$. Both downward-closure and
 closure under directed limit are necessary to establish that each
-recursive type equation is satisfied by a unique type. In
-particular, a unique type $T$ satisfies the following version of
+recursive type equation is satisfied by a unique type. For
+example, one and only one type satisfies the following version of
 Curry's paradox:
 \[
 T=T\RT \{\bot\}.
@@ -395,8 +395,8 @@ Closure under directed limit is a natural strengthening of the
 \emph{admissibility} criterion for contracts in HALO (Haskell to
 logic through denotational semantics). In fact, all contracts
 described in HALO can be strengthened to types by imposing
-a~downward-closure condition without disturbing the theories
-surrounding them.
+downward-closure without disturbing the theories surrounding
+them.
 
 Scott topology satisfies the 3 axioms of topology:
 \begin{itemize}
@@ -442,8 +442,8 @@ determined by its value on compact elements. This agrees with the
 intuition that a terminating higher-order function $f$ can only
 call its argument~$g$ finitely many times. Even if $g$ is more
 complex than finite collections of argument-result pairs, $f$
-cannot detect that extra complexity and cannot reflect it in the
-result $f(g)$.
+cannot detect that extra complexity and cannot reflect it in
+$f(g)$.
 
 Since $V$ is algebraic, every closed set is completely determined
 by its compact elements. In particular, if $T_1$ and $T_2$ are
@@ -451,7 +451,7 @@ distinct types, then there exists a compact element that belongs
 to one and not the other.
 
 A cpo is \emph{consistently complete} if every set of elements
-have a supremum in $V$ whenever they are bounded above. $V$ is
+have a supremum whenever they are bounded above. $V$ is
 consistently complete.
 
 These are all the concepts necessary to comprehend the statement
@@ -486,9 +486,9 @@ rank function.
 \item[R2.] Base values in $B$ and $\Wrong$ have rank 1.
 
 \item[R3.] A function $f\in V\R V$ has rank at most $n$ if and
-only if there exists a set $S$ of pairs of values of rank at most
+only if there exists a set~$P$ of value pairs of rank at most
 $n-1$ such that $f$ is the least function satisfying $f(x)=y$ for
-all $(x,y)\in S$.
+all $(x,y)\in P$.
 
 \item[R4.] If $f\in V \R V$ does not have rank $n$ for every
 $n\in\mathbb N$, then $f$ has rank $\infty$.
@@ -514,8 +514,8 @@ Since $S$ has an upper bound in $V$, either $S$ is disjoint from
 $V\R V$ or is a subset of it.
 
 \emph{Case} $S\cap(V\R V)=\emptyset$. If $S$ has no rank-1
-element, then $S=\{\bot\}$ and $\sup S=\bot$. If $S$ has a rank-1
-element $v$, then $v$ is maximal in $V$ and has to be an upper
+element, then $S\subseteq\{\bot\}$ and $\sup S=\bot$. If $S$ has a rank-1
+element $v$, then $v$ is maximal in $V$ and has to be the upper
 bound of $S$. Thus $v=\sup S$.
 
 \emph{Case} $S\subseteq V\R V$. Let $g\in V$ be an upper bound of
@@ -578,10 +578,11 @@ $T_3$. Assume without loss of generality that $v\in T_3-T_1$. If
 $v\in T_2$, then $d(T_1,T_3)\le d(T_1, T_2)$. If $v\notin T_2$,
 then $d(T_1, T_3)\le d(T_2, T_3)$.
 
-\penalty-1000 % really like to page break before a paragraph
-\Par{Converging sequences of sets}
 
-Recall the standard definition of convergence:
+\Par{Converging sequences of types}
+
+Recall the standard definition of convergence of a sequence of
+sets:
 
 The \emph{limit superior} of an infinite sequence of sets
 $S_1,S_2,\ldots$ is
@@ -601,6 +602,28 @@ is
 S = \limsup_{n\rightarrow\infty}S_n = \liminf_{n\rightarrow\infty}S_n.
 \]
 
+Let $T_1,T_2,\ldots$ types. They \emph{converge as a sequence of
+types} if they converge to a limit $S$ as a sequence of sets. The
+limit of $T_1,T_2,\ldots$ is the closure $T$ of $S$ in the Scott
+topology:
+\[
+T=\Closure(S)=\bigcap \{S' \Or S\subseteq S'\text{ and $S'$ is closed}\}.
+\]
+
+\begin{remark}
+The closure operation is necessary in the definition of the limit
+of a sequence of types. In general, the set limit $S$ of types
+$T_1,T_2,\ldots$ may not be a type. Let $\Id_i$ be the rank-$i$
+approximation of the identity function and consider
+\[
+T_i=\{v\in V \Or v\Sub\Id_i\}.
+\]
+The sequence $T_1,T_2,\ldots$ converges to a set $S$ containing
+every $\Id_i$ but not their limit, namely the identity function
+on $V$. In other words, $S$ is not closed under directed limit
+and is not a type.
+\end{remark}
+
 
 \Par{Cauchy sequences}
 
@@ -610,15 +633,15 @@ $i,j\ge n$, the distance between $T_i$~and $T_j$ is smaller than
 $\epsilon$.
 
 \begin{theorem}\label{cauchy}
-Every Cauchy sequence converges to a type.
+Every Cauchy sequence of types converges.
 \end{theorem}
 
 \begin{proof}
 This corresponds to theorem~1 of MacQueen et al.\ (Ideal model
 for recursive polymorphic types). There are two proof goals.
 \begin{enumerate}
-\item [G1.] Every Cauchy sequence of types converges to a set.
-\item [G2.] The limit of a Cauchy sequence is a type.
+\item [G1.] Every Cauchy sequence of types has a set limit.
+\item [G2.] The closure of the set limit is a type.
 \end{enumerate}
 
 G1. Let $T_1,T_2,\ldots$ be a Cauchy sequence of types. Knowing
@@ -651,27 +674,20 @@ v\in
 
 G2. We will verify that the limit
 \[
-T=\limsup T_n=\liminf T_n
+T=\Closure(\limsup T_n)=\Closure(\liminf T_n)
 \]
 is a nonempty closed subset of $V$ excluding $\Wrong$. There are
-4 properties to check.
+3 properties to check.
 \begin{enumerate}
-\item [G2.1.] $T\neq\emptyset$.
-\item [G2.2.] $\Wrong\notin T$.
-\item [G2.3.] $T$ is closed downward.
-\item [G2.4.] $T$ is closed under directed limit.
+\item [G2.1.] $T$ is a closed set.
+\item [G2.2.] $T\neq\emptyset$.
+\item [G2.3.] $\Wrong\notin T$.
 \end{enumerate}
 
-Since each $T_n$ is nonempty and downward closed, $\bot\in T_n$
-for all $n\in\mathbb N$. Thus $\bot\in T$, and G2.1 follows. For
-G2.2, note that $\Wrong\notin T_n$ for all $n\in\mathbb N$. G2.3
-holds because arbitrary union and intersection preserve
-downward closure.
-
-For G2.4, let $A\subseteq T$ be directed. Since $T=\liminf T_n$,
-there exists $m\in\mathbb N$ such that for all $i\ge m$ we have
-$A\subseteq T_i$. Since each $T_i$ is a closed set, $\sup A\in
-T_i$ for all $i\ge m$. Thus $\sup A\in\liminf T_n$.
+$T$ is closed by construction. Since each $T_n$ is nonempty and
+downward closed, $\bot\in T_n$ for all $n\in\mathbb N$. Thus
+$\bot\in T$, and G2.2 follows. For G2.3, note that $V-\{\Wrong\}$
+is a closed set containing all $T_i$, and thus a superset of $T$.
 \end{proof}
 
 \Par{Banach fixed-point theorem}
@@ -749,19 +765,18 @@ $F\Cup G$ and $F\Cap G$ are contractive.
 \end{lemma}
 \end{samepage}
 
-$K(T)$ is contractive because it takes all distances between
-types to 0. $I$ is nonexpansive because it preserves distance.
-For L3 and L4, imagine $H$ to be a~binary type operator like
-$\RT$, $\cup$ or $\cap$. If $H$ is nonexpansive in both
-arguments, then the type combinator lifted from $H$ preserves
-nonexpansion and contraction. Such is the case in L4. If $H$ is
-contractive in both arguments, then the type combinator lifted
-from $H$ takes two nonexpansive type functions to a contractive
-one. Such is the case in L3. We will prove neither the preceding
-remarks nor the nonexpansion of union and intersection, because I
-do not think they are hard and do not know how to present them in
-an interesting way. Contraction of $\RT$ is more complicated and
-will be discussed in the next theorem.
+$K(T)$ is contractive because it takes all distances to 0. $I$ is
+nonexpansive because it preserves distance. For L3 and L4,
+imagine $H$ to be a~binary type operator like $\RT$, $\cup$ or
+$\cap$. If $H$ is nonexpansive in both arguments, then the type
+combinator lifted from $H$ preserves nonexpansion and
+contraction. Such is the case in L4. If $H$ is contractive in
+both arguments, then the type combinator lifted from $H$ takes
+two nonexpansive type functions to a contractive one. Such is the
+case in L3. We will prove neither the preceding remarks nor the
+nonexpansion of union and intersection, because I do not think
+they are hard and do not know how to present them in an
+interesting way. The next theorem discusses contraction of $\RT$.
 
 
 \begin{theorem}
@@ -783,17 +798,22 @@ rank of $f$. There exists a set $P$ of argument-result pairs of
 rank at most $n-1$ such that $f$ is the least function agreeing
 with $P$. Let
 \begin{align*}
-S &= \{x' \Or x'\Sub x\text{ and }(x', y')\in P\text{ for some }y'\},
+X &= \{x' \Or x'\Sub x\text{ and }(x', y')\in P\text{ for some }y'\},\\
+Y &= \{y' \Or (x',y')\in X\text{ for some }x'\}.
 \end{align*}
-$S$ has a supremum because $x$ is an upper bound of $S$. Since
-$f$ is least,
+$X$ and $Y$ have supremums because $x$ is an upper bound of $X$
+and $y$ is an upper bound of $Y$. Since $f$ is least,
 \[
-\sup S=f(x)=y.
+y = f(x) = \sup Y = f(\sup X).
 \]
-By lemma~\ref{sup-rank}, the rank of $y$ is at most $n-1$. Thus
+Since $\sup X\Sub x$ and $B$ is downward closed, we have $\sup
+X\in B$. If $\sup X\in A$, then $f(\sup X)=y\notin C$ contradicts
+the fact that $f\in A\RT C$. Therefore $\sup X$ is in the
+symmetric difference between $A$ and $B$. By
+lemma~\ref{sup-rank}, the rank of $\sup S$ is at most $n-1$. Thus
 \[
 d(A\RT C,B\RT C)=\frac1{2^n}=\frac12\cdot\frac1{2^{n-1}}
-\le\frac12\cdot\frac1{2^{\Rank(y)}}\le\frac12\,d(B,C).
+\le\frac12\cdot\frac1{2^{\Rank(\sup X)}}\le\frac12\,d(A, B).
 \]
 \end{proof}
 
@@ -845,8 +865,8 @@ the union of intersections of function types
 \right).
 \end{align*}}%
 Since the strings \texttt{"rational"} and \texttt{"irrational"}
-are maximal in $V$, no value can be both variants at the same
-time. In general,
+are maximal in $V$, no maximal value can be both variants at the
+same time. In general,
 \[
 \langle l_i:T_i~^{1\le i\le n}\rangle =
 \bigcup_{i=1}^n~
@@ -868,15 +888,14 @@ to every constructor.
 We have shown that the recursive type $\mu\alpha.~\sigma$ is
 well-defined if $\sigma$ is built from record, variant and
 function type constructions. In a language with universal types
-such as System~F, it is desirable if we do not exclude universal
-types from the body of a recursive type. We may see types like
+such as System~F, We may want to allow types like
 \begin{align*}
 &\mu\alpha.~\alpha\R(\All\beta\beta\R\alpha)
 &\mbox{or}&
 &\All\alpha\alpha\R(\mu\beta.~\beta\R\alpha).
 \end{align*}
 Proving them well-defined involves reasoning about more than one
-bound type variable at a time, which requires a more powerful
+bound variable at a time, which requires a more powerful
 framework than KISP.
 
 Write
@@ -918,6 +937,10 @@ at hand.
 
 \section{How to craft pluggable types}
 \label{howto}
+
+
+\label{after-domain-theory}
+
 
 We have learnt the notion of types, the nature of function types,
 and the construction of recursive types. We will see how to make
@@ -1081,15 +1104,13 @@ t &\+=& &\mbox{syntax extension} \\
 A type environment $\Env$ is a \emph{total}%
 %
 \footnote{%
-If we allowed type environments to be undefined on some type
-variables, then many typing judgements would have to begin with
-``for every type environment defined on all relevant free type
-variables.''
+If we allowed type environments to be partial functions, then
+many typing judgements would have to begin with ``for every type
+environment defined on all relevant type variables.''
 %
 } %
-function mapping type variables to types.
-An open type denotes a partial function mapping type environments
-to types.
+function mapping type variables to types. An open type denotes a
+function mapping type environments to types.
 
 \begin{align*}
 \Sem\iota~\Env &= T_\iota \subseteq B\hspace{2cm}\mbox{designated base type}\\
@@ -1252,14 +1273,14 @@ novel type system CT1 (Constrained Type System Version 1). It
 supports the impredicative universal types of System~F, but does
 not demand type arguments from the user. The metatheory of CT1 is
 far from mature. We do not know whether it can type all terms
-typeable in System~F with extra type arguments, or whether it
-admits a terminating type checking algorithm. Since CT1 is
-pluggable, however, we can start reaping its the benefit without
-waiting for metatheoretic development. If it so happened that CT1
-could not handle certain useful programs, then we need only
-import a new type system to deal with those, confident that any
-legacy code typed under CT1 will continue to enjoy strong type
-soundness.
+that are typeable in System~F with extra type arguments, or
+whether it admits a terminating type checking algorithm. Since
+CT1 is pluggable, however, we can start reaping its the benefit
+without waiting for metatheoretic development. If it so happened
+that CT1 could not handle certain useful programs, then we need
+only import a new type system to deal with those, confident that
+any legacy code typed under CT1 will continue to enjoy strong
+type soundness.
 
 \Par{Syntax extension}
 
@@ -1373,14 +1394,14 @@ C & ::= &\emptyset& \mbox{S-constraints}\\
 \JS & ::= & E\vdash C & \mbox{S-judgement}
 \end{syntax}
 
-\Par{Interpretation of CT-judgements}
+\Par{Interpretation of CT- and S-judgements}
 A type environment $\Env$ satisfies the list of constraints $C$
 if for each $\rho_i\le\tau_i\in C$,
 \[
 \Sem{\rho_i}~\Env\ \subseteq\ \Sem{\sigma_i}~\Env.
 \]
 
-The CT-judgement $\Gamma\vdash t:\rho\Given C$ abbreviates:
+The CT-judgement $(\Gamma\vdash t:\rho\Given C)$ abbreviates:
 \begin{quotation}
 For every $\Env$ satisfying $C$ and every
 $\env\in\Sem\Gamma~\Env$,
@@ -1811,8 +1832,6 @@ universal types.
 
 \section{Category of types}
 \label{hask}
-
-\label{domain-theory-ends}
 
 Category theory has been applied to programming languages and is
 useful to reason about data type generic programming (bananas et
