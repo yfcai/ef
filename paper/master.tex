@@ -643,55 +643,13 @@ Every Cauchy sequence of types converges.
 \begin{proof}
 This corresponds to theorem~1 of MacQueen et al.\ (Ideal model
 for recursive polymorphic types). Let $T_1,T_2,\ldots$ be a
-Cauchy sequence of types. We will show that the type $T$ below is
-well-defined, and that $T_i$ is arbitrarily close to $T$ for all
-$i$ large enough.
-\begin{align*}
-T &
-= \Closure(\limsup_{n\R\infty} T_n)
-= \Closure(\liminf_{n\R\infty} T_n)
-\\
-\limsup_{n\rightarrow\infty} T_n&
-= {\textstyle\bigcap_{n=1}^\infty\bigcup_{i=n}^\infty} T_i\\
-\liminf_{n\rightarrow\infty} T_n&
-={\textstyle \bigcup_{n=1}^\infty\bigcap_{i=n}^\infty} T_i
-\end{align*}
-
-$T$ is well-defined only if
+Cauchy sequence of types. Let
 \[
-\Closure(\liminf T_n)=\Closure(\limsup T_n).
+T =
+\Closure({\textstyle \bigcup_{n=1}^\infty\bigcap_{i=n}^\infty} T_i).
 \]
-Knowing the standard result $\liminf T_n\subseteq\limsup T_n$, we
-need only show
-\[
-\Closure(\limsup T_n)\subseteq\Closure(\liminf T_n),
-\]
-which follows, by algebraicity and lemma~\ref{closure}, if every
-compact element of $\limsup T_n$ is a member of $\liminf T_n$.
-
-\def\Cauchy{\texttt{cauchy}}
-\def\Hasv{{\texttt{has{\textunderscore}v}}}
-
-Choose an arbitrary compact element $v\in \limsup T_n$. Let
-$\epsilon=2^{-\Rank(v)}>0$. There exists a natural number
-$\Cauchy$ such that for all $i,j\ge\Cauchy$, we have
-$d(T_i,T_j)<\epsilon$. Since $v$ is a member of the limit
-superior, there exists a natural number $\Hasv\ge\Cauchy$ such
-that $v\in T_\Hasv$. If we pick any $i\ge\Hasv$, then we have
-$v\in T_i$, because otherwise the contradiction
-\[
-d(T_\Hasv, T_i)\ge2^{-\Rank(v)}=\epsilon
-\]
-would arise. Thus
-\[
-v\in
-{\textstyle\bigcap_{i=\Hasv}^\infty}\, T_i\subseteq
-{\textstyle\bigcup_{n=1}^\infty\bigcap_{i = n}^\infty} T_i.
-=\liminf T_n.
-\]
-
-It remains to verify that $T$ is a type and is arbitrarily closed
-to $T_i$ for all $i$ large enough.
+We will show that $T$ is a type, and that $T_i$ is arbitrarily
+close to $T$ for all $i$ large enough.
 
 $T$ is a type if $T$ is closed, nonempty and excludes $\Wrong$.
 $T$ is closed by construction. Since each $T_n$ is nonempty and
@@ -712,9 +670,13 @@ T_{\ge i} &= {\textstyle\bigcap_{j=i}^\infty} T_j.
 \end{align*}
 If $d(T, T_{\ge i})\ge\epsilon/2$, then there exists a compact
 element $v\in T-T_{\ge i}$ such that $\Rank(v)\le-\log_2\epsilon
-+ 1$. By lemma~\ref{closure}, $v\in\liminf T_j - T_{\ge i}$,
++ 1$. By lemma~\ref{closure},
+\[
+v\in({\textstyle \bigcup_{n=1}^\infty\bigcap_{j=n}^\infty} T_j -
+T_{\ge i},
+\]
 which means there exists $j,k\ge i$ such that $v\in T_j-T_k$.
-Then $d(T_j,T_k)\ge\epsilon/2$, a contradiction. Hence
+Then $d(T_j,T_k)\ge\epsilon/2$, a~contradiction. Hence
 \begin{align*}
 d(T,T_{\ge i})&<\epsilon/2\hspace{3cm}\mbox{and}\\
 d(T,T_i)&<d(T_i,T_{\ge i})+d(T_{\ge i},T)<\epsilon.
