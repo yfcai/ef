@@ -20,6 +20,9 @@
 \def\panelwidth{15}
 \def\panelheight{10}
 
+\def\prologue{4}
+\def\epilogue{3}
+
 \def\puzzlesize{10}
 \def\puzzlemargin{1.5*\panelheight}
 
@@ -30,24 +33,26 @@
 \begin{textblock}{111}(0,0)
 \begin{tikzpicture}
 % TITLE
-\path(\posterwidth,\posterheight)node[anchor=north east](title){\Huge
+\path(\posterwidth,\posterheight)node[anchor=north east](title){
+\pbox{\linewidth}{
+\Huge
 Title, Author, Contact information, justified at top right
-};
+\\
+Maybe research question highlight?
+}};
 
 
-% PRELUDE 4 panels
-\def\preludepanels{4}
+% PROLOGUE
 % change this to \path to make invisible
 \draw[step=1]
 (0, \posterheight - \panelheight)
 grid
-(\preludepanels * \panelwidth, \posterheight);
+(\prologue*\panelwidth, \posterheight);
 
 
-% EPILOGUE 2 panels
-\def\epiloguepanels{2}
+% EPILOGUE
 \draw[step=1]
-(\posterwidth - 2*\panelwidth, 0)
+(\posterwidth - \epilogue*\panelwidth, 0)
 grid
 (\posterwidth, \panelheight);
 
