@@ -1,0 +1,126 @@
+\documentclass[a0]{a0poster}
+\input header
+
+\TPGrid[40mm,40mm]{111}{76}
+% dimension   = 1189mm x 841mm
+% sans margin = 1109 x 761 (1109 is prime)
+% cell size   = 9.99 x 10.1 (same as tikz's cm)
+
+\parindent=0pt
+\parskip=0.5\baselineskip
+
+\usepackage{tikz,pbox}
+\usetikzlibrary{backgrounds}
+
+\begin{document}
+
+\def\posterwidth{111}
+\def\posterheight{76}
+
+\def\panelwidth{15}
+\def\panelheight{10}
+
+\def\puzzlesize{10}
+\def\puzzlemargin{1.5*\panelheight}
+
+\def\productionsize{\huge}
+
+\tikzset{every node/.style={inner sep=0pt,outer sep=0pt}}
+
+\begin{textblock}{111}(0,0)
+\begin{tikzpicture}
+% TITLE
+\path(\posterwidth,\posterheight)node[anchor=north east](title){\Huge
+Title, Author, Contact information, justified at top right
+};
+
+
+% PRELUDE 4 panels
+\def\preludepanels{4}
+% change this to \path to make invisible
+\draw[step=1]
+(0, \posterheight - \panelheight)
+grid
+(\preludepanels * \panelwidth, \posterheight);
+
+
+% EPILOGUE 2 panels
+\def\epiloguepanels{2}
+\draw[step=1]
+(\posterwidth - 2*\panelwidth, 0)
+grid
+(\posterwidth, \panelheight);
+
+
+% CENTRAL PUZZLE
+\path
+(0.5*\posterwidth, 0.5*\posterheight)
+node(central puzzle){
+\begin{tikzpicture}
+\draw[step=1](0,0)grid(2*\puzzlesize, 2*\puzzlesize);
+\end{tikzpicture}
+};
+
+
+% TOP PUZZLE
+\path
+(0, \posterheight - \puzzlemargin)
+node[anchor=north west](top puzzle){
+\begin{tikzpicture}
+% left piece
+\draw[step=1](0,0)grid(\puzzlesize, 2*\puzzlesize);
+
+% right piece
+\draw[step=1](2*\puzzlesize,0)grid(3*\puzzlesize, 2*\puzzlesize);
+\end{tikzpicture}
+};
+
+
+% BOTTOM PUZZLE
+\path
+(\posterwidth, \puzzlemargin)
+node[anchor=south east](bottom puzzle){
+\begin{tikzpicture}
+% central piece
+\draw[step=1](0,0)grid(2*\puzzlesize, 2*\puzzlesize);
+
+% missing piece
+\draw(2*\puzzlesize,0)rectangle(3*\puzzlesize, 2*\puzzlesize);
+\end{tikzpicture}
+};
+
+
+% REMARK
+\path
+(\posterwidth, \posterheight - \puzzlemargin)
+node[anchor=north east](remark){
+\productionsize
+% pbox: varwidth minipage with maximum = \linewidth
+\pbox{\linewidth}{
+Some stuff about what the ideal model is.\\
+The ideal model is idealistic.
+}
+%
+};
+
+
+% CORRESPONDENCE
+\path
+(0, 0)
+node[anchor=south west](correspondence){
+\productionsize
+\pbox{\linewidth}{
+The correspondence table between syntax and semantics\\
+.\\
+.\\
+.\\
+.\\
+.\\
+.\\
+.\\
+and then some.
+}
+};
+\end{tikzpicture}
+\end{textblock}
+\end{document}
