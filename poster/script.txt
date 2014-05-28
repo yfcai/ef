@@ -1,0 +1,83 @@
+PLUGGABLE IDEALS
+
+1. What is it?
+
+Pluggable ideals are an extensible notion of type soundness for
+purely functional languages. If several type systems are sound
+each on its own, then their union is sound. No program typed
+under the composite system can go WRONG.
+
+Illustration: robot composition
+
+
+2. What present problem does it solve?
+
+Remove the worry about soundness issues due to feature
+interaction.
+
+Ubiquity of GHC extensions:
+http://stackoverflow.com/a/804697
+
+
+2. What future problem will it contribute in solving?
+
+Theoretic foundation for library-based pluggable type systems.
+
+Illustration: *why* and *how* (see below)
+
+-- all well and good; now we need 1-sentence answers.
+
+Imagine a future language where type systems can be imported as
+3rd-party libraries.
+
+- Such a language enjoys the benefits of a static type system
+  without the drawbacks.
+
+- Some good features are traditionally hard to support. We don't
+  yet know any perfect solution to impredicative polymorphism or
+  intersection types. However, there can be successive
+  circumstantial approximations of those features implemented as
+  type system libraries.
+
+Library-based type systems need a theoretic foundation and a
+practical one.
+
+Pluggable ideals provide the theoretic justification. It answers
+*why* it makes sense to swap type systems around. Barring human
+errors, no soundness issue can result from using several type
+systems at the same time.
+
+An extensible type checker will be the practical foundation. It
+answers *how* to check whether programs are well-typed according
+to rules imported from several type systems. Checker & JavaCOP
+are essentially extensible type checkers. It remains to come up
+with one for pluggable ideals.
+
+
+3. How does it work? [Correspondence table]
+
+To convert a type system into a system of pluggable ideals, make
+the following correspondence explicit.
+
+Illustration: correspondence table
+
+
+4. How well does it work? [Expressivity of ideal model]
+
+Originally conceived to express impredicative polymorphism, the
+ideal model can express [blah blah blah] and more.
+
+Illustration: list of math equations in the domain
+
+-- below: too specific
+
+Traditional soundness proofs by denotational semantics often just
+work. (Has Milner. Worth it to look up "Syntactic approach to
+type soundness" for others.)
+
+
+5. Example use case [Rank-N + CT1]
+
+The inferno puzzle: pattern-matching on Church-encoded lists
+
+Say come up with type system to type this.... maybe put this first?
