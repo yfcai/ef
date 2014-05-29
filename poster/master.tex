@@ -9,7 +9,7 @@
 \parindent=0pt
 \parskip=0.5\baselineskip
 
-\usepackage{tikz,pbox}
+\usepackage{tikz,pbox,amssymb}
 \usetikzlibrary{backgrounds}
 
 \def\FONTSIZE#1{\fontsize{#1}{#1}\selectfont}
@@ -48,7 +48,7 @@ IDEALS
 \end{textblock}
 
 % WHAT IT IS
-\begin{textblock}{30}(0,20)
+\begin{textblock}{30}(0,19)
 \HEAD{What is it?}
 
 An extensible notion of type soundness for purely functional
@@ -56,7 +56,7 @@ languages, preserved by taking union of type systems.
 \end{textblock}
 
 % PRESENT PROBLEM
-\begin{textblock}{30}(40,20)
+\begin{textblock}{30}(0,30)
 \HEAD{What problem does it solve?}
 
 Interaction between optional language features won't compromise
@@ -71,7 +71,7 @@ type soundness.
 \end{textblock}
 
 % FUTURE PROBLEM
-\begin{textblock}{30}(80,20)
+\begin{textblock}{30}(0,45)
 \HEAD{What problem will it solve?}
 
 It provides a theoretic foundation for future library-based
@@ -79,43 +79,88 @@ pluggable type systems.
 \end{textblock}
 
 % HOW DOES IT WORK
-\begin{textblock}{50}(0,48)
+\begin{textblock}{50}(40,19)
 \HEAD{How does it work?}
 
-A system of pluggable ideals must make the correspondence
-explicit:
+A system of pluggable ideals must make the following
+correspondence explicit.
+%
+Typing terms with rules from multiple systems will amount to
+writing proofs with a larger collection of lemmas.
 
+\bigskip
 {
+\def\>{\hspace{2cm}}
 \renewcommand\arraystretch{1.5}
-\begin{tabular}{l@{\hskip 1.5cm}l}
-Syntax &
-Semantics
+\begin{tabular}{l@{\hskip 5cm}l}
+\hline
+Syntactic object &
+Semantic object
+\\[0.5ex]\hline
+Term erasable to $\lambda$ &
+Value in Scott domain $V\simeq B+(V\rightarrow V)$
 \\
-Term $\lambda x:\mathrm{Nat}.~x$ &
-Identity function in domain $V\simeq B+[V\rightarrow V]$
+\>$\lambda x:\mathrm{Nat}.~x$ &
+\> Identity function on $V$
 \\
-Type $\mathrm{Nat}$ &
-The ideal $\{\bot,0,1,\ldots\}$, a nonempty closed
+Type &
+Ideal, i.~e., nonempty Scott-closed subset of $V$
 \\
-Judgement $t:T$ &
-Statement ``the value denoted by $t$ belongs to $T$''
+\>$\mathrm{Nat}\rightarrow\mathrm{Int}$ &
+\>$\{f\in V\rightarrow V\ |\ f(\mathbb N_\bot)\subseteq\mathbb Z_\bot\}$
 \\
-Typing rule $5:\mathrm{Nat}$ &
-Lemma ``5 is a natural number''
+Judgement &
+Statement
 \\
-Derivations &
-Proofs
+\>$t:T$ &
+\>The value denoted by $t$ belongs to $T$.
+\\
+Typing rule&
+Lemma
+\\
+\>
+\begin{minipage}{10cm}
+\[
+\frac
+{t:S~~~~~~S<:T}
+{t:T}
+\]
+\end{minipage} &
+\>
+\pbox{40cm}{%
+Let $v\in V$ be the value denoted by $t$.\\
+If $v\in S$ and $S\subseteq T$, then $v\in T$.
+}
+\\
+Typing derivation &
+Proof of the final conclusion
+\\[0.5ex]
+\hline
 \end{tabular}
 }
+\medskip
 
-Typing terms with rules from multiple systems amounts to writing
-proofs with a larger collection of lemmas.
 \end{textblock}
 
 % HOW APPLICABLE IS IT?
-\begin{textblock}{50}(60,48)
+\begin{textblock}{50}(40,59)
 \HEAD{How applicable is it?}
 
+Pluggable ideals impose these requirements:
+\begin{itemize}
+\renewcommand{\labelitemi}{\raisebox{0.4ex}{\FONTSIZE{24}$\bigcirc$}}
+\itemindent=1em
+\let\olditem\item
+\def\item{\olditem~~}
+\item Runtime system should be modeled by the Scott domain.
+\item Soundness proof should match the correspondence table.
+\item All types have to be ideals.
+\end{itemize}
+The requirements are not hard to satisfy. The Scott domain can
+model everything encoded in lambda calculus. Traditional
+soundness proofs via denotational semantics fit the
+correspondence table. The ideal model can express subtyping,
+recursive types, intersection types and more.
 \end{textblock}
 
 \end{document}
