@@ -12,122 +12,110 @@
 \usepackage{tikz,pbox}
 \usetikzlibrary{backgrounds}
 
+\def\FONTSIZE#1{\fontsize{#1}{#1}\selectfont}
+
+\def\HEAD#1{{\FONTSIZE{72}#1}}
+
+\newenvironment{CODE}{\tt\FONTSIZE{36}\null}{}
+
 \begin{document}
-
-\def\posterwidth{111}
-\def\posterheight{76}
-
-\def\panelwidth{15}
-\def\panelheight{10}
-
-\def\prologue{4}
-\def\epilogue{3}
-
-\def\puzzlesize{10}
-\def\puzzlemargin{1.5*\panelheight}
-
-\def\productionsize{\huge}
-
-\tikzset{every node/.style={inner sep=0pt,outer sep=0pt}}
-
-\begin{textblock}{111}(0,0)
-\begin{tikzpicture}
-% TITLE
-\path(\posterwidth,\posterheight)node[anchor=north east](title){
-\pbox{\linewidth}{
-\Huge
-Title, Author, Contact information, justified at top right
-\\
-Maybe research question highlight?\\
-Don't forget to include a date.
-}};
-
+\raggedright
+\FONTSIZE{48}
 
 % PROLOGUE
-% change this to \path to make invisible
-\draw[step=1]
-(0, \posterheight - \panelheight)
-grid
-(\prologue*\panelwidth, \posterheight);
+\begin{textblock}{37}(0,0)%
+\HEAD{Origin}
 
+The soundness proof of a type system designed for pattern
+matching on Church-encoded datatypes turned out to work for many
+other type systems.
 
-% EPILOGUE
-\draw[step=1]
-(\posterwidth - \epilogue*\panelwidth, 0)
-grid
-(\posterwidth, \panelheight);
-
-
-% CENTRAL PUZZLE
-\path
-(0.5*\posterwidth, 0.5*\posterheight)
-node(central puzzle){
-\begin{tikzpicture}
-\draw[step=1](0,0)grid(2*\puzzlesize, 2*\puzzlesize);
-\end{tikzpicture}
-};
-
-
-% TOP PUZZLE
-\path
-(0, \posterheight - \puzzlemargin)
-node[anchor=north west](top puzzle){
-\begin{tikzpicture}
-% left piece
-\draw[step=1](0,0)grid(\puzzlesize, 2*\puzzlesize);
-
-% right piece
-\draw[step=1](2*\puzzlesize,0)grid(3*\puzzlesize, 2*\puzzlesize);
-\end{tikzpicture}
-};
-
-
-% BOTTOM PUZZLE
-\path
-(\posterwidth, \puzzlemargin)
-node[anchor=south east](bottom puzzle){
-\begin{tikzpicture}
-% central piece
-\draw[step=1](0,0)grid(2*\puzzlesize, 2*\puzzlesize);
-
-% missing piece
-\draw(2*\puzzlesize,0)rectangle(3*\puzzlesize, 2*\puzzlesize);
-\end{tikzpicture}
-};
-
-
-% REMARK
-\path
-(\posterwidth, \posterheight - \puzzlemargin)
-node[anchor=north east](remark){
-\productionsize
-% pbox: varwidth minipage with maximum = \linewidth
-\pbox{\linewidth}{
-Some stuff about what the ideal model is.\\
-The ideal model is idealistic.\\
-Maybe an UML diagram? here or at bottom left?
-}
-%
-};
-
-
-% CORRESPONDENCE
-\path
-(0, 0)
-node[anchor=south west](correspondence){
-\productionsize
-\pbox{\linewidth}{
-The correspondence table between syntax and semantics\\
-.\\
-.\\
-.\\
-.\\
-.\\
-.\\
-.\\
-and then some.
-}
-};
-\end{tikzpicture}
+% maybe some colors eventually?
+\begin{CODE}
+type List a = forall b. b -> (a -> b -> b) -> b\\
+match ::~List a -> b -> (a -> List a -> b) -> b\\
+head xs = match xs undefined const\\
+tail xs = match xs undefined (const id)\\
+\end{CODE}
 \end{textblock}
+
+% TITLE
+\begin{textblock}{71}(40,0)
+{\FONTSIZE{320}%
+PLUGGABLE\\
+IDEALS
+}
+\end{textblock}
+
+% WHAT IT IS
+\begin{textblock}{30}(0,20)
+\HEAD{What is it?}
+
+An extensible notion of type soundness for purely functional
+languages, preserved by taking union of type systems.
+\end{textblock}
+
+% PRESENT PROBLEM
+\begin{textblock}{30}(40,20)
+\HEAD{What problem does it solve?}
+
+Interaction between optional language features won't compromise
+type soundness.
+
+\begin{CODE}
+\def\INDENT{~~~~~~~~~~~~~}
+\{-\# LANGUAGE RankNTypes,\\
+\INDENT SystemF,\\
+\INDENT RecordSubtyping \#-\}
+\end{CODE}
+\end{textblock}
+
+% FUTURE PROBLEM
+\begin{textblock}{30}(80,20)
+\HEAD{What problem will it solve?}
+
+It provides a theoretic foundation for future library-based
+pluggable type systems.
+\end{textblock}
+
+% HOW DOES IT WORK
+\begin{textblock}{50}(0,48)
+\HEAD{How does it work?}
+
+A system of pluggable ideals must make the correspondence
+explicit:
+
+{
+\renewcommand\arraystretch{1.5}
+\begin{tabular}{l@{\hskip 1.5cm}l}
+Syntax &
+Semantics
+\\
+Term $\lambda x:\mathrm{Nat}.~x$ &
+Identity function in domain $V\simeq B+[V\rightarrow V]$
+\\
+Type $\mathrm{Nat}$ &
+The ideal $\{\bot,0,1,\ldots\}$, a nonempty closed
+\\
+Judgement $t:T$ &
+Statement ``the value denoted by $t$ belongs to $T$''
+\\
+Typing rule $5:\mathrm{Nat}$ &
+Lemma ``5 is a natural number''
+\\
+Derivations &
+Proofs
+\end{tabular}
+}
+
+Typing terms with rules from multiple systems amounts to writing
+proofs with a larger collection of lemmas.
+\end{textblock}
+
+% HOW APPLICABLE IS IT?
+\begin{textblock}{50}(60,48)
+\HEAD{How applicable is it?}
+
+\end{textblock}
+
 \end{document}

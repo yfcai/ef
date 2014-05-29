@@ -1,0 +1,116 @@
+\def\posterwidth{111}
+\def\posterheight{76}
+
+\def\panelwidth{15}
+\def\panelheight{10}
+
+\def\prologue{4}
+\def\epilogue{3}
+
+\def\puzzlesize{10}
+\def\puzzlemargin{1.5*\panelheight}
+
+\def\productionsize{\huge}
+
+\tikzset{every node/.style={inner sep=0pt,outer sep=0pt}}
+
+\begin{textblock}{111}(0,0)
+\begin{tikzpicture}
+% TITLE
+\path(\posterwidth,\posterheight)node[anchor=north east](title){
+\pbox{\linewidth}{
+\Huge
+Title, Author, Contact information, justified at top right
+\\
+Maybe research question highlight?\\
+Don't forget to include a date.
+}};
+
+
+% PROLOGUE
+% change this to \path to make invisible
+\draw[step=1]
+(0, \posterheight - \panelheight)
+grid
+(\prologue*\panelwidth, \posterheight);
+
+
+% EPILOGUE
+\draw[step=1]
+(\posterwidth - \epilogue*\panelwidth, 0)
+grid
+(\posterwidth, \panelheight);
+
+
+% CENTRAL PUZZLE
+\path
+(0.5*\posterwidth, 0.5*\posterheight)
+node(central puzzle){
+\begin{tikzpicture}
+\draw[step=1](0,0)grid(2*\puzzlesize, 2*\puzzlesize);
+\end{tikzpicture}
+};
+
+
+% TOP PUZZLE
+\path
+(0, \posterheight - \puzzlemargin)
+node[anchor=north west](top puzzle){
+\begin{tikzpicture}
+% left piece
+\draw[step=1](0,0)grid(\puzzlesize, 2*\puzzlesize);
+
+% right piece
+\draw[step=1](2*\puzzlesize,0)grid(3*\puzzlesize, 2*\puzzlesize);
+\end{tikzpicture}
+};
+
+
+% BOTTOM PUZZLE
+\path
+(\posterwidth, \puzzlemargin)
+node[anchor=south east](bottom puzzle){
+\begin{tikzpicture}
+% central piece
+\draw[step=1](0,0)grid(2*\puzzlesize, 2*\puzzlesize);
+
+% missing piece
+\draw(2*\puzzlesize,0)rectangle(3*\puzzlesize, 2*\puzzlesize);
+\end{tikzpicture}
+};
+
+
+% REMARK
+\path
+(\posterwidth, \posterheight - \puzzlemargin)
+node[anchor=north east](remark){
+\productionsize
+% pbox: varwidth minipage with maximum = \linewidth
+\pbox{\linewidth}{
+Some stuff about what the ideal model is.\\
+The ideal model is idealistic.\\
+Maybe an UML diagram? here or at bottom left?
+}
+%
+};
+
+
+% CORRESPONDENCE
+\path
+(0, 0)
+node[anchor=south west](correspondence){
+\productionsize
+\pbox{\linewidth}{
+The correspondence table between syntax and semantics\\
+.\\
+.\\
+.\\
+.\\
+.\\
+.\\
+.\\
+and then some.
+}
+};
+\end{tikzpicture}
+\end{textblock}

@@ -1,5 +1,19 @@
 PLUGGABLE IDEALS
 
+0. Where does it come from?
+
+To write pattern matching on Church-encoded datatypes, I made a
+type system and wrote a type soundness proof based on
+denotational semantics. The proof turns out to work for a large
+class of type systems, and keeps working if we mix type systems
+together.
+
+Illustration: pattern-match for Church lists
+
+
+Illustration: title
+
+
 1. What is it?
 
 Pluggable ideals are an extensible notion of type soundness for
