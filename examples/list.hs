@@ -19,7 +19,8 @@ type Match a = forall b. b -> (a -> ChurchList a -> b) -> b
 match :: ChurchList a -> Match a
 
 tail :: ChurchList a -> ChurchList a
-tail xs = match xs undefined (\ x xs -> xs)
+-- tail xs = match xs undefined (const id)
+tail xs = match xs undefined (\x xs -> xs)
 
 match = undefined
 
@@ -51,3 +52,5 @@ match (xs :: ChurchList a) = xsSpecialized matchNil matchCons
 
 list1 :: ChurchList Integer
 list1 = prepend 1 $ prepend 2 $ prepend 3 $ prepend 4 $ empty
+
+

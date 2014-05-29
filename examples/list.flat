@@ -83,6 +83,9 @@ head = Λ. λxs : List α. xs ??? const
 tail : ∀α. List α → List α
 tail = Λ. λxs : List α. matchList xs ??? (flip const)
 
+tail2 : ∀α. List α → List α
+tail2 = Λ. λxs : List α. matchList xs ??? (const id)
+
 ana-ℤ : ℤ → List ℤ
 ana-ℤ = λn : ℤ. iterate n nil cons
 
