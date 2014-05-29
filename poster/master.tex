@@ -9,12 +9,13 @@
 \parindent=0pt
 \parskip=0.5\baselineskip
 
+%\usepackage[letterspace=25]{microtype}
 \usepackage{tikz,pbox,amssymb}
 \usetikzlibrary{backgrounds}
 
 \def\FONTSIZE#1{\fontsize{#1}{#1}\selectfont}
 
-\def\HEAD#1{{\FONTSIZE{72}#1}}
+\def\HEAD#1{{\FONTSIZE{76}#1}}
 
 \newenvironment{CODE}{\tt\FONTSIZE{36}\null}{}
 
@@ -41,14 +42,14 @@ tail xs = match xs undefined (const id)\\
 
 % TITLE
 \begin{textblock}{71}(40,0)
-{\FONTSIZE{320}%
-PLUGGABLE\\
+{\FONTSIZE{320}%\lsstyle
+PLUGGABLE\\%[0.1ex]
 IDEALS
 }
 \end{textblock}
 
 % WHAT IT IS
-\begin{textblock}{30}(0,19)
+\begin{textblock}{34}(0,19)
 \HEAD{What is it?}
 
 An extensible notion of type soundness for purely functional
@@ -56,8 +57,8 @@ languages, preserved by taking union of type systems.
 \end{textblock}
 
 % PRESENT PROBLEM
-\begin{textblock}{30}(0,30)
-\HEAD{What problem does it solve?}
+\begin{textblock}{34}(0,30)
+\HEAD{What problems does it solve?}
 
 Interaction between optional language features won't compromise
 type soundness.
@@ -66,14 +67,12 @@ type soundness.
 \def\INDENT{~~~~~~~~~~~~~}
 \{-\# LANGUAGE RankNTypes,\\
 \INDENT SystemF,\\
-\INDENT RecordSubtyping \#-\}
+\INDENT RecordSubtyping \#-\}\\
 \end{CODE}
 \end{textblock}
 
 % FUTURE PROBLEM
-\begin{textblock}{30}(0,45)
-\HEAD{What problem will it solve?}
-
+\begin{textblock}{30}(0,44)
 It provides a theoretic foundation for future library-based
 pluggable type systems.
 \end{textblock}
