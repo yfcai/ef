@@ -33,7 +33,7 @@ other type systems.
 
 % maybe some colors eventually?
 \begin{CODE}
-type List a = forall b. b -> (a -> b -> b) -> b\\
+type List a = forall r.~r -> (a -> r -> r) -> r\\
 match ::~List a -> b -> (a -> List a -> b) -> b\\
 head xs = match xs undefined const\\
 tail xs = match xs undefined (const id)\\
