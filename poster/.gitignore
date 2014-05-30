@@ -6,3 +6,4 @@ master.rel
 master.synctex.gz
 master.toc
 texput.log
+*.pdf
