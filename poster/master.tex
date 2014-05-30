@@ -9,27 +9,39 @@
 \parindent=0pt
 \parskip=0.5\baselineskip
 
-%\usepackage[letterspace=25]{microtype}
-\usepackage{tikz,pbox,amssymb}
+\usepackage{tikz,pbox,amssymb,graphicx,url,epstopdf}
 \usetikzlibrary{backgrounds}
 
 \def\FONTSIZE#1{\fontsize{#1}{#1}\selectfont}
 
-\def\HEAD#1{{\FONTSIZE{76}#1}}
+\def\HEAD#1{{\FONTSIZE{72}#1}}
+\def\BLOCK{\FONTSIZE{40}}
+\def\LESSHEAD#1{{\FONTSIZE{64}#1}}
+\def\CITE{\FONTSIZE{30}}
 
 \newenvironment{CODE}{\tt\FONTSIZE{36}\null}{}
 
 \begin{document}
 \raggedright
-\FONTSIZE{48}
+\FONTSIZE{45}
 
-% PROLOGUE
+% TITLE
+\begin{textblock}{71}(40,0)
+{\FONTSIZE{320}%\lsstyle
+PLUGGABLE\\%[0.1ex]
+IDEALS
+}
+\end{textblock}
+
+% ORIGIN
 \begin{textblock}{37}(0,0)%
 \HEAD{Origin}
 
+\pbox{30cm}{\raggedright%
 The soundness proof of a type system designed for pattern
-matching on Church-encoded datatypes turned out to work for many
-other type systems.
+matching on Church-encoded datatypes turned out to~work for many
+other type systems.%
+}
 
 % maybe some colors eventually?
 \begin{CODE}
@@ -40,16 +52,8 @@ tail xs = match xs undefined (const id)\\
 \end{CODE}
 \end{textblock}
 
-% TITLE
-\begin{textblock}{71}(40,0)
-{\FONTSIZE{320}%\lsstyle
-PLUGGABLE\\%[0.1ex]
-IDEALS
-}
-\end{textblock}
-
 % WHAT IT IS
-\begin{textblock}{34}(0,19)
+\begin{textblock}{30}(0,19)
 \HEAD{What is it?}
 
 An extensible notion of type soundness for purely functional
@@ -57,24 +61,51 @@ languages, preserved by taking union of type systems.
 \end{textblock}
 
 % PRESENT PROBLEM
-\begin{textblock}{34}(0,30)
+\begin{textblock}{30}(0,30)
 \HEAD{What problems does it solve?}
 
-Interaction between optional language features won't compromise
-type soundness.
+Interaction between optional\,/\,experimental language features
+won't compromise type soundness any more.
 
 \begin{CODE}
-\def\INDENT{~~~~~~~~~~~~~}
-\{-\# LANGUAGE RankNTypes,\\
-\INDENT SystemF,\\
-\INDENT RecordSubtyping \#-\}\\
+%\def\INDENT{~~~~~~~~~~~~~}
+\def\INDENT{~~~~}
+\{-\# LANGUAGE\\
+\INDENT MultiParamTypeClasses,\\
+\INDENT RankNTypes, ScopedTypeVariables,\\
+\INDENT SystemF,~~~~RecordSubtyping~~~~~~\#-\}\\
 \end{CODE}
 \end{textblock}
 
 % FUTURE PROBLEM
-\begin{textblock}{30}(0,44)
-It provides a theoretic foundation for future library-based
-pluggable type systems.
+\begin{textblock}{30}(0,46)
+Pluggable ideals provide a theoretic foundation for future
+library-based  pluggable type systems.
+
+\vspace{1cm}
+\includegraphics[width=33cm]{library.png}
+\end{textblock}
+
+\begin{textblock}{15}(7,66.75)
+\LESSHEAD{Why}
+\end{textblock}
+
+\begin{textblock}{15}(1.5,69.5)
+\BLOCK
+does it make sense to compose type systems?
+\par\vspace{0.5cm}\hspace{3cm}
+(Answered)
+\end{textblock}
+
+\begin{textblock}{15}(21,66.75)
+\LESSHEAD{How}
+\end{textblock}
+
+\begin{textblock}{15}(19,69.5)
+\BLOCK
+to type check\\ composite systems?
+\par\vspace{0.5cm}\hspace{1cm}
+(Future work)
 \end{textblock}
 
 % HOW DOES IT WORK
@@ -84,8 +115,8 @@ pluggable type systems.
 A system of pluggable ideals must make the following
 correspondence explicit.
 %
-Typing terms with rules from multiple systems will amount to
-writing proofs with a larger collection of lemmas.
+Typing terms with rules from multiple systems amounts to writing
+proofs with a larger collection of lemmas.
 
 \bigskip
 {
@@ -142,7 +173,7 @@ Proof of the final conclusion
 \end{textblock}
 
 % HOW APPLICABLE IS IT?
-\begin{textblock}{50}(40,59)
+\begin{textblock}{50}(40,57.5)
 \HEAD{How applicable is it?}
 
 Pluggable ideals impose these requirements:
@@ -160,6 +191,48 @@ model everything encoded in lambda calculus. Traditional
 soundness proofs via denotational semantics fit the
 correspondence table. The ideal model can express subtyping,
 recursive types, intersection types and more.
+\end{textblock}
+
+% HEAD
+\begin{textblock}{30}(91,12)
+\includegraphics[width=21cm]{head.png}
+\end{textblock}
+
+% AUTHOR INFO
+\begin{textblock}{20}(91,47.2)
+\includegraphics[width=5cm]{Siegel_Uni_Marburg.png}
+\end{textblock}
+\begin{textblock}{14}(97,49.2)
+Yufei Cai\\
+Klaus Ostermann
+\end{textblock}
+\begin{textblock}{20}(91,53.2)
+\FONTSIZE{28}
+\url{cai@mathematik.uni-marburg.de}
+\end{textblock}
+
+% IDEAL MODEL
+\begin{textblock}{20}(91,60.5)
+\includegraphics[width=5cm]{ideal-model.eps}
+\end{textblock}
+\begin{textblock}{14}(97,60.5)
+\CITE
+%\vspace{1.5cm}
+David MacQueen,\\
+Gordon Plotkin,\\
+Ravi Sethi.\\
+\emph{An ideal model for recursive polymorphic types,} POPL~'84
+\end{textblock}
+
+% PLUGGABLE TYPES
+\begin{textblock}{20}(91,69)
+\includegraphics[width=5cm]{pluggable.eps}
+\end{textblock}
+\begin{textblock}{14}(97,69)
+\CITE
+%\vspace{1.5cm}
+Gilad Bracha.\\
+\emph{Pluggable type systems,} OOPSLA-RDL~'04
 \end{textblock}
 
 \end{document}
