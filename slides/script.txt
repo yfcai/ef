@@ -1,15 +1,28 @@
-Topics must be SUPER COMPRESSED. 
+Topics must be SUPER COMPRESSED.
+Approach: construct & compress
 
 Entry: pluggable types esay (1 min)
+Why are type systems hard to design?
+- Cost of perfection. Because perfection is mandatory. Every flaw is catastrophic.
 What are pluggable types?
+- has no effect on runtime semantics
+- does not mandate type annotations in the syntax
 What are its goals?
-What's the thorn at its side? (Soundness)
+- types shan't restrict execution
+- inference shan't restrict type system
+What's the major obstacle? (Soundness)
+- how do we integrate multiple type systems into a language?
+- what does it mean to integrate multiple type systems?
 
-Neck: Syntactic approach to type soundness (1 min)
+Neck: Type soundness (choice: do we talk about syntactic approach or not? how well known is it?)
 What's soundness?
+- well-typed don't go wrong
 What's the standard method of proving soundness?
+- progress + preservation: small-step reduction semantics
 What's its history?
+- Wright & Felleisen
 What's its predecessor?
+- Denotational semantics
 Tradeoffs under consideration, and advantage of semantic approach to type soundness
 How to prove soundness by denotational semantics?
 What _are_ types?
