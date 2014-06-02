@@ -1,0 +1,45 @@
+Topics must be SUPER COMPRESSED. 
+
+Entry: pluggable types esay (1 min)
+What are pluggable types?
+What are its goals?
+What's the thorn at its side? (Soundness)
+
+Neck: Syntactic approach to type soundness (1 min)
+What's soundness?
+What's the standard method of proving soundness?
+What's its history?
+What's its predecessor?
+Tradeoffs under consideration, and advantage of semantic approach to type soundness
+How to prove soundness by denotational semantics?
+What _are_ types?
+
+Main: Ideal model for recursive polymorphic types (2 min)
+Nonempty closed sets (without going into details)
+Complete metric space: well-definedness of recursive types
+Extensive expressiveness
+Completes pluggable types, completed by pluggable types
+
+Examples (2 min)
+
+Example: Optional type inference (too long; just show examples?)
+# (rules; too long) Vaughan: A proof of correctness for the Hindley-Milner type inference algorithm
+
+Example: Dependent types (read about case studies in Pierce book)
+- vector types by supremum
+- dependent functions by intersection
+
+Contracts (HALO)
+- base contracts: preimage
+- arrow contract: dependent function
+- conjunction: intersection type
+- admissible condition: closure property
+
+Wrap up (2 min):
+What will it solve; why are you confident
+what does it solve (optional language features)
+
+Appendix:
+- Mutation (special domain equations)
+- Some lemmas about ideals
+- Interpretation of F-judgements
