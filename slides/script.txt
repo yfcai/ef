@@ -3,6 +3,7 @@ Approach: construct & compress
 
 Entry: pluggable types esay (1 min)
 Why are type systems hard to design?
+- Hard to make software 100% bug-free
 - Cost of perfection. Because perfection is mandatory. Every flaw is catastrophic.
 What are pluggable types?
 - has no effect on runtime semantics

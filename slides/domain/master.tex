@@ -1,0 +1,25 @@
+\documentclass{standalone}
+
+\usepackage{tikz,pbox}
+\usetikzlibrary{automata,arrows}
+
+\input{../../paper/macros.tex}
+
+\begin{document}
+
+\begin{tikzpicture}[scale=3]
+\node[accepting,state,inner sep=1em](V){\pbox{100em}{Domain}};
+\path[-stealth,thick]
+(135:1)node{$\Abs f\Abs x f~x$} edge (V)
+( 45:1)node{$\Tabs\alpha\Abs{x:\alpha}x$} edge (V)
+(225:1.1)node{\pbox{100em}{\tt let $x=5$\\in~~$x+1$}} edge (V)
+(315:1.23)node{%
+\pbox{200em}{\def\*{\null~~}\tt
+case wing of\hspace{2.5ex}\null\\
+\*L -> "left"\\
+\*R -> "right"
+}} edge (V)
+;
+\end{tikzpicture}
+
+\end{document}
