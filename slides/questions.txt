@@ -1,0 +1,50 @@
+Questions
+
+[-]: question-generating content removed
+[+]: answered
+[ ]: not answered
+
+[-] What's the transition from optional type system to combining
+    type systems?
+
+[+] How are programs interpreted as values of a domain? (Picture)
+
+[+] What is your technical contribution?
+
+[+] What does it mean that inference doesn't restrict
+    expressiveness of types?
+
+[-] How do you deal with side effects? (Mention "encoding", beware
+    "extension")
+
+[+] What is the natural union of type systems?
+
+[+] What is an ideal? (Be sure to distance from informal meaning)
+
+[ ] What's gonna be the glue code to make extensions work
+    together? (add appendix)
+
+[+] Difference from classical notion of soundness
+
+[ ] Are ideals the core type system of something (simply left
+    unanswered)
+
+[+] What are concrete plugins that work together?
+
+[+] Where is the list of tasks?
+
+[+] What about strong termination? (Too hard to talk about; just
+    say not supported. Ideal model doesn't make it easy to talk
+    about termination in any way.)
+
+[ ] What about other errors, e. g., division by 0? (Appendix: not
+    supported out of the box; progressive types/contracts as
+    possible plugins)
+
+[+] What's the stated goal? (We got a thesis now.)
+
+[+] What's a practical scenario of type system extensions? (Y)
+
+[+] What's the idea? What's done? What remains?
+
+[+] Can you teach the audience something? (Milner's proof)

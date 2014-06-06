@@ -1,0 +1,62 @@
+Thesis:
+The approach to type soundness based on denotational semantics
+and ideals is useful in the setting of pluggable types.
+
+
+§ Enough background to understand the thesis (3 min, 6 slides)
+
+1. What are ideals? (3 slides?)
+   * approximation
+   - if f approximates g and g is in S, then f is in S.
+   - if I contains arbitrarily close approximations of f, then I
+     contains f.
+   * which translates to nonempty closed subsets of V according
+     to the Scott topology.
+   * history of development: used from the very beginning to
+     give meaning to types. theory developed by MacQueen et al.
+
+2. What is the semantic approach to type soundness?
+   (Go through Milner's proof?)
+   - programs denote values in a value environment
+   - types denote ideals in a type environment
+   - typing judgements are about membership of values in ideals
+   - not scalable if runtime semantics (i. e., the domain)
+   changes
+
+
+§ Making the soundness proof extensible (3 slides)
+
+3. Milner's soundness proof is not only about putting the
+   denotation of well-typed terms in ideals. It actually proves
+   that each typing rule interprets to a true statement, and each
+   typing derivation corresponds to a proof of the final
+   conclusion. If we add more rules corresponding to true
+   statements, then the conclusion of all derivations remain
+   true.
+
+§ Usage
+
+4. Display thesis again
+
+5. Typing Y combinator (cite Morris: Automatic assignment of
+   concrete type schemes to programs, unpublished?) Outline
+   ideals.
+
+6. Typing pattern matching on Church-encoded algebraic data types
+
+7. Adding subtypping, dependent types etc.
+
+8. Compiler with library-based type systems?!
+   - extensible type checker
+
+9. Effects (state monad: value with side effect)
+   - can rules about pure values be lifted into the state monad?
+
+
+§ Appendix
+
+A. Typing rules of CT1
+
+B. Glue code
+
+C. Progressive types: Why a monolithic WRONG?
