@@ -1,11 +1,23 @@
+(9 min, 22 slides including thesis without appendix)
+
+
 Thesis:
 The approach to type soundness based on denotational semantics
 and ideals is useful in the setting of pluggable types.
 
 
-§ Enough background to understand the thesis (3 min, 6 slides)
+§ Enough background to understand the thesis (4 min, 8 slides)
+  (ended up with 11)
 
-1. What are ideals? (3 slides?)
+1. What is the semantic approach to type soundness?
+   (Go through Milner's proof: 4 slides)
+   - programs denote values in a value environment
+   - types denote ideals in a type environment
+   - typing judgements are about membership of values in ideals
+   - not scalable if runtime semantics (i. e., the domain)
+   changes
+
+2. What are ideals? (4 slides?)
    * approximation
    - if f approximates g and g is in S, then f is in S.
    - if I contains arbitrarily close approximations of f, then I
@@ -15,16 +27,9 @@ and ideals is useful in the setting of pluggable types.
    * history of development: used from the very beginning to
      give meaning to types. theory developed by MacQueen et al.
 
-2. What is the semantic approach to type soundness?
-   (Go through Milner's proof?)
-   - programs denote values in a value environment
-   - types denote ideals in a type environment
-   - typing judgements are about membership of values in ideals
-   - not scalable if runtime semantics (i. e., the domain)
-   changes
 
-
-§ Making the soundness proof extensible (3 slides)
+§ Making the soundness proof extensible (1 min, 4 slides)
+  (4 slides: Milner's theorem, judgement, rule, central dogma)
 
 3. Milner's soundness proof is not only about putting the
    denotation of well-typed terms in ideals. It actually proves
@@ -35,6 +40,7 @@ and ideals is useful in the setting of pluggable types.
    true.
 
 § Usage
+  (4 min, 9 slides: bullets, Y1, Y2, CT1, CT2, inference, parsing, Damas & effects)
 
 4. Display thesis again
 
@@ -50,13 +56,17 @@ and ideals is useful in the setting of pluggable types.
    - extensible type checker
 
 9. Effects (state monad: value with side effect)
-   - can rules about pure values be lifted into the state monad?
+   - can we lift typing rules about pure values into monads?
 
 
 § Appendix
 
-A. Typing rules of CT1
+A. What's the relation between parsing and type checking?
 
-B. Glue code
+B. Typing rules of CT1
 
-C. Progressive types: Why a monolithic WRONG?
+C. Glue code
+
+D. F omega types as ideals
+
+E. Progressive types: Why a monolithic WRONG?
